@@ -10,7 +10,7 @@
 <div id="m">טוען...</div>
 <script>
 // מפנה כל בית כנסת לגרסה שהוגדרה לו בגיליון הניהול (עמודה "גרסה")
-const API = 'PUT_API_URL_HERE';
+const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec';
 const shul = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
 const go = v => location.replace('v' + (v || 1) + '/?shul=' + encodeURIComponent(shul));
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
