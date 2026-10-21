@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>לוח זמנים</title>
+<style>html,body{height:100%;margin:0;background:#0a1730;color:#f7de9a;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;font-size:3vw;cursor:none}</style>
+</head>
+<body>
+<div id="m">טוען...</div>
+<script>
+// מפנה כל בית כנסת לגרסה שהוגדרה לו בגיליון הניהול (עמודה "גרסה")
+const API = 'PUT_API_URL_HERE';
+const shul = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
+const go = v => location.replace('v' + (v || 1) + '/?shul=' + encodeURIComponent(shul));
+if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(!shul){ document.getElementById('m').textContent = 'לא הוגדר בית כנסת. יש להוסיף לכתובת: ?shul=מזהה'; }
+else fetch(API + '?shul=' + encodeURIComponent(shul) + '&what=version&t=' + Date.now(), {cache:'no-store'})
+  .then(r => r.text())
+  .then(t => { const v = (t.match(/^\d+/) || [])[0]; if(v){ try{ localStorage.setItem('ver_' + shul, v); }catch(e){} } go(v || (()=>{ try{ return localStorage.getItem('ver_' + shul); }catch(e){} })()); })
+  .catch(() => { let v = null; try{ v = localStorage.getItem('ver_' + shul); }catch(e){} go(v); });
+</script>
+</body>
+</html>

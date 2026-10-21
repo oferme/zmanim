@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>לוח זמנים - בית הכנסת</title>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700;900&family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --u:min(1vw,1.7778vh);
+  --bg1:#0a1730;--bg2:#15305c;--gold:#e2b857;--gold2:#f7de9a;
+  --text:#f5f1e6;--muted:#aebbd2;--card:rgba(255,255,255,.06);--line:rgba(226,184,87,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg1);color:var(--text);font-family:'Heebo',sans-serif}
+body{background:radial-gradient(ellipse at 50% 42%,var(--bg2) 0%,var(--bg1) 72%);display:flex;align-items:center;justify-content:center;cursor:none;user-select:none;-webkit-user-select:none}
+body.cur{cursor:default}
+.stage{width:calc(var(--u)*100);height:calc(var(--u)*56.25);display:flex;flex-direction:column;padding:calc(var(--u)*2.4) calc(var(--u)*3.2) calc(var(--u)*2.6)}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:calc(var(--u)*1.4);border-bottom:1px solid var(--line)}
+.blk .small{font-size:calc(var(--u)*2.3);color:var(--muted);font-weight:600}
+.blk .big{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:calc(var(--u)*4.4);color:var(--gold2);line-height:1.15}
+.blk.left{text-align:left}
+.blk.left .big{color:var(--text);font-family:'Heebo',sans-serif;font-weight:800;font-size:calc(var(--u)*3.8)}
+.center{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*1.2)}
+.clock{direction:ltr;font-weight:800;font-size:calc(var(--u)*17);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.01em;text-shadow:0 0 calc(var(--u)*3) rgba(226,184,87,.18)}
+.clock .sec{font-size:.32em;color:var(--gold);margin-left:.15em;vertical-align:.12em}
+.sub{font-family:'Frank Ruhl Libre',serif;font-weight:700;font-size:calc(var(--u)*3.2);color:var(--gold);min-height:1.2em;text-align:center}
+.grid{display:flex;gap:calc(var(--u)*1.3);justify-content:center}
+.card{flex:1 1 0;min-width:0;max-width:calc(var(--u)*20);background:var(--card);border:1px solid var(--line);border-radius:calc(var(--u)*1.2);padding:calc(var(--u)*1.3) calc(var(--u)*.8);text-align:center}
+.card .lbl{font-size:calc(var(--u)*1.95);color:var(--muted);font-weight:600;white-space:nowrap}
+.card .t{font-size:calc(var(--u)*4.8);font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2}
+.card .t .s{font-size:.5em;color:var(--muted)}
+.grid.many{gap:calc(var(--u)*1)}
+.grid.many .card{padding:calc(var(--u)*1.1) calc(var(--u)*.4)}
+.grid.many .card .lbl{font-size:calc(var(--u)*1.55)}
+.grid.many .card .t{font-size:calc(var(--u)*4.2)}
+.card.hl{background:linear-gradient(180deg,rgba(226,184,87,.22),rgba(226,184,87,.07));border-color:var(--gold)}
+.card.hl .lbl{color:var(--gold2)}
+.card.hl .t{color:var(--gold2)}
+.mev{margin-top:calc(var(--u)*1.3);padding:calc(var(--u)*.9) calc(var(--u)*2);border:1px solid var(--gold);border-radius:calc(var(--u)*1);background:rgba(226,184,87,.1);text-align:center;font-size:calc(var(--u)*1.85);font-weight:600;color:var(--gold2);white-space:nowrap;overflow:hidden}
+.mev b{color:var(--text);font-weight:800}
+.mev.rc{font-size:calc(var(--u)*3);font-family:'Frank Ruhl Libre',serif;background:linear-gradient(180deg,rgba(226,184,87,.3),rgba(226,184,87,.1))}
+.mev.rc b{color:var(--gold2)}
+.mev:empty{display:none}
+.slot.side{position:absolute;top:calc(var(--u)*1.6);bottom:calc(var(--u)*1.6);width:calc(var(--u)*20.5);display:flex;flex-direction:column;justify-content:center}
+.slot.L{left:0}.slot.R{right:0}
+.pnl{border:1px solid var(--line);border-radius:calc(var(--u)*1.2);background:var(--card);padding:calc(var(--u)*1) calc(var(--u)*1.4) calc(var(--u)*1.2);text-align:center;animation:fadein .6s}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.pnl.tall{flex:1;min-height:0;display:flex;flex-direction:column}
+.pnl.gold{border-color:var(--gold);background:rgba(226,184,87,.08)}
+.pnl>.lbl{font-size:calc(var(--u)*1.7);color:var(--gold);font-weight:700;padding-bottom:calc(var(--u)*.6);border-bottom:1px solid var(--line);margin-bottom:calc(var(--u)*.8)}
+.pnl.compact>.lbl{color:var(--muted);border:0;margin:0;padding:0;font-size:calc(var(--u)*1.8);font-weight:600}
+.pnl .v{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:calc(var(--u)*3.4);color:var(--gold2);line-height:1.2;white-space:nowrap}
+.pnl .vp{flex:1;min-height:0;overflow:hidden;position:relative;text-align:right}
+.pnl .vp.scroll{-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 7%,#000 85%,transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 7%,#000 85%,transparent 100%)}
+.pnl .m{font-size:calc(var(--u)*2.05);line-height:1.45;color:var(--text);font-weight:600;overflow-wrap:anywhere}
+.pnl .sep{height:1px;background:var(--gold);opacity:.6;margin:calc(var(--u)*1) calc(var(--u)*2)}
+.pnl .gap{height:calc(var(--u)*3)}
+.zl .row{display:flex;justify-content:space-between;align-items:baseline;gap:calc(var(--u)*1);padding:calc(var(--u)*.55) 0;border-bottom:1px solid rgba(226,184,87,.15);font-size:calc(var(--u)*1.7);color:var(--muted);font-weight:600;text-align:right}
+.zl .row b{font-size:calc(var(--u)*2.4);color:var(--text);font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.zl .row b .s{font-size:.6em;color:var(--muted)}
+.zl .row.hl,.zl .row.hl b{color:var(--gold2)}
+.grid .pnl.wide{flex:1;max-height:calc(var(--u)*12);display:flex;flex-direction:column}
+.card .t.multi{font-size:calc(var(--u)*3.2);white-space:nowrap}
+.card.mw{max-width:calc(var(--u)*30)}
+.clockrow{position:relative;width:100%;display:flex;justify-content:center;align-items:center}
+.days{display:flex;gap:calc(var(--u)*.35);margin-top:calc(var(--u)*1.3);align-items:center}
+.days:empty{display:none}
+.days .mn{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:calc(var(--u)*2);color:var(--gold);padding-left:calc(var(--u)*.6);white-space:nowrap}
+.days .d{flex:1 1 0;min-width:0;text-align:center;padding:calc(var(--u)*.6) 0;border-radius:calc(var(--u)*.5);background:rgba(255,255,255,.04);border:1px solid rgba(226,184,87,.15);font-family:'Frank Ruhl Libre',serif;font-weight:500;font-size:calc(var(--u)*1.6);color:var(--muted)}
+.days .d.sh{color:var(--gold2);font-weight:900;border-color:var(--gold);background:rgba(226,184,87,.14)}
+.days .d.today{background:var(--gold2);border-color:var(--gold2);color:#0a1730;font-weight:900;font-size:calc(var(--u)*2);transform:scale(1.18);box-shadow:0 0 calc(var(--u)*1.2) rgba(247,222,154,.55)}
+.black{position:fixed;inset:0;background:#000;z-index:50;display:none;align-items:flex-end;justify-content:center;padding-bottom:3vh;color:#333;font-size:1.6vh}
+.black.on{display:flex}
+.menu{position:fixed;inset:0;z-index:60;background:rgba(5,12,28,.82);display:none;align-items:center;justify-content:center}
+.menu.on{display:flex}
+.menu .box{background:#12264a;border:2px solid var(--gold);border-radius:calc(var(--u)*1.6);padding:calc(var(--u)*2.5) calc(var(--u)*3);text-align:center;display:flex;flex-direction:column;gap:calc(var(--u)*1.4);min-width:calc(var(--u)*34)}
+.menu h2{font-size:calc(var(--u)*2.6);color:var(--gold2);font-weight:800}
+.menu button{font-family:'Heebo',sans-serif;font-size:calc(var(--u)*2.4);font-weight:700;padding:calc(var(--u)*1.2);border-radius:calc(var(--u)*1);border:1px solid var(--gold);background:rgba(226,184,87,.15);color:var(--text);cursor:pointer}
+.menu button:hover{background:rgba(226,184,87,.35)}
+.menu .note{font-size:calc(var(--u)*1.6);color:#ff9e8a;min-height:1.2em}
+.notice{white-space:pre-line;line-height:1.6;position:fixed;inset:0;z-index:55;background:var(--bg1);display:none;align-items:center;justify-content:center;text-align:center;padding:5vw;font-size:calc(var(--u)*3.2);font-weight:700;color:var(--gold2)}
+.notice.on{display:flex}
+.status{position:fixed;bottom:calc(var(--u)*.6);left:calc(var(--u)*1);font-size:calc(var(--u)*1.3);color:#ff9e8a}
+</style>
+</head>
+<body>
+<div class="stage">
+  <header>
+    <div class="blk">
+      <div class="small" id="dow">&nbsp;</div>
+      <div class="big" id="hdate">&nbsp;</div>
+    </div>
+    <div class="blk left">
+      <div class="small">תאריך לועזי</div>
+      <div class="big" id="gdate">&nbsp;</div>
+    </div>
+  </header>
+  <div class="center">
+    <div class="slot side L" id="slotL"></div>
+    <div class="slot side R" id="slotR"></div>
+    <div class="clockrow">
+      <div class="clock"><span id="hm">--:--</span><span class="sec" id="sec">--</span></div>
+    </div>
+    <div class="sub" id="sub"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="mev" id="mev"></div>
+  <div class="days" id="days"></div>
+</div>
+<div class="status" id="status"></div>
+<div class="notice" id="notice"></div>
+<div class="black" id="black"><span id="blackNote"></span></div>
+<div class="menu" id="menu"><div class="box">
+  <h2>תפריט מסך</h2>
+  <button id="bBlack">מסך שחור</button>
+  <button id="bExit">יציאה מהמסך (סגירה)</button>
+  <button id="bCancel">ביטול</button>
+  <div class="note" id="menuNote"></div>
+</div></div>
+
+<script>
+// ===================== הגדרות מערכת =====================
+// כתובת הסקריפט המרכזי (Google Apps Script) – אותה כתובת לכל בתי הכנסת
+const API = 'PUT_API_URL_HERE';
+// מזהה בית הכנסת מגיע מהכתובת: ...?shul=beit-el
+const SHUL = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
+const MSG_URL = API;
+// טלפון ליצירת קשר שמופיע על מסך שלא אושר
+const SUPPORT = 'PUT_SUPPORT_PHONE_HERE';
+// מזהה ייחודי לכל מחשב/מסך + קוד קצר להצגה
+const DEVICE = (() => {
+  let id = null; try{ id = localStorage.getItem('device_id'); }catch(e){}
+  if(!id){ id = Array.from(crypto.getRandomValues(new Uint8Array(10)), b => b.toString(16).padStart(2,'0')).join(''); try{ localStorage.setItem('device_id', id); }catch(e){} }
+  let h = 0; for(const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9000;
+  return {id, code: String(1000 + h)};
+})();
+const MY_VER = (location.pathname.match(/\/v(\d+)\//) || [])[1] || null;   // הגרסה של הקובץ הזה (לפי התיקייה)
+let TZ = 'Asia/Jerusalem';
+// הגדרות בית הכנסת – נקראות משורות שמתחילות ב-! במסמך של בית הכנסת
+let CFG = {};
+// תוכן משבצת: "דף יומי", "הודעות", "זמני היום", "זמני תפילות", "ריק". כמה תכנים בפסיקים = מתחלפים
+function slotList(v){
+  return v.split(/[,،]/).map(x => x.trim()).filter(Boolean).map(x =>
+    /דף/.test(x) ? 'daf' : /הודע/.test(x) ? 'msgs' : /תפיל/.test(x) ? 'prayers' : /זמני|זמנים/.test(x) ? 'zmanim' : 'none');
+}
+function parseSettings(text){
+  const c = {};
+  for(const line of (text||'').split(/\r?\n/)){
+    const m = line.match(/^\s*!\s*([^:=]+?)\s*[:=]\s*(.*?)\s*$/); if(!m) continue;
+    const k = m[1].replace(/\s+/g,' '), v = m[2];
+    if(/^שם/.test(k)) c.name = v;
+    else if(/מזהה מיקום|geonameid/i.test(k)) c.geonameid = (v.match(/\d+/)||[])[0];
+    else if(/קואורדינטות|קווי|מיקום/.test(k)){ const n = v.match(/-?\d+(\.\d+)?/g); if(n && n.length>=2){ c.lat = n[0]; c.lon = n[1]; } }
+    else if(/אזור זמן/.test(k)) c.tz = v;
+    else if(/^גובה/.test(k)) c.elev = (v.match(/\d+/)||[])[0];
+    else if(/שקיעה לפי גובה/.test(k)) c.useElev = !/^(לא|no|0)/i.test(v);
+    else if(/הדלקת נרות/.test(k)) c.candleMin = (v.match(/\d+/)||[])[0];
+    else if(/צאת שבת/.test(k)) c.havdalahMin = (v.match(/\d+/)||[])[0];
+    else if(/^ישראל/.test(k)) c.israel = !/^(לא|no|0)/i.test(v);
+    else if(/טבלת נץ/.test(k)) c.netzTable = v;
+    else if(/גרסת מערכת/.test(k)) c.sysVer = (v.match(/\d+/)||[])[0];
+    else if(/משבצת ימין/.test(k)) c.slotR = slotList(v);
+    else if(/משבצת שמאל/.test(k)) c.slotL = slotList(v);
+    else if(/משבצת תחתונה/.test(k)) c.slotB = slotList(v);
+    else if(/גודל שעון/.test(k)) c.clock = +((v.match(/\d+/)||[100])[0]);
+    else if(/החלפה/.test(k)) c.rotate = Math.max(5, +((v.match(/\d+/)||[30])[0]));
+    else if(/^תפילה/.test(k)){
+      const q = (k.match(/\[([^\]]+)\]/)||[])[1] || '';
+      const label = k.replace(/^תפילה/,'').replace(/\[[^\]]*\]/,'').trim();
+      (c.prayers = c.prayers || []).push({q: q.trim(), label, value: v});
+    }
+  }
+  c.slotR = c.slotR || ['daf']; c.slotL = c.slotL || ['msgs']; c.slotB = c.slotB || ['zmanim'];
+  c.clock = c.clock || 100; c.rotate = c.rotate || 30;
+  if(!c.geonameid && !c.lat) c.geonameid = '281184';            // ברירת מחדל: ירושלים
+  if(!c.candleMin && c.geonameid === '281184') c.candleMin = '40';   // מנהג ירושלים
+  if(c.useElev === undefined) c.useElev = !!(c.geonameid === '281184' || c.elev);
+  if(c.israel === undefined) c.israel = true;
+  return c;
+}
+const locQ = () => CFG.lat ? `latitude=${CFG.lat}&longitude=${CFG.lon}&tzid=${encodeURIComponent(TZ)}` : `geonameid=${CFG.geonameid}`;
+const NETZ = { // לוחות חי – נץ החמה, רמת שלמה ירושלים, תשפ"ז
+ 5787: {
+  "Tishrei": "6:21:25 6:22:00 6:22:35 6:23:15 6:23:50 6:24:25 6:25:00 6:25:40 6:26:15 6:26:50 6:27:25 6:28:05 6:28:40 6:29:20 6:29:55 6:30:35 6:31:10 6:31:50 6:32:25 6:33:00 6:33:40 6:34:20 6:35:00 6:35:40 6:36:15 6:36:55 6:37:40 6:38:20 6:39:00 6:39:40",
+  "Cheshvan": "6:40:20 6:41:05 6:41:45 6:42:30 6:43:10 6:43:55 6:44:40 6:45:25 6:46:10 6:46:55 6:47:40 6:48:25 6:49:10 5:49:55 5:50:30 5:51:20 5:52:05 5:52:55 5:53:45 5:54:30 5:55:15 5:56:05 5:56:55 5:57:45 5:58:35 5:59:30 6:00:20 6:01:10 6:02:00 6:02:55",
+  "Kislev": "6:03:45 6:04:40 6:05:30 6:06:25 6:07:15 6:08:10 6:09:00 6:09:55 6:10:50 6:11:40 6:12:35 6:13:25 6:14:20 6:15:10 6:16:05 6:16:55 6:17:45 6:18:40 6:19:30 6:20:20 6:21:05 6:21:55 6:22:40 6:23:30 6:24:20 6:25:05 6:25:50 6:26:35 6:27:20 6:28:05",
+  "Tevet": "6:28:50 6:29:30 6:30:10 6:30:50 6:31:30 6:32:10 6:32:45 6:33:20 6:33:55 6:34:25 6:35:00 6:35:30 6:35:55 6:36:25 6:36:50 6:37:15 6:37:35 6:37:55 6:38:15 6:38:35 6:38:50 6:39:05 6:39:20 6:39:30 6:39:40 6:39:45 6:39:55 6:40:00 6:40:00",
+  "Sh'vat": "6:40:00 6:40:00 6:40:00 6:39:55 6:39:50 6:39:40 6:39:30 6:39:20 6:39:05 6:38:50 6:38:35 6:38:15 6:37:55 6:37:35 6:37:10 6:36:45 6:36:20 6:35:50 6:35:25 6:34:50 6:34:20 6:33:45 6:33:10 6:32:30 6:31:50 6:31:10 6:30:30 6:29:45 6:29:00 6:28:15",
+  "Adar I": "6:27:30 6:26:40 6:25:50 6:25:00 6:24:05 6:23:10 6:22:15 6:21:20 6:20:25 6:19:40 6:18:40 6:17:40 6:16:40 6:15:35 6:14:35 6:13:30 6:12:25 6:11:20 6:10:15 6:09:05 6:08:00 6:06:55 6:05:45 6:04:35 6:03:25 6:02:15 6:01:00 5:59:50 5:58:35 5:57:25",
+  "Adar II": "5:56:10 5:54:55 5:53:40 5:52:25 5:51:10 5:49:55 5:48:40 5:47:25 5:46:10 5:44:50 5:43:35 5:42:20 5:41:00 5:39:45 5:38:30 5:37:10 6:35:55 6:34:40 6:33:20 6:32:05 6:30:50 6:29:35 6:28:20 6:27:05 6:25:50 6:24:35 6:23:20 6:22:05 6:20:50",
+  "Nisan": "6:19:40 6:18:25 6:17:10 6:16:00 6:14:45 6:13:35 6:12:25 6:11:15 6:10:05 6:08:55 6:07:50 6:06:40 6:05:35 6:04:25 6:03:20 6:02:15 6:01:15 6:00:10 5:59:10 5:58:05 5:57:05 5:56:05 5:55:10 5:54:15 5:53:20 5:52:25 5:51:30 5:50:35 5:49:45 5:48:55",
+  "Iyyar": "5:48:05 5:47:15 5:46:25 5:45:40 5:44:55 5:44:15 5:43:30 5:42:50 5:42:10 5:41:30 5:40:55 5:40:20 5:39:45 5:39:15 5:38:40 5:38:10 5:37:45 5:37:15 5:36:50 5:36:25 5:36:05 5:35:45 5:35:25 5:35:05 5:34:50 5:34:35 5:34:25 5:34:10 5:34:00",
+  "Sivan": "5:33:50 5:33:45 5:33:35 5:33:35 5:33:30 5:33:30 5:33:25 5:33:30 5:33:30 5:33:35 5:33:40 5:33:45 5:33:55 5:34:05 5:34:15 5:34:25 5:34:40 5:34:55 5:35:10 5:35:25 5:35:45 5:36:00 5:36:25 5:36:45 5:37:05 5:37:30 5:37:55 5:38:20 5:38:45 5:39:15",
+  "Tamuz": "5:39:40 5:40:10 5:40:40 5:41:10 5:41:40 5:42:10 5:42:45 5:43:15 5:43:50 5:44:25 5:45:00 5:45:35 5:46:10 5:46:45 5:47:20 5:47:55 5:48:35 5:49:10 5:49:50 5:50:25 5:51:05 5:51:45 5:52:20 5:53:00 5:53:40 5:54:20 5:54:55 5:55:35 5:56:15",
+  "Av": "5:56:55 5:57:30 5:58:10 5:58:50 5:59:30 6:00:10 6:00:50 6:01:25 6:02:05 6:02:45 6:03:25 6:04:00 6:04:40 6:05:20 6:05:55 6:06:35 6:07:10 6:07:50 6:08:30 6:09:05 6:09:45 6:10:20 6:11:00 6:11:35 6:12:10 6:12:50 6:13:25 6:14:00 6:14:35 6:15:15",
+  "Elul": "6:15:50 6:16:25 6:17:05 6:17:40 6:18:15 6:18:50 6:19:30 6:20:05 6:20:40 6:21:15 6:21:50 6:22:30 6:23:05 6:23:40 6:24:15 6:24:55 6:25:30 6:26:05 6:26:40 6:27:20 6:27:55 6:28:30 6:29:10 6:29:45 6:30:25 6:31:00 6:31:40 6:32:20 6:32:50"
+ }
+};
+function netzFromTable(h){ if(!CFG.netzTable) return null; try{ const m=NETZ[h.hy][h.hm].split(' '); return m[h.hd-1]||null; }catch(e){ return null; } }
+const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const DOW_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const $ = id => document.getElementById(id);
+const hhmm = d => new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(d);
+const pad = n => String(n).padStart(2,'0');
+const t = s => !s ? '--:--' : (s.length > 8 ? s.slice(11,16) : s);
+const key = s => { const x=t(s).split(':'); return x.map(v=>v.padStart(2,'0')).join(':'); };
+const show = s => { const v=t(s).replace(/^0(\d)/,'$1'); const p=v.split(':'); return p.length===3 ? `${p[0]}:${p[1]}<span class="s">:${p[2]}</span>` : v; };
+const strip = s => (s||'').replace(/[\u0591-\u05BD\u05BF-\u05C7]/g,'').replace(/\u05BE/g,'-');
+const addDays = (iso,n) => { const d=new Date(iso+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
+
+function nowParts(){
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23',weekday:'short'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return {date:`${p.year}-${p.month}-${p.day}`, h:p.hour, m:p.minute, s:p.second, dow:p.weekday};
+}
+
+async function j(url){ const r = await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json(); }
+
+let data = null, loadedFor = null;
+
+async function load(){
+  const today = nowParts().date;
+  loadedFor = today;
+  const base = 'https://www.hebcal.com';
+  try{
+    const sat = addDays(today, (6 - DOW_EN.indexOf(nowParts().dow) + 7) % 7);
+    const [z,h1,h2,cal,hs,zj] = await Promise.all([
+      j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}`),
+      j(`${base}/converter?cfg=json&date=${today}&g2h=1&strict=1`),
+      j(`${base}/converter?cfg=json&date=${today}&g2h=1&strict=1&gs=on`),
+      j(`${base}/hebcal?v=1&cfg=json&${CFG.lat ? 'geo=pos&' : ''}${locQ()}&i=${CFG.israel ? 'on' : 'off'}&c=on&${CFG.havdalahMin ? 'm=' + CFG.havdalahMin : 'M=on'}${CFG.candleMin ? '&b=' + CFG.candleMin : ''}&s=on&maj=on&min=on&mod=on&lg=he&start=${today}&end=${addDays(today,14)}`),
+      j(`${base}/converter?cfg=json&date=${sat}&g2h=1&strict=1`),
+      j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1${CFG.useElev ? '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '') : ''}`)   // שקיעה (לפי גובה אם הוגדר) – לשקיעה ולהדלקת נרות
+    ]);
+    data = {today,z,h1,h2,cal,hs,sat,zj};
+    try{ localStorage.setItem('zmanim_' + SHUL, JSON.stringify(data)); }catch(e){}
+    $('status').textContent = '';
+  }catch(e){
+    try{ const c = JSON.parse(localStorage.getItem('zmanim_' + SHUL)); if(c && c.today===today) data = c; }catch(_){}
+    $('status').textContent = 'אין חיבור לאינטרנט – מנסה שוב...';
+    setTimeout(load, 60000);
+  }
+  render();
+}
+
+function render(){
+  const n = nowParts(), now = new Date();
+  $('dow').textContent  = new Intl.DateTimeFormat('he-IL',{timeZone:TZ,weekday:'long'}).format(now);
+  $('gdate').textContent = new Intl.DateTimeFormat('he-IL',{timeZone:TZ,day:'numeric',month:'long',year:'numeric'}).format(now);
+  DAF = dafYomi(n.date);
+  if(!data || data.today !== n.date) return;
+
+  const Z = data.z.times || {};
+  const ZJ = (data.zj && data.zj.times) || {};
+  const sunsetJ = ZJ.sunset || Z.sunset;   // שקיעה לפי אופק ירושלים
+  const afterSunset = sunsetJ && `${n.h}:${n.m}` >= t(sunsetJ);
+  const hd = strip((afterSunset ? data.h2 : data.h1).hebrew);
+  $('hdate').textContent = afterSunset ? 'אור ל' + hd : hd;
+
+  const items = (data.cal && data.cal.items) || [];
+  const todays = cat => items.find(i => i.category===cat && i.date.slice(0,10)===data.today);
+  const isSat = n.dow === 'Sat';
+
+  const cards = [
+    ['הנץ החמה', netzFromTable(data.h1) || Z.sunrise],
+    ['סוף זמן ק״ש (גר״א)', Z.sofZmanShma],
+    ['חצות היום', Z.chatzot],
+    ['שקיעת החמה', sunsetJ],
+  ];
+  BASE = {netz: cards[0][1], sunset: sunsetJ, chatzot: Z.chatzot, candles: null, havdalah: null};
+  const candles = todays('candles'), hav = todays('havdalah');
+  if(candles){
+    // הדלקת נרות: X דקות לפני השקיעה (לפי ההגדרה), אחרת לפי Hebcal
+    const js = data.zj && data.zj.times && data.zj.times.sunset;
+    const c = (js && CFG.candleMin) ? hhmm(new Date(Date.parse(js) - CFG.candleMin*60000)) : candles.date;
+    cards.push(['הדלקת נרות', c, true]); BASE.candles = c;
+  }
+  if(hav){
+    cards.push([isSat ? 'צאת השבת' : 'צאת החג', hav.date, true]); BASE.havdalah = hav.date;
+    cards.push([isSat ? 'צאת השבת לר״ת' : 'צאת החג לר״ת', Z.tzeit72min, true]);
+  }
+  cards.sort((a,b) => key(a[1]).localeCompare(key(b[1])));
+  ZCARDS = cards; IS_SAT = isSat; IS_FRI = n.dow === 'Fri';
+
+  const parsha = items.find(i => i.category==='parashat' && i.date.slice(0,10) <= data.sat);
+  // השורה התחתונה: ראש חודש / תקופת שבת מברכים / לוח ימי החודש
+  const H = afterSunset ? data.h2 : data.h1;
+  const dow0 = (DOW_EN.indexOf(n.dow) + (afterSunset ? 1 : 0)) % 7;
+  const base = afterSunset ? addDays(data.today, 1) : data.today;
+  const rcToday = roshChodeshToday(H);
+  const mevTxt = rcToday ? '' : mevarchimLine(H, dow0, base);
+  $('mev').classList.toggle('rc', !!rcToday);
+  $('mev').innerHTML = rcToday ? `<b>${rcToday}</b>` : mevTxt;
+  $('days').innerHTML = (rcToday || mevTxt) ? '' : monthStrip(H, dow0);
+  curH = H; curH1 = data.h1; renderSlots(); applyBlack();
+  // פרשת השבוע – תמיד. אם השבת הקרובה היא חג (אין פרשה), מוצג שם השבת
+  const shabHol = items.find(i => i.category==='holiday' && i.date.slice(0,10)===data.sat);
+  $('sub').textContent = parsha ? strip(parsha.hebrew || parsha.title) : (shabHol ? 'שבת ' + strip(shabHol.hebrew || shabHol.title) : '');
+}
+
+// ---- שבת מברכים: חישוב המולד (לפי החשבון המקובל, שעון ירושלים) ----
+const REG  = ['Tishrei','Cheshvan','Kislev','Tevet',"Sh'vat",'Adar','Nisan','Iyyar','Sivan','Tamuz','Av','Elul'];
+const LEAP = ['Tishrei','Cheshvan','Kislev','Tevet',"Sh'vat",'Adar I','Adar II','Nisan','Iyyar','Sivan','Tamuz','Av','Elul'];
+const isLeap = y => ((7*y+1) % 19) < 7;
+function moladText(hy, monthIdx){
+  const months = Math.floor((235*hy - 234)/19) + monthIdx;
+  const total = 31524 + months*765433;               // בהר״ד
+  let day = Math.floor(total/25920) % 7, h = Math.floor((total%25920)/1080), p = total % 1080;
+  const min = Math.floor(p/18), ch = p % 18;
+  let clock, dayTxt;
+  if(h < 6){ clock = h + 18; dayTxt = 'ליל ' + DAYS[day]; }   // הלילה שלפני היום
+  else     { clock = h - 6;  dayTxt = 'יום ' + DAYS[day]; }
+  const part = clock < 4 ? 'לפנות בוקר' : clock < 12 ? 'בבוקר' : clock < 18 ? 'אחר הצהריים' : 'בערב';
+  const c12 = clock % 12 === 0 ? 12 : clock % 12;
+  return `${dayTxt} בשעה <b>${c12}</b> ו-<b>${min}</b> דקות ו-<b>${ch}</b> חלקים ${part}`;
+}
+const HEB_M = {Tishrei:'תשרי',Cheshvan:'חשון',Kislev:'כסלו',Tevet:'טבת',"Sh'vat":'שבט',Adar:'אדר','Adar I':'אדר א׳','Adar II':'אדר ב׳',Nisan:'ניסן',Iyyar:'אייר',Sivan:'סיון',Tamuz:'תמוז',Av:'אב',Elul:'אלול'};
+// שורת המולד: תמיד מוצגת. בשבוע של שבת מברכים (מיום ראשון) מתווספים "שבת מברכים" וימי ראש החודש
+// אורך חודשים – חישוב לוח עברי מלא (לא תלוי באינטרנט)
+function elapsed(y){ const m=Math.floor((235*y-234)/19), parts=12084+13753*m; let d=29*m+Math.floor(parts/25920); if((3*(d+1))%7<3) d++; return d; }
+function delay(y){ const a=elapsed(y-1), b=elapsed(y), c=elapsed(y+1); return c-b===356 ? 2 : (b-a===382 ? 1 : 0); }
+function yearLen(y){ return elapsed(y+1)+delay(y+1)-elapsed(y)-delay(y); }
+function monthLen(y, hm){
+  if(['Tishrei',"Sh'vat",'Adar I','Nisan','Sivan','Av'].includes(hm)) return 30;
+  if(hm==='Cheshvan') return yearLen(y)%10===5 ? 30 : 29;
+  if(hm==='Kislev')   return yearLen(y)%10===3 ? 29 : 30;
+  return 29;
+}
+// ראש חודש היום? (ל׳ בחודש או א׳ בחודש, חוץ מראש השנה). מתחיל משקיעה
+function roshChodeshToday(h){
+  if(!h || (h.hd !== 30 && h.hd !== 1) || (h.hd === 1 && h.hm === 'Tishrei')) return '';
+  let name = h.hm;
+  if(h.hd === 30){ const list = isLeap(h.hy) ? LEAP : REG; const i = list.indexOf(h.hm); name = list[(i+1) % list.length]; }
+  return `ראש חודש ${HEB_M[name]} – חודש טוב`;
+}
+// תקופת שבת מברכים: מיום ראשון של שבוע שבת מברכים ועד יום לפני ראש חודש
+function mevarchimLine(H, dow0, base){
+  if(!H || !H.hd || !H.hm || H.hm === 'Elul') return '';
+  const L = monthLen(H.hy, H.hm);
+  let smHd = 23; while(((smHd - H.hd - (6 - dow0)) % 7 + 7) % 7 !== 0) smHd++;   // תאריך שבת מברכים (כ״ג–כ״ט)
+  if(H.hd < smHd - 6 || H.hd > 29) return '';
+  let list = isLeap(H.hy) ? LEAP : REG, idx = list.indexOf(H.hm) + 1, y = H.hy;
+  if(idx <= 0) return '';
+  if(idx >= list.length){ y = H.hy + 1; idx = 0; list = isLeap(y) ? LEAP : REG; }
+  const rcDates = L === 30 ? [addDays(base, 30-H.hd), addDays(base, 31-H.hd)] : [addDays(base, 30-H.hd)];
+  const days = rcDates.map(d => DAYS[new Date(d+'T12:00:00Z').getUTCDay()]);
+  const rcTxt = `ראש חודש ${HEB_M[list[idx]]} ` + (days.length > 1 ? `בימים <b>${days[0]}</b> ו<b>${days[1]}</b>` : `ביום <b>${days[0]}</b>`);
+  const label = H.hd <= smHd ? '<b>שבת מברכים</b> · ' : '';
+  return `${label}${rcTxt} · המולד: ${moladText(y, idx)}`;
+}
+function hebNum(n){
+  const ones=['','א','ב','ג','ד','ה','ו','ז','ח','ט'], tens=['','י','כ','ל','מ','נ','ס','ע','פ','צ'], hund=['','ק','ר','ש','ת'];
+  let s = hund[Math.floor(n/100)]; n %= 100;
+  s += n===15 ? 'טו' : n===16 ? 'טז' : tens[Math.floor(n/10)] + ones[n%10];
+  return s.length > 1 ? s.slice(0,-1) + '״' + s.slice(-1) : s + '׳';
+}
+// קוביות ימי החודש: שבתות מודגשות, היום הכי מודגש
+function monthStrip(H, dow0){
+  if(!H || !H.hd || !H.hm) return '';
+  const L = monthLen(H.hy, H.hm);
+  let html = `<div class="mn">${HEB_M[H.hm]}</div>`;
+  for(let d = 1; d <= L; d++){
+    const isSh = ((dow0 + d - H.hd) % 7 + 7) % 7 === 6;
+    html += `<div class="d${isSh ? ' sh' : ''}${d === H.hd ? ' today' : ''}">${hebNum(d)}</div>`;
+  }
+  return html;
+}
+// הדף היומי (בבלי) – חישוב מקומי לפי מחזור של 2711 יום
+const SHAS=[['ברכות',64],['שבת',157],['עירובין',105],['פסחים',121],['שקלים',22],['יומא',88],['סוכה',56],['ביצה',40],['ראש השנה',35],['תענית',31],['מגילה',32],['מועד קטן',29],['חגיגה',27],['יבמות',122],['כתובות',112],['נדרים',91],['נזיר',66],['סוטה',49],['גיטין',90],['קידושין',82],['בבא קמא',119],['בבא מציעא',119],['בבא בתרא',176],['סנהדרין',113],['מכות',24],['שבועות',49],['עבודה זרה',76],['הוריות',14],['זבחים',120],['מנחות',110],['חולין',142],['בכורות',61],['ערכין',34],['תמורה',34],['כריתות',28],['מעילה',22],['קינים',4],['תמיד',10],['מידות',4],['נדה',73]];
+function dafYomi(iso){
+  const day = Math.round((Date.parse(iso+'T12:00:00Z') - Date.parse('1975-06-24T12:00:00Z'))/86400000);
+  let dno = ((day % 2711) + 2711) % 2711, total = 0;
+  for(let k = 0; k < SHAS.length; k++){
+    total += SHAS[k][1] - 1;
+    if(dno < total){
+      let blatt = SHAS[k][1] + 1 - (total - dno);
+      if(k===36) blatt += 21; else if(k===37) blatt += 24; else if(k===38) blatt += 32;
+      return `${SHAS[k][0]} ${hebNum(blatt)}`;
+    }
+  }
+  return '';
+}
+
+// ---------- הודעות מהרב (קובץ טקסט בגוגל דרייב) ----------
+let curH1 = null, curH = null, msgText = '', lastMsgHtml = null, scrollRaf = null;
+
+const MONTH_WORDS = {'תשרי':['Tishrei'],'חשון':['Cheshvan'],'מרחשון':['Cheshvan'],'חשוון':['Cheshvan'],'כסלו':['Kislev'],'כסליו':['Kislev'],'טבת':['Tevet'],'שבט':["Sh'vat"],'אדר':['Adar','Adar II'],'ניסן':['Nisan'],'אייר':['Iyyar'],'סיון':['Sivan'],'סיוון':['Sivan'],'תמוז':['Tamuz'],'אב':['Av'],'מנחם אב':['Av'],'אלול':['Elul']};
+const LET = {'א':1,'ב':2,'ג':3,'ד':4,'ה':5,'ו':6,'ז':7,'ח':8,'ט':9,'י':10,'כ':20,'ך':20,'ל':30};
+function hebDay(tok){
+  tok = tok.replace(/[׳״'"`]/g,'');
+  if(/^\d+$/.test(tok)){ const v=+tok; return v>=1&&v<=30 ? v : 0; }
+  if(!tok || [...tok].some(c => !(c in LET))) return 0;
+  const v = [...tok].reduce((a,c)=>a+LET[c],0);
+  return v>=1 && v<=30 ? v : 0;
+}
+// שורת תאריכים: למשל "יג,יד" או "יג-טו" או "ה חשון"
+function parseDateLine(line){
+  const toks = line.replace(/[׳״'"`]/g,'').replace(/[,،;]/g,' ').replace(/\s*[-–]\s*/g,'-').trim().split(/\s+/).filter(Boolean);
+  if(!toks.length) return null;
+  const days = new Set(); let months = null;
+  for(let i=0;i<toks.length;i++){
+    let t = toks[i];
+    if(t==='אדר' && (toks[i+1]==='א'||toks[i+1]==='ב')){ (months=months||new Set()).add(toks[i+1]==='א'?'Adar I':'Adar II'); i++; continue; }
+    if(t==='מנחם' && toks[i+1]==='אב'){ (months=months||new Set()).add('Av'); i++; continue; }
+    if(MONTH_WORDS[t]){ months=months||new Set(); MONTH_WORDS[t].forEach(m=>months.add(m)); continue; }
+    const rg = t.split(/[-–]/);
+    if(rg.length===2){ const a=hebDay(rg[0]), b=hebDay(rg[1]); if(!a||!b||b<a) return null; for(let d=a;d<=b;d++) days.add(d); continue; }
+    const d = hebDay(t); if(!d) return null; days.add(d);
+  }
+  return days.size ? {days, months} : null;
+}
+// שורת "מתי": תאריכים ו/או שעות. למשל: "יג 18:00-20:00", "יג מ-18:00", "עד 20:00", "21:00-23:00"
+const T_RE = '(\\d{1,2}:\\d{2})';
+const hm2 = t => t.padStart(5,'0');
+function parseWhen(line, allowEmpty){
+  let s = ' ' + line.replace(/[״"']/g,'') + ' ', from = null, to = null, m, side = null;
+  if((m = s.match(/\[\s*(ימין|שמאל|למטה|תחתון)\s*\]/))){ side = m[1] === 'ימין' ? 'R' : m[1] === 'שמאל' ? 'L' : 'B'; s = s.replace(m[0],' '); }
+  if((m = s.match(new RegExp(T_RE + '\\s*[-–]\\s*' + T_RE)))){ from = hm2(m[1]); to = hm2(m[2]); s = s.replace(m[0],' '); }
+  if((m = s.match(new RegExp('\\s(?:מ|החל מ|משעה|מהשעה)\\s*-?\\s*(?:שעה\\s*)?' + T_RE)))){ from = hm2(m[1]); s = s.replace(m[0],' '); }
+  if((m = s.match(new RegExp('\\sעד\\s*(?:שעה|השעה)?\\s*' + T_RE)))){ to = hm2(m[1]); s = s.replace(m[0],' '); }
+  const rest = s.trim();
+  if(!rest) return (from || to || side || allowEmpty) ? {days:null, months:null, from, to, side} : null;
+  const d = parseDateLine(rest);
+  return d ? {days:d.days, months:d.months, from, to, side} : null;
+}
+// האם "מתי" מתקיים עכשיו. עם שעות – התאריך הוא של היום האזרחי (כולל הערב שאחריו)
+function whenNow(w, H, Hday, now){
+  if(!w) return true;
+  const timed = !!(w.from || w.to), D = timed ? Hday : H;
+  if(w.days && !(D && w.days.has(D.hd) && (!w.months || w.months.has(D.hm)))) return false;
+  if(!timed) return true;
+  const f = w.from || '00:00', t = w.to || '24:00';
+  return f <= t ? (now >= f && now < t) : (now >= f || now < t);   // תומך גם בטווח שעובר חצות
+}
+const CMD_RE = /^\s*(מסך כבוי|סגור מסך)/;
+function parseMessages(text){
+  const out = []; let cur = {when:null, lines:[]};
+  const push = () => { const body = cur.lines.join('\n').trim(); if(body) out.push({when:cur.when, body}); };
+  for(const raw of text.replace(/^﻿/,'').split(/\r?\n/)){
+    if(/^\s*#/.test(raw)) continue;                         // שורת הערה (מתחילה ב-#) – לא מוצגת
+    if(CMD_RE.test(raw) || /^\s*!/.test(raw)) continue;    // פקודות והגדרות – לא מוצגות                         // פקודות מסך – לא מוצגות כהודעה
+    const w = raw.trim() ? parseWhen(raw, false) : null;
+    if(w){ push(); cur = {when:w, lines:[]}; } else cur.lines.push(raw.replace(/\s+$/,''));
+  }
+  push();
+  return out;
+}
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// ===================== משבצות המסך =====================
+let DAF = '', ZCARDS = [], BASE = {}, IS_SAT = false, IS_FRI = false;
+const toMin = v => { if(!v) return null; const x = (v.length > 8 ? v.slice(11,19) : v).split(':').map(Number); return x[0]*60 + x[1] + (x[2]||0)/60; };
+const fromMin = m => { m = Math.floor(((m % 1440) + 1440) % 1440); return pad(Math.floor(m/60)) + ':' + pad(m % 60); };
+const BASES = [['הדלקת נרות','candles'],['הדלקה','candles'],['צאת השבת','havdalah'],['צאת שבת','havdalah'],['צאת','havdalah'],['השקיעה','sunset'],['שקיעה','sunset'],['הנץ','netz'],['נץ','netz'],['חצות','chatzot']];
+function baseMin(name){ name = name.trim(); for(const [w,k] of BASES) if(name.startsWith(w)) return toMin(BASE[k]); return null; }
+// זמן תפילה: "6:30" או "15 דקות לפני השקיעה" או "שקיעה-15"
+function prayerTime(tok){
+  tok = tok.trim(); let m;
+  if((m = tok.match(/^(\d{1,2}):(\d{2})$/))) return pad(+m[1]) + ':' + m[2];
+  if((m = tok.match(/^(\d+)\s*(?:דקות|דק'|דק)?\s*(לפני|אחרי)\s*(.+)$/))){ const b = baseMin(m[3]); return b === null ? null : fromMin(b + (m[2] === 'לפני' ? -1 : 1) * m[1]); }
+  if((m = tok.match(/^(.+?)\s*([+-])\s*(\d+)\s*(?:דקות|דק'|דק)?$/))){ const b = baseMin(m[1]); return b === null ? null : fromMin(b + (m[2] === '-' ? -1 : 1) * m[3]); }
+  const b = baseMin(tok); return b === null ? null : fromMin(b);
+}
+// תפילות להיום: [שבת] מחליף בשבת את אותה תפילה; [חול] = א׳–ו׳; [שישי] = יום שישי
+function prayersToday(){
+  const all = CFG.prayers || [];
+  const okQ = q => !q || (q === 'שבת' ? IS_SAT : q === 'חול' ? !IS_SAT : q === 'שישי' ? IS_FRI : true);
+  let list = all.filter(p => okQ(p.q));
+  if(IS_SAT){ const sh = new Set(list.filter(p => p.q === 'שבת').map(p => p.label)); list = list.filter(p => p.q === 'שבת' || !sh.has(p.label)); }
+  const n = nowParts(), now = `${n.h}:${n.m}`; let nextMarked = false;
+  const out = list.map(p => ({label: p.label, times: p.value.split(',').map(prayerTime).filter(Boolean)})).filter(p => p.times.length);
+  // סימון התפילה הבאה
+  const flat = []; out.forEach((p,i) => p.times.forEach(tm => flat.push([tm, i])));
+  flat.sort((a,b) => a[0].localeCompare(b[0]));
+  const nx = flat.find(x => x[0] >= now); if(nx) out[nx[1]].next = true;
+  return out;
+}
+function messagesBySide(targets){
+  const n = nowParts(), now = `${n.h}:${n.m}`, res = {L:[], R:[], B:[]};
+  const list = parseMessages(msgText).filter(m => whenNow(m.when, curH, curH1, now));
+  for(const m of list){
+    let side = m.when && m.when.side;
+    if(targets.length === 1 || !targets.includes(side)) side = targets.includes('L') ? 'L' : targets[0];
+    res[side].push(m);
+  }
+  return res;
+}
+const msgHtml = list => list.map(m => `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
+function content(type, where, msgs){
+  const side = where !== 'B';
+  if(type === 'daf') return side ? {html:`<div class="pnl compact"><div class="lbl">הדף היומי</div><div class="v">${DAF}</div></div>`}
+                                 : {html:`<div class="card"><div class="lbl">הדף היומי</div><div class="t multi">${DAF}</div></div>`, cards:1};
+  if(type === 'zmanim'){
+    if(!ZCARDS.length) return null;
+    return side ? {html:`<div class="pnl tall"><div class="lbl">זמני היום</div><div class="vp"><div class="in zl">${ZCARDS.map(([l,v,hl]) => `<div class="row${hl?' hl':''}"><span>${l}</span><b>${show(v)}</b></div>`).join('')}</div></div></div>`, scroll:true}
+                : {html: ZCARDS.map(([l,v,hl]) => `<div class="card${hl?' hl':''}"><div class="lbl">${l}</div><div class="t">${show(v)}</div></div>`).join(''), cards: ZCARDS.length};
+  }
+  if(type === 'prayers'){
+    const P = prayersToday(); if(!P.length) return null;
+    const tt = p => p.times.map(x => x.replace(/^0(\d)/,'$1')).join(' · ');
+    return side ? {html:`<div class="pnl tall"><div class="lbl">זמני תפילות</div><div class="vp"><div class="in zl">${P.map(p => `<div class="row${p.next?' hl':''}"><span>${esc(p.label)}</span><b>${tt(p)}</b></div>`).join('')}</div></div></div>`, scroll:true}
+                : {html: P.map(p => `<div class="card${p.next?' hl':''}${p.times.length>1?' mw':''}"><div class="lbl">${esc(p.label)}</div><div class="t${p.times.length>1?' multi':''}">${tt(p)}</div></div>`).join(''), cards: P.length};
+  }
+  if(type === 'msgs'){
+    if(!msgs || !msgs.length) return null;
+    return {html:`<div class="pnl gold ${side ? 'tall' : 'wide'}"><div class="lbl">הודעות</div><div class="vp"><div class="in">${msgHtml(msgs)}</div></div></div>`, scroll:true};
+  }
+  return null;
+}
+function renderSlots(){
+  if(!booted || !CFG.slotR) return;
+  const slots = {R: CFG.slotR, L: CFG.slotL, B: CFG.slotB};
+  const targets = ['L','R','B'].filter(k => slots[k].includes('msgs'));
+  const msgs = (MSG_URL && curH) ? messagesBySide(targets) : {L:[],R:[],B:[]};
+  const sec = Math.floor(Date.now() / 1000);
+  for(const k of ['R','L','B']){
+    const el = k === 'B' ? $('grid') : $('slot' + k);
+    const items = slots[k].map(tp => content(tp, k, msgs[k])).filter(Boolean);
+    const c = items.length ? items[Math.floor(sec / CFG.rotate) % items.length] : null;
+    if(k === 'B') el.classList.toggle('many', !!(c && c.cards > 4));
+    setSlot(el, c ? c.html : '', c && c.scroll);
+  }
+}
+function setSlot(el, html, scroll){
+  if(el._html === html) return;
+  el._html = html; cancelAnimationFrame(el._raf);
+  el.innerHTML = html;
+  const vp = el.querySelector('.vp'), inner = el.querySelector('.in');
+  if(!scroll || !vp || !inner) return;
+  const h = inner.scrollHeight;
+  if(h <= vp.clientHeight + 2) return;                        // נכנס – בלי גלילה
+  vp.classList.add('scroll');
+  const body = inner.innerHTML;
+  inner.innerHTML = body + '<div class="gap"></div>' + body;   // גלילה רציפה כלפי מעלה
+  const cycle = inner.scrollHeight - h;
+  const speed = () => vp.clientHeight / 9;
+  let off = 0, last = performance.now(), pause = last + 4000;
+  const step = now => {
+    const dt = (now - last) / 1000; last = now;
+    if(now > pause){ off += speed() * dt; if(off >= cycle){ off -= cycle; pause = now + 4000; } }
+    inner.style.transform = `translateY(${-off}px)`;
+    el._raf = requestAnimationFrame(step);
+  };
+  el._raf = requestAnimationFrame(step);
+}
+function notice(txt){ $('blackNote').textContent = ''; $('notice').textContent = txt; $('notice').classList.toggle('on', !!txt); }
+let booted = false, lastCfg = '';
+async function loadMsgs(){
+  if(!SHUL){ notice('לא הוגדר בית כנסת. יש להוסיף לכתובת: ?shul=מזהה'); return; }
+  let text = null;
+  try{
+    const r = await fetch(`${API}?shul=${encodeURIComponent(SHUL)}&dev=${DEVICE.id}&code=${DEVICE.code}&t=${Date.now()}`, {cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    text = await r.text();
+    if(!/^ERR:/.test(text)){ try{ localStorage.setItem('msgs_' + SHUL, text); }catch(e){} }
+  }catch(e){
+    try{ text = localStorage.getItem('msgs_' + SHUL); }catch(_){}
+  }
+  if(text === null){ if(!booted) notice('אין חיבור לאינטרנט – מנסה שוב...'); return; }
+  if(/^ERR:DEVICE/.test(text)){ notice('מסך זה ממתין לאישור.\nקוד המסך: ' + DEVICE.code + (SUPPORT && !/^PUT_/.test(SUPPORT) ? '\nלאישור: ' + SUPPORT : '')); return; }
+  if(/^ERR:INACTIVE/.test(text)){ notice('המנוי של בית הכנסת אינו פעיל'); return; }
+  if(/^ERR:/.test(text)){ notice('בית הכנסת "' + SHUL + '" לא נמצא במערכת'); return; }
+  notice('');
+  msgText = text;
+  CFG = parseSettings(text); TZ = CFG.tz || 'Asia/Jerusalem';
+  if(CFG.sysVer && MY_VER && CFG.sysVer !== MY_VER){ location.replace('../?shul=' + encodeURIComponent(SHUL)); return; }   // הוגדרה גרסה אחרת – עוברים אליה
+  if(CFG.name) document.title = 'לוח זמנים – ' + CFG.name;
+  const cfgKey = JSON.stringify(CFG);
+  if(!booted || cfgKey !== lastCfg){ lastCfg = cfgKey; booted = true; load(); }   // הגדרות השתנו – טוען זמנים מחדש
+  checkRemoteClose();
+  const ck = document.querySelector('.clock'); if(ck) ck.style.fontSize = `calc(var(--u)*${(17*CFG.clock/100).toFixed(2)})`;
+  renderSlots(); applyBlack();
+}
+loadMsgs(); setInterval(loadMsgs, 2*60*1000);   // בדיקה כל 2 דקות
+
+// ---------- סגירת התוכנה מרחוק: שורה "סגור מסך" במסמך ההודעות ----------
+// פועל רק כשהשורה נוספת בזמן שהמסך פתוח, כדי שפתיחה מחדש לא תיסגר מיד.
+let prevClose = null;
+function checkRemoteClose(){
+  const has = msgText.split(/\r?\n/).some(l => !/^\s*#/.test(l) && l.trim() === 'סגור מסך');
+  if(has && prevClose === false){
+    window.close();
+    setTimeout(() => { manualBlack = true; applyBlack(); }, 500);   // אם הסגירה לא הצליחה – מסך שחור
+  }
+  $('status').textContent = (has && prevClose === null) ? 'במסמך ההודעות כתוב "סגור מסך" – יש למחוק את השורה' : $('status').textContent;
+  prevClose = has;
+}
+
+// ---------- כיבוי המסך: דאבל-קליק בעכבר, או מרחוק דרך מסמך ההודעות ----------
+// במסמך ההודעות: שורה "מסך כבוי" → המסך משחיר. מוחקים את השורה → המסך חוזר.
+let manualBlack = false, menuTimer = null, curTimer = null;
+// "מסך כבוי" – אפשר להוסיף תאריך/שעות באותה שורה, למשל: "מסך כבוי 23:00-06:00"
+const remoteBlack = () => {
+  const n = nowParts(), now = `${n.h}:${n.m}`;
+  return msgText.split(/\r?\n/).some(l => {
+    if(/^\s*#/.test(l)) return false;
+    const m = l.trim().match(/^מסך כבוי(.*)$/); if(!m) return false;
+    const w = parseWhen(m[1], true);
+    return w ? whenNow(w, curH, curH1, now) : true;
+  });
+};
+function applyBlack(){
+  const rb = !!MSG_URL && remoteBlack();
+  $('black').classList.toggle('on', manualBlack || rb);
+  $('blackNote').textContent = rb ? 'המסך כובה לפי השורה "מסך כבוי" במסמך ההודעות' : '';
+}
+function openMenu(){
+  $('menuNote').textContent = '';
+  $('bBlack').textContent = manualBlack ? 'החזרת המסך' : 'מסך שחור';
+  $('menu').classList.add('on');
+  clearTimeout(menuTimer); menuTimer = setTimeout(closeMenu, 15000);
+}
+function closeMenu(){ $('menu').classList.remove('on'); }
+document.addEventListener('dblclick', e => { if(!$('menu').contains(e.target)) openMenu(); });
+$('bCancel').onclick = closeMenu;
+$('bBlack').onclick = () => { manualBlack = !manualBlack; applyBlack(); closeMenu(); };
+$('bExit').onclick = () => {
+  window.close();
+  setTimeout(() => { $('menuNote').textContent = 'לא ניתן לסגור מכאן – יש ללחוץ Alt+F4 במקלדת'; }, 400);
+};
+document.addEventListener('mousemove', () => {           // סמן העכבר מופיע רק כשמזיזים אותו
+  document.body.classList.add('cur');
+  clearTimeout(curTimer); curTimer = setTimeout(() => document.body.classList.remove('cur'), 3000);
+});
+
+function tick(){
+  const n = nowParts();
+  $('hm').textContent = `${n.h}:${n.m}`;
+  $('sec').textContent = n.s;
+  if(booted && n.date !== loadedFor) load();
+  else if(n.s === '00') render();
+  else renderSlots();
+  if(n.h==='03' && n.m==='00' && n.s==='00') { if(navigator.onLine) location.reload(); }   // רענון יומי (רק כשיש אינטרנט)
+}
+setInterval(tick, 1000); tick();
+setInterval(() => booted && load(), 3*60*60*1000);
+if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register(MY_VER ? '../sw.js' : 'sw.js', {scope: MY_VER ? '../' : './'}).catch(()=>{});   // עבודה גם בלי אינטרנט
+document.addEventListener('click', () => document.documentElement.requestFullscreen && document.documentElement.requestFullscreen());
+</script>
+</body>
+</html>
