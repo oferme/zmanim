@@ -190,6 +190,19 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <a class="big gold" id="docBtn" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">פתיחת מסמך ההודעות</a>
     </div>
     <div class="card">
+      <h2>שיעור בזום</h2>
+      <p class="hint" style="margin-bottom:10px">בשעה שנקבעה המחשב של בית הכנסת מצטרף לבד לזום במסך מלא, ובסיום חוזר ללוח הזמנים. 10 דקות לפני – הודעה במסך. (צריך שבמחשב יותקנו Zoom ותוכנת העזר.)</p>
+      <label class="cap" for="zoomTitle">כותרת (מופיעה במסך)</label>
+      <input class="field" type="text" id="zoomTitle" placeholder="הדף היומי עם הרב...">
+      <label class="cap" for="zoomLink" style="margin-top:10px">קישור לזום</label>
+      <input class="field" type="url" id="zoomLink" dir="ltr" placeholder="https://zoom.us/j/...">
+      <label class="cap" for="zoomName" style="margin-top:10px">השם שיופיע בזום</label>
+      <input class="field" type="text" id="zoomName" placeholder="בית הכנסת ...">
+      <div id="zoomList" style="display:flex;flex-direction:column;gap:10px;margin:12px 0 10px"></div>
+      <button class="add" type="button" id="addZoom">+ הוספת שיעור</button>
+      <p class="hint" style="margin-top:10px">"עד השעה" – מתי לצאת מהזום ולחזור ללוח הזמנים. אם לא ממלאים – אחרי שעה וחצי.</p>
+    </div>
+    <div class="card">
       <h2>כיבוי המסך</h2>
       <div class="row"><div class="lbl"><b>מסך כבוי עכשיו</b><small>המסך יהיה שחור עד שמכבים את המתג</small></div><label class="sw"><input type="checkbox" id="screenOff"><span></span></label></div>
       <div class="row"><div class="lbl"><b>כיבוי קבוע כל לילה</b><small>בין השעות שנבחרות</small></div><label class="sw"><input type="checkbox" id="nightOff"><span></span></label></div>
@@ -315,6 +328,24 @@ function offCard(o){
   d.querySelector('.del').addEventListener('click', () => { S.offDates = S.offDates.filter(x => x !== o); d.remove(); changed(); });
   return d;
 }
+// ---------- שיעורי זום ----------
+const ZDAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','מוצאי שבת / שבת'];
+function zoomCard(z){
+  const d = document.createElement('div'); d.className = 'pr';
+  d.innerHTML = `<div><label class="cap">יום</label><select class="field zd"></select></div>
+    <div class="two"><div><label class="cap">מהשעה</label><input class="field zt" type="time" dir="ltr"></div><div><label class="cap">עד השעה</label><input class="field ze" type="time" dir="ltr"></div></div>
+    <button type="button" class="del">מחיקה</button>`;
+  ZDAYS.forEach((n,i) => d.querySelector('.zd').add(new Option(n, i)));
+  d.querySelector('.zd').value = z.d; d.querySelector('.zt').value = z.t || ''; d.querySelector('.ze').value = z.e || '';
+  d.querySelector('.zd').addEventListener('change', e => { z.d = +e.target.value; changed(); });
+  d.querySelector('.zt').addEventListener('change', e => { z.t = e.target.value; changed(); });
+  d.querySelector('.ze').addEventListener('change', e => { z.e = e.target.value; changed(); });
+  d.querySelector('.del').addEventListener('click', () => { S.zoom = S.zoom.filter(x => x !== z); d.remove(); changed(); });
+  return d;
+}
+$('addZoom').addEventListener('click', () => {
+  const z = {d:4, t:'21:00', e:'22:00'}; S.zoom.push(z); $('zoomList').appendChild(zoomCard(z)); changed();
+});
 $('addOff').addEventListener('click', () => {
   const o = {d:1, m:'תשרי', from:'', to:''}; S.offDates.push(o); $('offDates').appendChild(offCard(o)); changed();
 });
@@ -328,6 +359,7 @@ $('addPrayer').addEventListener('click', () => {
 let timer = null;
 function status(t, cls){ const s = $('status'); s.textContent = t; s.className = 'chip-status ' + (cls || ''); }
 function valid(){
+  if (S.zoomLink && !/^https:\/\/([\w-]+\.)*zoom\.(us|com)\/\S+$/i.test(S.zoomLink.trim())) return 'קישור הזום לא תקין';
   if (S.city === OTHER && (!/^-?\d+(\.\d+)?$/.test(String(S.lat).trim()) || !/^-?\d+(\.\d+)?$/.test(String(S.lon).trim()))) return 'חסרים קו רוחב וקו אורך';
   return '';
 }
@@ -385,6 +417,12 @@ function bind(){
   $('clock').addEventListener('input', e => { S.clock = +e.target.value; $('clockV').textContent = S.clock + '%'; preview(); changed(); });
   preview();
 
+  S.zoom = S.zoom || [];
+  S.zoom.forEach(z => $('zoomList').appendChild(zoomCard(z)));
+  $('zoomTitle').value = S.zoomTitle || ''; $('zoomLink').value = S.zoomLink || ''; $('zoomName').value = S.zoomName || '';
+  $('zoomTitle').addEventListener('input', e => { S.zoomTitle = e.target.value; changed(); });
+  $('zoomLink').addEventListener('input', e => { S.zoomLink = e.target.value.trim(); changed(); });
+  $('zoomName').addEventListener('input', e => { S.zoomName = e.target.value; changed(); });
   S.offDates = S.offDates || [];
   S.offDates.forEach(o => $('offDates').appendChild(offCard(o)));
   S.prayers = S.prayers || [];
