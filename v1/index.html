@@ -278,6 +278,8 @@ function render(){
     const js = data.zj && data.zj.times && data.zj.times.sunset;
     const c = (js && CFG.candleMin) ? hhmm(new Date(Date.parse(js) - CFG.candleMin*60000)) : candles.date;
     cards.push(['הדלקת נרות', c, true]); BASE.candles = c;
+  } else if(sunsetJ){   // ביום רגיל: "זמן הדלקה" מחושב (לא מוצג) – כדי שתפילה שמוגדרת לפי הדלקת נרות תופיע גם בבדיקה ביום חול
+    const sm = toMin(sunsetJ); if(sm !== null) BASE.candles = fromMin(sm - (+CFG.candleMin || 40));
   }
   if(hav){
     cards.push([isSat ? 'צאת השבת' : 'צאת החג', hav.date, true]); BASE.havdalah = hav.date;
