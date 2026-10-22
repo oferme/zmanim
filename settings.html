@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>לוח זמנים – הגדרות</title>
+<meta name="theme-color" content="#0b1730">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="לוח זמנים">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700;900&family=Heebo:wght@400;500;700;800&display=swap">
+<style>
+/* אפליקציה: סרגל עליון, תוכן בכרטיסים, ניווט תחתון של 4 לשוניות */
+:root{
+  --bg:#0b1730; --surface:#12244a; --surface2:#1a3160; --line:rgba(226,184,87,.22);
+  --gold:#e2b857; --gold2:#f7de9a; --text:#f5f1e6; --muted:#9fb0cc; --ok:#7fd1a1; --danger:#ff8f7a;
+  --display:'Frank Ruhl Libre','David',serif; --body:'Heebo','Arial',sans-serif;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px}
+body{display:flex;flex-direction:column;overscroll-behavior:none}
+button,input,select{font-family:inherit;font-size:16px;color:inherit}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(var(--safe-t) + 12px) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line)}
+.bar .logo{width:38px;height:38px;border-radius:10px;flex:none;border:1px solid var(--line)}
+.bar .tt{flex:1;min-width:0}
+.bar h1{margin:0;font-family:var(--display);font-weight:900;font-size:21px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .sub{font-size:13px;color:var(--muted)}
+.chip-status{font-size:13px;font-weight:700;padding:5px 11px;border-radius:999px;background:var(--surface);color:var(--muted);white-space:nowrap;transition:background .2s,color .2s}
+.chip-status.saving{color:var(--gold2)}
+.chip-status.saved{color:var(--ok)}
+.chip-status.err{color:var(--danger)}
+main{flex:1;overflow-y:auto;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(96px + var(--safe-b)) max(16px,env(safe-area-inset-left,0px))}
+.tab{display:none;flex-direction:column;gap:14px;max-width:560px;margin:0 auto;animation:in .25s ease}
+.tab.on{display:flex}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.card h2{margin:0 0 12px;font-size:15px;font-weight:700;color:var(--gold);letter-spacing:.02em}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}
+.card h2 + .row,.card .row:first-child{border-top:0;padding-top:0}
+.row .lbl{flex:1;min-width:0}
+.row .lbl b{display:block;font-weight:500}
+.row .lbl small{color:var(--muted);font-size:13px}
+.field{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);outline:none}
+.field:focus{border-color:var(--gold)}
+select.field{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),linear-gradient(135deg,var(--gold) 50%,transparent 50%);background-position:18px 52%,12px 52%;background-size:6px 6px;background-repeat:no-repeat}
+.two{display:flex;gap:10px}.two>*{flex:1;min-width:0}
+label.cap{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
+/* מתג */
+.sw{position:relative;width:52px;height:30px;flex:none}
+.sw input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;z-index:1}
+.sw span{position:absolute;inset:0;border-radius:999px;background:#2b3f66;transition:background .2s}
+.sw span::after{content:'';position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw input:checked + span{background:var(--gold)}
+.sw input:checked + span::after{transform:translateX(-22px)}
+.sw input:focus-visible + span{outline:2px solid var(--gold2);outline-offset:2px}
+/* בחירה מקבוצה */
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px;font-weight:500;cursor:pointer}
+.seg button.on{background:var(--gold);color:#0b1730;border-color:var(--gold);font-weight:800}
+.seg button:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
+/* תצוגה מקדימה של המסך */
+.preview{aspect-ratio:16/9;max-width:100%;border-radius:12px;background:radial-gradient(ellipse at 50% 40%,#1a3a6e,#0a1730);border:1px solid var(--line);padding:6%;display:grid;grid-template-columns:1fr 1.3fr 1fr;grid-template-rows:1fr auto;gap:5%;font-size:11px}
+.preview .pc{grid-column:2;display:grid;place-items:center;font-weight:800;font-size:clamp(18px,7vw,34px);color:var(--text);font-variant-numeric:tabular-nums}
+.preview .ps{border:1px dashed rgba(226,184,87,.6);border-radius:7px;display:grid;place-items:center;text-align:center;color:var(--gold2);padding:4px;line-height:1.3}
+.preview .pb{grid-column:1/-1;min-height:22%;}
+.preview .ps.empty{border-color:rgba(255,255,255,.15);color:var(--muted)}
+.slotpick{margin-top:14px}
+.slotpick .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.slotpick .head b{font-weight:700}
+.slotpick .head small{color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--gold)}
+/* תפילות */
+.pr{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.pr .top{display:flex;gap:10px}
+.pr .top .field{flex:1}
+.pr .del{border:0;background:none;color:var(--danger);font-size:14px;padding:4px 2px;align-self:flex-start;cursor:pointer}
+.pr .seg button{padding:6px 12px;font-size:14px}
+.add{width:100%;padding:14px;border-radius:14px;border:1.5px dashed var(--gold);background:none;color:var(--gold2);font-weight:700;cursor:pointer}
+.hint{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+.hint b{color:var(--text)}
+/* שליטה */
+.big{width:100%;padding:15px;border-radius:14px;border:0;font-weight:800;font-size:17px;cursor:pointer}
+.big.gold{background:var(--gold);color:#0b1730}
+.big.ghost{background:var(--surface2);color:var(--text)}
+.big.danger{background:rgba(255,143,122,.15);color:var(--danger);border:1px solid rgba(255,143,122,.4)}
+.confirm{display:none;gap:10px;margin-top:10px}.confirm.on{display:flex}.confirm>*{flex:1}
+/* ניווט תחתון */
+nav{position:fixed;bottom:0;left:0;right:0;z-index:6;background:rgba(11,23,48,.97);border-top:1px solid var(--line);display:flex;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + var(--safe-b)) max(8px,env(safe-area-inset-left,0px))}
+nav button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:12px;font-weight:500;cursor:pointer}
+nav button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--gold2)}
+nav button.on .pill{background:rgba(226,184,87,.18)}
+nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
+.install{background:linear-gradient(160deg,#1d3a70,#12244a);border:1px solid var(--gold)}
+.install .x{float:left;border:0;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer}
+.err-screen{flex:1;display:grid;place-items:center;text-align:center;padding:30px;color:var(--muted);font-size:18px;line-height:1.7}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <img class="logo" src="icon-192.png" alt="">
+  <div class="tt"><h1 id="title">לוח זמנים</h1><div class="sub">הגדרות המסך</div></div>
+  <span class="chip-status" id="status">טוען…</span>
+</header>
+
+<main id="main">
+  <!-- לשונית: מיקום וזמנים -->
+  <section class="tab on" id="t-loc">
+    <div class="card install" id="install" hidden>
+      <button class="x" type="button" id="installX" aria-label="סגירה">×</button>
+      <h2>להתקנה כאפליקציה</h2>
+      <p class="hint" id="installTxt"></p>
+    </div>
+    <div class="card">
+      <h2>בית הכנסת</h2>
+      <label class="cap" for="name">שם</label>
+      <input class="field" id="name" type="text" autocomplete="off">
+    </div>
+    <div class="card">
+      <h2>מיקום</h2>
+      <label class="cap" for="city">עיר</label>
+      <select class="field" id="city"></select>
+      <div id="other" hidden>
+        <div class="two">
+          <div><label class="cap" for="lat">קו רוחב</label><input class="field" id="lat" inputmode="decimal" placeholder="40.71" dir="ltr"></div>
+          <div><label class="cap" for="lon">קו אורך</label><input class="field" id="lon" inputmode="decimal" placeholder="-74.00" dir="ltr"></div>
+        </div>
+        <p class="hint" style="margin-top:8px">בגוגל מפות: לחיצה ארוכה על המקום – המספרים מופיעים למעלה.</p>
+        <label class="cap" for="tz">אזור זמן</label>
+        <select class="field" id="tz" dir="ltr"></select>
+        <div class="row" style="margin-top:6px"><div class="lbl"><b>לוח חגים של ארץ ישראל</b><small>כבוי = חוץ לארץ (יום טוב שני)</small></div><label class="sw"><input type="checkbox" id="israel"><span></span></label></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>זמנים</h2>
+      <label class="cap">הדלקת נרות – דקות לפני השקיעה</label>
+      <div class="seg" id="candle" data-vals="18,20,22,24,30,40"></div>
+      <label class="cap">צאת שבת</label>
+      <div class="seg" id="havdalah" data-vals=",30,40,45,50,72" data-labels="צאת הכוכבים,30 ד׳,40 ד׳,45 ד׳,50 ד׳,72 ד׳"></div>
+      <div class="row" id="chaiRow" style="margin-top:8px"><div class="lbl"><b>נץ החמה לפי לוחות חי</b><small>טבלת רמת שלמה, ירושלים, עם שניות</small></div><label class="sw"><input type="checkbox" id="netzChai"><span></span></label></div>
+      <div class="row" style="margin-top:8px"><div class="lbl"><b>שקיעה לפי גובה המקום</b><small>כבוי = שקיעה במישור</small></div><label class="sw"><input type="checkbox" id="useElev"><span></span></label></div>
+      <div id="elevBox" hidden><label class="cap" for="elev">גובה במטרים (לא חובה)</label><input class="field" id="elev" type="number" inputmode="numeric" placeholder="800" dir="ltr"></div>
+    </div>
+  </section>
+
+  <!-- לשונית: מבנה המסך -->
+  <section class="tab" id="t-layout">
+    <div class="card">
+      <h2>תצוגה מקדימה</h2>
+      <div class="preview" id="pv">
+        <div class="ps" id="pvR"></div><div class="pc" id="pvC">10:30</div><div class="ps" id="pvL"></div>
+        <div class="ps pb" id="pvB"></div>
+      </div>
+      <div class="slotpick"><div class="head"><b>משבצת ימין</b><small>אפשר לבחור כמה – יתחלפו</small></div><div class="seg slot" id="slotR"></div></div>
+      <div class="slotpick"><div class="head"><b>משבצת שמאל</b></div><div class="seg slot" id="slotL"></div></div>
+      <div class="slotpick"><div class="head"><b>משבצת תחתונה</b></div><div class="seg slot" id="slotB"></div></div>
+    </div>
+    <div class="card">
+      <h2>תצוגה</h2>
+      <label class="cap">החלפה בין תכנים כל</label>
+      <div class="seg" id="rotate" data-vals="10,20,30,60,120" data-labels="10 שנ׳,20 שנ׳,30 שנ׳,דקה,2 דק׳"></div>
+      <label class="cap" for="clock">גודל השעון: <b id="clockV"></b></label>
+      <input type="range" id="clock" min="60" max="100" step="5">
+    </div>
+  </section>
+
+  <!-- לשונית: תפילות -->
+  <section class="tab" id="t-pray">
+    <div class="card">
+      <h2>זמני תפילות</h2>
+      <p class="hint">שעה קבועה (<b>6:30</b>) או יחסית: <b>15 דקות לפני השקיעה</b>, <b>שקיעה+20</b>, <b>הדלקת נרות+10</b>. כמה מניינים – עם פסיק: <b>6:15, 7:30</b>. כדי שיופיעו במסך, בוחרים "תפילות" באחת המשבצות.</p>
+      <p class="hint" style="margin-top:8px"><b>ימים:</b> תפילה של "שישי" או "שבת" מחליפה באותו יום את התפילה עם אותו שם של "כל יום". ביום שישי מופיע גם הערב, ולכן <b>קבלת שבת</b> וערבית של ליל שבת נכנסות תחת "שישי".</p>
+    </div>
+    <div id="prayers" style="display:flex;flex-direction:column;gap:10px"></div>
+    <button class="add" type="button" id="addPrayer">+ הוספת תפילה</button>
+  </section>
+
+  <!-- לשונית: שליטה -->
+  <section class="tab" id="t-ctrl">
+    <div class="card">
+      <h2>הודעות</h2>
+      <p class="hint" style="margin-bottom:12px">את ההודעות למסך כותבים במסמך ההודעות של בית הכנסת.</p>
+      <a class="big gold" id="docBtn" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">פתיחת מסמך ההודעות</a>
+    </div>
+    <div class="card">
+      <h2>כיבוי המסך</h2>
+      <div class="row"><div class="lbl"><b>מסך כבוי עכשיו</b><small>המסך יהיה שחור עד שמכבים את המתג</small></div><label class="sw"><input type="checkbox" id="screenOff"><span></span></label></div>
+      <div class="row"><div class="lbl"><b>כיבוי קבוע כל לילה</b><small>בין השעות שנבחרות</small></div><label class="sw"><input type="checkbox" id="nightOff"><span></span></label></div>
+      <div class="two" id="nightBox" hidden>
+        <div><label class="cap" for="nightFrom">מהשעה</label><input class="field" type="time" id="nightFrom" dir="ltr"></div>
+        <div><label class="cap" for="nightTo">עד השעה</label><input class="field" type="time" id="nightTo" dir="ltr"></div>
+      </div>
+      <p class="hint" style="margin-top:10px">השינוי מגיע למסך תוך כ-2 דקות.</p>
+    </div>
+    <div class="card">
+      <h2>כיבוי בתאריך מסוים</h2>
+      <p class="hint" style="margin-bottom:10px">למשל: י״ב חשון, מ-16:00 עד 21:00. בלי שעות – כל היום. הכיבוי חוזר בכל שנה באותו תאריך עד שמוחקים אותו.</p>
+      <div id="offDates" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px"></div>
+      <button class="add" type="button" id="addOff">+ הוספת תאריך</button>
+    </div>
+    <div class="card">
+      <h2>סגירת התוכנה במסך</h2>
+      <p class="hint" style="margin-bottom:12px">סוגר את התצוגה ומחזיר את המחשב לשולחן העבודה. כדי לפתוח שוב צריך להפעיל אותה במחשב.</p>
+      <button class="big danger" type="button" id="closeBtn">סגירת התוכנה</button>
+      <div class="confirm" id="closeConfirm"><button class="big danger" type="button" id="closeYes">כן, לסגור</button><button class="big ghost" type="button" id="closeNo">ביטול</button></div>
+    </div>
+  </section>
+
+  <div class="err-screen" id="errScreen" hidden></div>
+</main>
+
+<nav id="nav">
+  <button type="button" class="on" data-tab="t-loc"><span class="pill"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>מיקום</button>
+  <button type="button" data-tab="t-layout"><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>מסך</button>
+  <button type="button" data-tab="t-pray"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>תפילות</button>
+  <button type="button" data-tab="t-ctrl"><span class="pill"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg></span>שליטה</button>
+</nav>
+
+<script>
+// כתובת הסקריפט המרכזי (אותה כתובת כמו בקבצי המסך)
+const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec';
+
+const $ = id => document.getElementById(id);
+const store = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} } };
+const qs = new URLSearchParams(location.search);
+// מזהה ומפתח מהקישור; אחרי התקנה כאפליקציה הם נשמרים בטלפון
+let SHUL = (qs.get('shul') || store.get('app_shul') || '').toLowerCase(), KEY = qs.get('key') || store.get('app_key') || '';
+if (qs.get('shul') && qs.get('key')) { store.set('app_shul', SHUL); store.set('app_key', KEY); }
+
+const CITIES = [
+ ['ירושלים',31.778,35.235,40],['בני ברק',32.0807,34.8338,20],['תל אביב',32.0853,34.7818,20],['פתח תקווה',32.0871,34.8875,20],
+ ['רמת גן',32.0684,34.8248,20],['חיפה',32.7940,34.9896,30],['בית שמש',31.7470,34.9881,20],['מודיעין עילית',31.9320,35.0430,20],
+ ['מודיעין',31.8980,35.0104,20],['ביתר עילית',31.6967,35.1150,20],['אלעד',32.0522,34.9511,20],['אשדוד',31.8014,34.6435,20],
+ ['נתניה',32.3215,34.8532,20],['רחובות',31.8928,34.8113,20],['ראשון לציון',31.9730,34.7925,20],['חולון',32.0158,34.7874,20],
+ ['בת ים',32.0171,34.7454,20],['הרצליה',32.1663,34.8433,20],['כפר סבא',32.1750,34.9070,20],['רעננה',32.1840,34.8710,20],
+ ['חדרה',32.4340,34.9190,20],['צפת',32.9646,35.4960,20],['טבריה',32.7959,35.5310,20],['כרמיאל',32.9190,35.2950,20],
+ ['נהריה',33.0050,35.0980,20],['עפולה',32.6075,35.2900,20],['באר שבע',31.2518,34.7913,20],['אשקלון',31.6688,34.5743,20],
+ ['קרית גת',31.6100,34.7642,20],['אילת',29.5577,34.9519,20],['מעלה אדומים',31.7770,35.2980,20],['גבעת זאב',31.8600,35.1700,20],
+ ['קרית ארבע',31.5300,35.1150,20],['אריאל',32.1060,35.1730,20],['אחר / חוץ לארץ',null,null,18]];
+const OTHER = 'אחר / חוץ לארץ';
+const TZS = ['Asia/Jerusalem','Europe/London','Europe/Paris','Europe/Antwerp','America/New_York','America/Chicago','America/Los_Angeles','America/Toronto','America/Sao_Paulo','America/Argentina/Buenos_Aires','America/Mexico_City','Australia/Sydney','Africa/Johannesburg','Europe/Moscow','Europe/Kiev'];
+const SLOTS = [['daf','דף יומי'],['msgs','הודעות'],['zmanim','זמני היום'],['prayers','תפילות']];
+const SLOT_NAME = Object.fromEntries(SLOTS);
+let S = null, DOC = '';
+
+// ---------- ניווט ----------
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.tab));
+  $('main').scrollTop = 0; store.set('app_tab', b.dataset.tab);
+}));
+
+// ---------- רכיבים ----------
+function segment(el, value, onPick){
+  const vals = el.dataset.vals.split(','), labels = (el.dataset.labels || el.dataset.vals).split(',');
+  el.innerHTML = vals.map((v,i) => `<button type="button" data-v="${v}" aria-pressed="false">${labels[i]}</button>`).join('');
+  const set = v => el.querySelectorAll('button').forEach(b => { const on = b.dataset.v === String(v ?? ''); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  set(value);
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; set(b.dataset.v); onPick(b.dataset.v); });
+}
+function slotPicker(id){
+  const el = $(id);
+  el.innerHTML = SLOTS.map(([v,t]) => `<button type="button" data-v="${v}" aria-pressed="false">${t}</button>`).join('');
+  const paint = () => el.querySelectorAll('button').forEach(b => { const on = S[id].includes(b.dataset.v); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  paint();
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    const v = b.dataset.v, a = S[id];
+    S[id] = a.includes(v) ? a.filter(x => x !== v) : [...a, v];
+    paint(); preview(); changed();
+  });
+}
+function preview(){
+  const put = (el, a) => { el.textContent = a.length ? a.map(x => SLOT_NAME[x]).join(' ⇄ ') : 'ריק'; el.classList.toggle('empty', !a.length); };
+  put($('pvR'), S.slotR); put($('pvL'), S.slotL); put($('pvB'), S.slotB);
+  $('pvC').style.transform = `scale(${S.clock/100})`;
+}
+
+// ---------- תפילות ----------
+function prayerCard(p){
+  const d = document.createElement('div'); d.className = 'pr';
+  d.innerHTML = `<div class="top"><input class="field label" placeholder="שם (שחרית)" aria-label="שם התפילה"></div>
+    <input class="field value" dir="auto" placeholder="6:30, 7:15  או  15 דקות לפני השקיעה" aria-label="זמנים">
+    <div class="seg days" data-vals=",א-ה,שישי,שבת" data-labels="כל יום,א׳–ה׳,שישי,שבת"></div>
+    <button type="button" class="del">מחיקה</button>`;
+  d.querySelector('.label').value = p.label || ''; d.querySelector('.value').value = p.value || '';
+  segment(d.querySelector('.days'), p.q || '', v => { p.q = v; changed(); });
+  d.querySelector('.label').addEventListener('input', e => { p.label = e.target.value; changed(); });
+  d.querySelector('.value').addEventListener('input', e => { p.value = e.target.value; changed(); });
+  d.querySelector('.del').addEventListener('click', () => { S.prayers = S.prayers.filter(x => x !== p); d.remove(); changed(); });
+  return d;
+}
+// ---------- כיבוי בתאריכים ----------
+const HEB_MONTHS = ['תשרי','חשון','כסלו','טבת','שבט','אדר','אדר א','אדר ב','ניסן','אייר','סיון','תמוז','אב','אלול'];
+const hebNum = n => { const o=['','א','ב','ג','ד','ה','ו','ז','ח','ט'], t=['','י','כ','ל']; const s = n===15?'טו':n===16?'טז':t[Math.floor(n/10)]+o[n%10]; return s.length>1 ? s.slice(0,-1)+'״'+s.slice(-1) : s+'׳'; };
+function offCard(o){
+  const d = document.createElement('div'); d.className = 'pr';
+  d.innerHTML = `<div class="two"><div><label class="cap">יום</label><select class="field od"></select></div><div><label class="cap">חודש</label><select class="field om"></select></div></div>
+    <div class="two"><div><label class="cap">מהשעה</label><input class="field of" type="time" dir="ltr"></div><div><label class="cap">עד השעה</label><input class="field ot" type="time" dir="ltr"></div></div>
+    <button type="button" class="del">מחיקה</button>`;
+  for(let i=1;i<=30;i++) d.querySelector('.od').add(new Option(hebNum(i), i));
+  HEB_MONTHS.forEach(m => d.querySelector('.om').add(new Option(m, m)));
+  d.querySelector('.od').value = o.d; d.querySelector('.om').value = o.m; d.querySelector('.of').value = o.from || ''; d.querySelector('.ot').value = o.to || '';
+  d.querySelector('.od').addEventListener('change', e => { o.d = +e.target.value; changed(); });
+  d.querySelector('.om').addEventListener('change', e => { o.m = e.target.value; changed(); });
+  d.querySelector('.of').addEventListener('change', e => { o.from = e.target.value; changed(); });
+  d.querySelector('.ot').addEventListener('change', e => { o.to = e.target.value; changed(); });
+  d.querySelector('.del').addEventListener('click', () => { S.offDates = S.offDates.filter(x => x !== o); d.remove(); changed(); });
+  return d;
+}
+$('addOff').addEventListener('click', () => {
+  const o = {d:1, m:'תשרי', from:'', to:''}; S.offDates.push(o); $('offDates').appendChild(offCard(o)); changed();
+});
+
+$('addPrayer').addEventListener('click', () => {
+  const p = {q:'', label:'', value:''}; S.prayers.push(p);
+  const c = prayerCard(p); $('prayers').appendChild(c); c.querySelector('.label').focus();
+});
+
+// ---------- שמירה אוטומטית ----------
+let timer = null;
+function status(t, cls){ const s = $('status'); s.textContent = t; s.className = 'chip-status ' + (cls || ''); }
+function valid(){
+  if (S.city === OTHER && (!/^-?\d+(\.\d+)?$/.test(String(S.lat).trim()) || !/^-?\d+(\.\d+)?$/.test(String(S.lon).trim()))) return 'חסרים קו רוחב וקו אורך';
+  return '';
+}
+function changed(){
+  clearTimeout(timer);
+  const v = valid(); if (v){ status(v, 'err'); return; }
+  status('שומר…', 'saving');
+  timer = setTimeout(save, 900);
+}
+async function post(body){
+  const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body)});
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'שגיאה'); return j;
+}
+async function save(){
+  const s = Object.assign({}, S, {prayers: S.prayers.filter(p => (p.label||'').trim() && (p.value||'').trim())});
+  try { await post({shul:SHUL, key:KEY, action:'save', s}); status('נשמר ✓', 'saved'); }
+  catch(e){ status('לא נשמר – בדקו חיבור', 'err'); }
+}
+
+// ---------- טעינה ----------
+function bind(){
+  $('title').textContent = S.name || 'לוח זמנים'; document.title = (S.name || 'לוח זמנים') + ' – הגדרות';
+  $('name').value = S.name || '';
+  $('name').addEventListener('input', e => { S.name = e.target.value; $('title').textContent = S.name || 'לוח זמנים'; changed(); });
+
+  CITIES.forEach(c => $('city').add(new Option(c[0], c[0])));
+  TZS.forEach(t => $('tz').add(new Option(t, t)));
+  const known = CITIES.some(c => c[0] === S.city && c[1] !== null);
+  $('city').value = known ? S.city : OTHER;
+  const syncCity = () => { const other = $('city').value === OTHER; $('other').hidden = !other; $('chaiRow').hidden = $('city').value !== 'ירושלים'; $('elevBox').hidden = !S.useElev || $('city').value === 'ירושלים'; };
+  $('city').addEventListener('change', () => {
+    const c = CITIES.find(x => x[0] === $('city').value); S.city = c[0];
+    if (c[1] !== null){ S.lat = String(c[1]); S.lon = String(c[2]); S.tz = 'Asia/Jerusalem'; S.israel = true; S.candle = c[3]; segCandle(); }
+    syncCity(); changed();
+  });
+  $('lat').value = S.lat || ''; $('lon').value = S.lon || ''; $('tz').value = S.tz || 'Asia/Jerusalem'; $('israel').checked = S.israel !== false;
+  $('lat').addEventListener('input', e => { S.lat = e.target.value.trim(); changed(); });
+  $('lon').addEventListener('input', e => { S.lon = e.target.value.trim(); changed(); });
+  $('tz').addEventListener('change', e => { S.tz = e.target.value; changed(); });
+  $('israel').addEventListener('change', e => { S.israel = e.target.checked; changed(); });
+
+  const segCandle = () => segment($('candle'), S.candle || 20, v => { S.candle = +v; changed(); });
+  segCandle();
+  segment($('havdalah'), S.havdalah || '', v => { S.havdalah = v ? +v : ''; changed(); });
+  $('useElev').checked = !!S.useElev; $('elev').value = S.elev || '';
+  $('netzChai').checked = !!S.netzChai;
+  $('netzChai').addEventListener('change', e => { S.netzChai = e.target.checked; changed(); });
+  $('useElev').addEventListener('change', e => { S.useElev = e.target.checked; syncCity(); changed(); });
+  $('elev').addEventListener('input', e => { S.elev = e.target.value ? +e.target.value : ''; changed(); });
+  syncCity();
+
+  ['slotR','slotL','slotB'].forEach(slotPicker);
+  segment($('rotate'), S.rotate || 30, v => { S.rotate = +v; changed(); });
+  $('clock').value = S.clock || 100; $('clockV').textContent = (S.clock || 100) + '%';
+  $('clock').addEventListener('input', e => { S.clock = +e.target.value; $('clockV').textContent = S.clock + '%'; preview(); changed(); });
+  preview();
+
+  S.offDates = S.offDates || [];
+  S.offDates.forEach(o => $('offDates').appendChild(offCard(o)));
+  S.prayers = S.prayers || [];
+  S.prayers.forEach(p => $('prayers').appendChild(prayerCard(p)));
+
+  if (DOC) $('docBtn').href = DOC; else $('docBtn').hidden = true;
+  $('screenOff').checked = !!S.screenOff; $('nightOff').checked = !!S.nightOff;
+  $('nightFrom').value = S.nightFrom || '23:00'; $('nightTo').value = S.nightTo || '06:00';
+  const syncNight = () => { $('nightBox').hidden = !S.nightOff; };
+  syncNight();
+  $('screenOff').addEventListener('change', e => { S.screenOff = e.target.checked; changed(); });
+  $('nightOff').addEventListener('change', e => { S.nightOff = e.target.checked; S.nightFrom = $('nightFrom').value; S.nightTo = $('nightTo').value; syncNight(); changed(); });
+  $('nightFrom').addEventListener('change', e => { S.nightFrom = e.target.value; changed(); });
+  $('nightTo').addEventListener('change', e => { S.nightTo = e.target.value; changed(); });
+
+  $('closeBtn').addEventListener('click', () => { $('closeBtn').hidden = true; $('closeConfirm').classList.add('on'); });
+  $('closeNo').addEventListener('click', () => { $('closeBtn').hidden = false; $('closeConfirm').classList.remove('on'); });
+  $('closeYes').addEventListener('click', async () => {
+    $('closeConfirm').classList.remove('on'); $('closeBtn').hidden = false;
+    status('שולח…', 'saving');
+    try { await post({shul:SHUL, key:KEY, action:'close'}); status('נשלח – המסך ייסגר תוך 2 דקות', 'saved'); }
+    catch(e){ status('לא נשלח – בדקו חיבור', 'err'); }
+  });
+
+  const t = store.get('app_tab'); if (t && $(t)) document.querySelector(`nav button[data-tab="${t}"]`).click();
+}
+function fail(msg){
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  $('nav').hidden = true; $('errScreen').hidden = false; $('errScreen').textContent = msg; status('', '');
+}
+async function load(){
+  if (!SHUL || !KEY) return fail('יש לפתוח את האפליקציה מהקישור שקיבלתם מהמנהל.');
+  try {
+    const r = await fetch(`${API}?page=api&shul=${encodeURIComponent(SHUL)}&key=${encodeURIComponent(KEY)}&t=${Date.now()}`, {cache:'no-store'});
+    const j = await r.json();
+    if (!j.ok) return fail(j.error || 'הקישור אינו תקין.');
+    S = j.s; DOC = j.doc; bind(); status('מעודכן', 'saved');
+  } catch(e){ fail('אין חיבור לאינטרנט. נסו שוב בעוד רגע.'); }
+}
+load();
+
+// ---------- התקנה כאפליקציה ----------
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+if (!standalone && !store.get('app_install_x')){
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  $('installTxt').innerHTML = ios
+    ? 'בספארי: לוחצים על כפתור <b>השיתוף</b> (ריבוע עם חץ) ← <b>הוסף למסך הבית</b>. האפליקציה תופיע עם אייקון, בלי שורת כתובת.'
+    : 'בכרום: לוחצים על <b>⋮</b> למעלה ← <b>הוספה למסך הבית</b> או <b>התקנת אפליקציה</b>. האפליקציה תופיע עם אייקון, בלי שורת כתובת.';
+  $('install').hidden = false;
+  $('installX').addEventListener('click', () => { $('install').hidden = true; store.set('app_install_x', '1'); });
+}
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>

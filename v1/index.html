@@ -224,15 +224,16 @@ async function load(){
   const base = 'https://www.hebcal.com';
   try{
     const sat = addDays(today, (6 - DOW_EN.indexOf(nowParts().dow) + 7) % 7);
-    const [z,h1,h2,cal,hs,zj] = await Promise.all([
+    const [z,h1,h2,cal,hs,zj,zs] = await Promise.all([
       j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}`),
       j(`${base}/converter?cfg=json&date=${today}&g2h=1&strict=1`),
       j(`${base}/converter?cfg=json&date=${today}&g2h=1&strict=1&gs=on`),
       j(`${base}/hebcal?v=1&cfg=json&${CFG.lat ? 'geo=pos&' : ''}${locQ()}&i=${CFG.israel ? 'on' : 'off'}&c=on&${CFG.havdalahMin ? 'm=' + CFG.havdalahMin : 'M=on'}${CFG.candleMin ? '&b=' + CFG.candleMin : ''}&s=on&maj=on&min=on&mod=on&lg=he&start=${today}&end=${addDays(today,14)}`),
       j(`${base}/converter?cfg=json&date=${sat}&g2h=1&strict=1`),
-      j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1${CFG.useElev ? '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '') : ''}`)   // שקיעה (לפי גובה אם הוגדר) – לשקיעה ולהדלקת נרות
+      j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1${CFG.useElev ? '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '') : ''}`),   // שקיעה (לפי גובה אם הוגדר) – לשקיעה ולהדלקת נרות
+      j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1`)   // נץ החמה במישור עם שניות
     ]);
-    data = {today,z,h1,h2,cal,hs,sat,zj};
+    data = {today,z,h1,h2,cal,hs,sat,zj,zs};
     try{ localStorage.setItem('zmanim_' + SHUL, JSON.stringify(data)); }catch(e){}
     $('status').textContent = '';
   }catch(e){
@@ -262,7 +263,7 @@ function render(){
   const isSat = n.dow === 'Sat';
 
   const cards = [
-    ['הנץ החמה', netzFromTable(data.h1) || Z.sunrise],
+    ['הנץ החמה', netzFromTable(data.h1) || ((data.zs && data.zs.times && data.zs.times.sunrise) ? data.zs.times.sunrise.slice(11,19) : Z.sunrise)],
     ['סוף זמן ק״ש (גר״א)', Z.sofZmanShma],
     ['חצות היום', Z.chatzot],
     ['שקיעת החמה', sunsetJ],
@@ -463,9 +464,14 @@ function prayerTime(tok){
 // תפילות להיום: [שבת] מחליף בשבת את אותה תפילה; [חול] = א׳–ו׳; [שישי] = יום שישי
 function prayersToday(){
   const all = CFG.prayers || [];
-  const okQ = q => !q || (q === 'שבת' ? IS_SAT : q === 'חול' ? !IS_SAT : q === 'שישי' ? IS_FRI : true);
+  // ימים: "" = כל יום, "חול" = א׳–ו׳, "א-ה" = א׳–ה׳, "שישי", "שבת". יום שישי כולל את הערב (קבלת שבת).
+  // הגדרה ספציפית יותר מחליפה באותו יום תפילה עם אותו שם (שבת/שישי/א-ה > חול > כל יום)
+  const SUNTHU = !IS_SAT && !IS_FRI;
+  const okQ = q => !q || (q === 'שבת' ? IS_SAT : q === 'שישי' ? IS_FRI : q === 'א-ה' ? SUNTHU : q === 'חול' ? !IS_SAT : false);
+  const rank = q => !q ? 0 : q === 'חול' ? 1 : 2;
   let list = all.filter(p => okQ(p.q));
-  if(IS_SAT){ const sh = new Set(list.filter(p => p.q === 'שבת').map(p => p.label)); list = list.filter(p => p.q === 'שבת' || !sh.has(p.label)); }
+  const best = {}; list.forEach(p => { best[p.label] = Math.max(best[p.label] ?? -1, rank(p.q)); });
+  list = list.filter(p => rank(p.q) === best[p.label]);
   const n = nowParts(), now = `${n.h}:${n.m}`; let nextMarked = false;
   const out = list.map(p => ({label: p.label, times: p.value.split(',').map(prayerTime).filter(Boolean)})).filter(p => p.times.length);
   // סימון התפילה הבאה
