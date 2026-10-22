@@ -190,17 +190,23 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <a class="big gold" id="docBtn" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">פתיחת מסמך ההודעות</a>
     </div>
     <div class="card">
-      <h2>שיעור בזום</h2>
-      <p class="hint" style="margin-bottom:10px">בשעה שנקבעה המחשב של בית הכנסת מצטרף לבד לזום במסך מלא, ובסיום חוזר ללוח הזמנים. 10 דקות לפני – הודעה במסך. (צריך שבמחשב יותקנו Zoom ותוכנת העזר.)</p>
-      <label class="cap" for="zoomTitle">כותרת (מופיעה במסך)</label>
+      <h2>שיעור / שידור חי</h2>
+      <p class="hint" style="margin-bottom:10px">בשעה שנקבעה המסך עובר לבד לשידור במסך מלא, ובסיום חוזר ללוח הזמנים. 10 דקות לפני – הודעה במסך.</p>
+      <label class="cap">איפה השידור</label>
+      <div class="seg" id="liveType" data-vals="zoom,youtube,web" data-labels="זום,יוטיוב,אתר אחר"></div>
+      <p class="hint" id="liveHint" style="margin-top:8px"></p>
+      <label class="cap" for="zoomTitle" style="margin-top:10px">כותרת (מופיעה במסך)</label>
       <input class="field" type="text" id="zoomTitle" placeholder="הדף היומי עם הרב...">
-      <label class="cap" for="zoomLink" style="margin-top:10px">קישור לזום</label>
-      <input class="field" type="url" id="zoomLink" dir="ltr" placeholder="https://zoom.us/j/...">
-      <label class="cap" for="zoomName" style="margin-top:10px">השם שיופיע בזום</label>
-      <input class="field" type="text" id="zoomName" placeholder="בית הכנסת ...">
+      <label class="cap" for="zoomLink" style="margin-top:10px" id="linkCap">קישור</label>
+      <input class="field" type="url" id="zoomLink" dir="ltr" placeholder="https://">
+      <div id="zoomOnly">
+        <label class="cap" for="zoomName" style="margin-top:10px">השם שיופיע בזום</label>
+        <input class="field" type="text" id="zoomName" placeholder="בית הכנסת ...">
+        <div class="row" style="margin-top:8px"><div class="lbl"><b>להפעיל OBS לפני ההצטרפות</b><small>מצלמה וירטואלית עם הלוגו של בית הכנסת</small></div><label class="sw"><input type="checkbox" id="liveObs"><span></span></label></div>
+      </div>
       <div id="zoomList" style="display:flex;flex-direction:column;gap:10px;margin:12px 0 10px"></div>
       <button class="add" type="button" id="addZoom">+ הוספת שיעור</button>
-      <p class="hint" style="margin-top:10px">"עד השעה" – מתי לצאת מהזום ולחזור ללוח הזמנים. אם לא ממלאים – אחרי שעה וחצי.</p>
+      <p class="hint" style="margin-top:10px">"עד השעה" – מתי לחזור ללוח הזמנים. אם לא ממלאים – אחרי שעה וחצי.</p>
     </div>
     <div class="card">
       <h2>כיבוי המסך</h2>
@@ -329,6 +335,17 @@ function offCard(o){
   return d;
 }
 // ---------- שיעורי זום ----------
+const LIVE_RE = { zoom: /^https:\/\/([\w-]+\.)*zoom\.(us|com)\/\S+$/i, youtube: /^https:\/\/([\w-]+\.)*(youtube\.com|youtu\.be)\/\S+$/i, web: /^https:\/\/\S+$/i };
+const LIVE_TXT = {
+  zoom: ['קישור לזום', 'https://zoom.us/j/...', 'המחשב מצטרף לזום במסך מלא. צריך שבמחשב יותקנו Zoom ותוכנת העזר.'],
+  youtube: ['קישור לשידור ביוטיוב', 'https://www.youtube.com/live/...', 'השידור מוצג במסך עצמו – גם בטאבלט. מדביקים קישור לשידור (או לסרטון), או קישור לערוץ מהצורה youtube.com/channel/UC... כדי להציג תמיד את השידור החי של הערוץ.'],
+  web: ['כתובת האתר', 'https://...', 'האתר נפתח במסך מלא במחשב של בית הכנסת. צריך שבמחשב תותקן תוכנת העזר.']
+};
+function syncLive(){
+  const t = S.liveType || 'zoom', x = LIVE_TXT[t];
+  $('linkCap').textContent = x[0]; $('zoomLink').placeholder = x[1]; $('liveHint').textContent = x[2];
+  $('zoomOnly').hidden = t !== 'zoom';
+}
 const ZDAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','מוצאי שבת / שבת'];
 function zoomCard(z){
   const d = document.createElement('div'); d.className = 'pr';
@@ -359,7 +376,7 @@ $('addPrayer').addEventListener('click', () => {
 let timer = null;
 function status(t, cls){ const s = $('status'); s.textContent = t; s.className = 'chip-status ' + (cls || ''); }
 function valid(){
-  if (S.zoomLink && !/^https:\/\/([\w-]+\.)*zoom\.(us|com)\/\S+$/i.test(S.zoomLink.trim())) return 'קישור הזום לא תקין';
+  if (S.zoomLink && !LIVE_RE[S.liveType || 'zoom'].test(S.zoomLink.trim())) return { zoom: 'קישור הזום לא תקין', youtube: 'קישור היוטיוב לא תקין', web: 'הקישור צריך להתחיל ב-https://' }[S.liveType || 'zoom'];
   if (S.city === OTHER && (!/^-?\d+(\.\d+)?$/.test(String(S.lat).trim()) || !/^-?\d+(\.\d+)?$/.test(String(S.lon).trim()))) return 'חסרים קו רוחב וקו אורך';
   return '';
 }
@@ -423,6 +440,10 @@ function bind(){
   $('zoomTitle').addEventListener('input', e => { S.zoomTitle = e.target.value; changed(); });
   $('zoomLink').addEventListener('input', e => { S.zoomLink = e.target.value.trim(); changed(); });
   $('zoomName').addEventListener('input', e => { S.zoomName = e.target.value; changed(); });
+  segment($('liveType'), S.liveType || 'zoom', v => { S.liveType = v; syncLive(); changed(); });
+  $('liveObs').checked = S.liveObs !== false;
+  $('liveObs').addEventListener('change', e => { S.liveObs = e.target.checked; changed(); });
+  syncLive();
   S.offDates = S.offDates || [];
   S.offDates.forEach(o => $('offDates').appendChild(offCard(o)));
   S.prayers = S.prayers || [];

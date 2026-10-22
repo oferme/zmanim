@@ -82,6 +82,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
 .notice{white-space:pre-line;line-height:1.6;position:fixed;inset:0;z-index:55;background:var(--bg1);display:none;align-items:center;justify-content:center;text-align:center;padding:5vw;font-size:calc(var(--u)*3.2);font-weight:700;color:var(--gold2)}
 .notice.on{display:flex}
 .status{position:fixed;bottom:calc(var(--u)*.6);left:calc(var(--u)*1);font-size:calc(var(--u)*1.3);color:#ff9e8a}
+#live{display:none;position:fixed;inset:0;background:#000;z-index:52}#live iframe{width:100%;height:100%;border:0}
 #zoomBar{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--u)*1.2);padding:calc(var(--u)*.9) calc(var(--u)*2.4);border-radius:calc(var(--u)*1);background:linear-gradient(180deg,#f0cf7a,#d9a93f);color:#1a1405;font:800 calc(var(--u)*2.4) 'Heebo',sans-serif;box-shadow:0 0 calc(var(--u)*3) rgba(226,184,87,.45);z-index:40;white-space:nowrap}
 #rotHint{display:none;position:fixed;left:0;right:0;bottom:0;padding:14px 16px;background:rgba(10,23,48,.95);border-top:1px solid var(--gold);color:var(--gold2);font:600 16px 'Heebo',sans-serif;text-align:center;z-index:50}
 @media (orientation:portrait){#rotHint{display:block}}
@@ -89,6 +90,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
 </head>
 <body>
 <div id="zoomBar"></div>
+<div id="live"></div>
 <div id="rotHint">לתצוגה מלאה – סובבו את המכשיר לרוחב ולחצו על המסך</div>
 <div class="stage">
   <header>
@@ -156,9 +158,10 @@ function parseSettings(text){
     const k = m[1].replace(/\s+/g,' '), v = m[2];
     if(/כותרת זום/.test(k)) c.zoomTitle = v;
     else if(/שיעור זום/.test(k)){   // "ה 21:00-22:00" (ש = שבת / מוצאי שבת)
-      const m2 = v.match(/^([אבגדהוש])\S*\s+(\d{1,2}:\d{2})/);
-      if(m2) (c.zoom = c.zoom || []).push({d: 'אבגדהוש'.indexOf(m2[1]), t: m2[2]});
+      const m2 = v.match(/^([אבגדהוש])\S*\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
+      if(m2) (c.zoom = c.zoom || []).push({d: 'אבגדהוש'.indexOf(m2[1]), t: m2[2], e: m2[3] || ''});
     }
+    else if(/שידור יוטיוב/.test(k)) c.youtube = v;
     else if(/^שם/.test(k)) c.name = v;
     else if(/מזהה מיקום|geonameid/i.test(k)) c.geonameid = (v.match(/\d+/)||[])[0];
     else if(/קואורדינטות|קווי|מיקום/.test(k)){ const n = v.match(/-?\d+(\.\d+)?/g); if(n && n.length>=2){ c.lat = n[0]; c.lon = n[1]; } }
@@ -653,8 +656,33 @@ function zoomBar(n){
   }
   el.textContent = txt; el.style.display = txt ? 'block' : 'none';
 }
+// שידור יוטיוב – מוצג במסך עצמו בזמן השיעור
+function ytEmbed(u){
+  let m;
+  if((m = u.match(/(?:youtu\.be\/|[?&]v=|\/(?:live|embed|shorts)\/)([\w-]{11})/))) return 'https://www.youtube.com/embed/' + m[1] + '?autoplay=1&rel=0&playsinline=1';
+  if((m = u.match(/(?:\/channel\/|[?&]channel=)(UC[\w-]{22})/))) return 'https://www.youtube.com/embed/live_stream?channel=' + m[1] + '&autoplay=1&playsinline=1';
+  return null;
+}
+function liveNow(n){   // השיעור שמתקיים עכשיו (כולל שיעור שעובר את חצות)
+  const dow = DOW_EN.indexOf(n.dow), cur = (+n.h)*60 + (+n.m);
+  const mins = t => { const [h,m] = t.split(':').map(Number); return h*60 + m; };
+  return (CFG.zoom || []).find(z => {
+    const st = mins(z.t), en = z.e ? mins(z.e) : (st + 90) % 1440;
+    if(en > st) return z.d === dow && cur >= st && cur < en;
+    return (z.d === dow && cur >= st) || ((z.d + 1) % 7 === dow && cur < en);
+  });
+}
+let liveSrc = '';
+function liveView(n){
+  const src = (CFG.youtube && liveNow(n)) ? ytEmbed(CFG.youtube) : null, box = $('live');
+  if((src || '') === liveSrc) return;
+  liveSrc = src || '';
+  box.innerHTML = src ? `<iframe src="${src}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>` : '';
+  box.style.display = src ? 'block' : 'none';
+}
 function tick(){
   const n = nowParts();
+  if(n.s === '00' || n.s === '30' || !$('live').dataset.init){ $('live').dataset.init = 1; liveView(n); }
   if(n.s === '00' || !$('zoomBar').dataset.init){ $('zoomBar').dataset.init = 1; zoomBar(n); }
   $('hm').textContent = `${n.h}:${n.m}`;
   $('sec').textContent = n.s;
