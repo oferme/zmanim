@@ -822,14 +822,16 @@ function startScroll(el){
   if(h <= vp.clientHeight + 2) return;                        // נכנס – בלי גלילה
   el._scrolling = true;
   vp.classList.add('scroll');
-  const body = inner.innerHTML;
+  const body = inner.innerHTML, n = inner.children.length;
   inner.innerHTML = body + '<div class="gap"></div>' + body;   // גלילה רציפה כלפי מעלה
-  const cycle = inner.scrollHeight - h;
+  // אורך הסיבוב = המרחק המדויק בין תחילת העותק הראשון לתחילת העותק השני (כך שהמעבר חלק, בלי קפיצה)
+  const kids = inner.children;
+  const cycleNow = () => (kids[n + 1] && kids[0]) ? kids[n + 1].offsetTop - kids[0].offsetTop : inner.scrollHeight / 2;   // נמדד כל פעם מחדש – גם אם הגופן נטען באמצע
   const speed = () => vp.clientHeight / 9;
   let off = 0, last = performance.now(), pause = last + 4000;
   const step = now => {
     const dt = (now - last) / 1000; last = now;
-    if(now > pause){ off += speed() * dt; if(off >= cycle){ off -= cycle; pause = now + 4000; } }
+    if(now > pause){ off += speed() * dt; const cycle = cycleNow(); if(off >= cycle){ off -= cycle; pause = now + 4000; } }
     inner.style.transform = `translateY(${-off}px)`;
     el._raf = requestAnimationFrame(step);
   };
