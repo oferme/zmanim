@@ -79,7 +79,8 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
 .pnl .m.hf small{display:block;font-size:.8em;color:var(--muted)}
 .pnl .m.mz span{display:block;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:1.35em}
 .card .t.multi{font-size:calc(var(--u)*3.2);white-space:nowrap}
-.card.mw{max-width:calc(var(--u)*30)}
+.card.mw{max-width:calc(var(--u)*30);flex-grow:1.7}
+.grid.many .card .t.multi{font-size:calc(var(--u)*2.9)}
 .clockrow{position:relative;width:100%;display:flex;justify-content:center;align-items:center}
 .days{display:flex;gap:calc(var(--u)*.35);margin-top:calc(var(--u)*1.3);align-items:center}
 .days:empty{display:none}
@@ -709,7 +710,7 @@ function content(type, where, msgs){
   if(type === 'zmanim'){
     if(!ZCARDS.length) return null;
     return side ? {html:`<div class="pnl tall"><div class="lbl">זמני היום</div><div class="vp"><div class="in zl">${ZCARDS.map(([l,v,hl]) => `<div class="row${hl?' hl':''}"><span>${l}</span><b>${show(v)}</b></div>`).join('')}</div></div></div>`, scroll:true}
-                : {html: ZCARDS.map(([l,v,hl]) => `<div class="card${hl?' hl':''}"><div class="lbl">${l}</div><div class="t">${show(v)}</div></div>`).join(''), cards: ZCARDS.length};
+                : {html: ZCARDS.map(([l,v,hl]) => `<div class="card${hl || (l === 'הנץ החמה' && netzWindow()) ?' hl':''}"><div class="lbl">${l}</div><div class="t">${show(v)}</div></div>`).join(''), cards: ZCARDS.length, netz: true};
   }
   if(type === 'prayers'){
     const P = prayersToday(); if(!P.length) return null;
@@ -735,6 +736,11 @@ function content(type, where, msgs){
   }
   return null;
 }
+function netzWindow(){   // שעה לפני הנץ עד שעה אחרי
+  const nm = toMin(BASE.netz); if(nm === null || nm === undefined) return false;
+  const n = nowParts(), cur = (+n.h)*60 + (+n.m) + (+n.s)/60;
+  return cur >= nm - 60 && cur <= nm + 60;
+}
 function renderSlots(){
   if(!booted || !CFG.slotR) return;
   const slots = {R: CFG.slotR, L: CFG.slotL, B: CFG.slotB};
@@ -752,7 +758,13 @@ function renderSlots(){
   for(const k of ['R','L','B']){
     const el = k === 'B' ? $('grid') : $('slot' + k);
     const items = slots[k].map(tp => content(tp, k, msgs[k])).filter(Boolean);
-    const c = items.length ? items[Math.floor(sec / CFG.rotate) % items.length] : null;
+    let c = items.length ? items[Math.floor(sec / CFG.rotate) % items.length] : null;
+    // הנץ: משעה לפני ועד שעה אחרי – קוביית הנץ קבועה בשורה התחתונה (שליח הציבור מסתכל עליה), שאר התוכן ממשיך להתחלף
+    if(k === 'B' && slots.B.length && netzWindow() && !(c && c.netz)){
+      const nz = ZCARDS.find(x => x[0] === 'הנץ החמה');
+      if(nz){ const card = `<div class="card hl"><div class="lbl">${nz[0]}</div><div class="t">${show(nz[1])}</div></div>`;
+              c = {html: card + (c ? c.html : ''), cards: 1 + ((c && c.cards) || (c ? 2 : 0)), scroll: c && c.scroll}; }
+    }
     if(k === 'B') el.classList.toggle('many', !!(c && c.cards > 4));
     setSlot(el, c ? c.html : '', c && c.scroll);
   }
