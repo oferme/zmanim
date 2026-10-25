@@ -286,6 +286,7 @@ function learnText(key, it){
   if(key === 'dsm') s = s.replace(/Positive Commandments?/g, 'מצוות עשה').replace(/Negative Commandments?/g, 'לא תעשה')
                          .replace(/;?\s*Note About Varying Customs/g, '').replace(/;\s*/g, ' · ');
   s = s.replace(/^(ירושלמי|תהלים|תהילים|פרקי אבות)\s+/, '');
+  if(key === 'myomi' && (s.match(/:/g) || []).length === 1) s = s.replace(/(\d+):(\d+)/, 'פרק $1 משנה $2');   // אהלות 12:5-6 → אהלות פרק י״ב משנה ה׳-ו׳
   return strip(heNums(s)).replace(/(\S)-(\S)/g, '$1\u2011$2');   // טווח (ג׳-ה׳) לא נשבר בין שורות
 }
 async function loadLearn(today){
@@ -701,11 +702,22 @@ function renderSlots(){
 function setSlot(el, html, scroll){
   if(el._html === html){   // אותו תוכן – אבל אם בינתיים הוא גדל (גופנים נטענו וכו') ועכשיו לא נכנס, מתחילים לגלול
     if(scroll && !el._scrolling) startScroll(el);
+    fitStack(el, false);
     return;
   }
   el._html = html; el._scrolling = false; cancelAnimationFrame(el._raf);
   el.innerHTML = html;
   if(scroll) startScroll(el);
+  fitStack(el, true);
+}
+// משבצות לימוד זו מתחת לזו: מקטין עד שהן נכנסות עם מרווח מהפס העליון ומהשורה התחתונה
+function fitStack(el, reset){
+  const st = el.querySelector('.stack'); if(!st) return;
+  const u = Math.min(innerWidth, innerHeight * 1.7778) / 100;
+  const avail = el.clientHeight - u * 2.4;
+  let z = reset ? 1 : (+st.style.zoom || 1);
+  if(reset) st.style.zoom = 1;
+  while(st.getBoundingClientRect().height > avail && z > 0.55){ z = Math.round((z - 0.05) * 100) / 100; st.style.zoom = z; }
 }
 function startScroll(el){
   const vp = el.querySelector('.vp'), inner = el.querySelector('.in');
@@ -857,6 +869,7 @@ function tick(){
   if(n.h==='03' && n.m==='00' && n.s==='00') { if(navigator.onLine) location.reload(); }   // רענון יומי (רק כשיש אינטרנט)
 }
 setInterval(tick, 1000); tick();
+addEventListener('resize', () => document.querySelectorAll('.slot').forEach(el => fitStack(el, true)));
 setInterval(() => booted && load(), 3*60*60*1000);
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register(MY_VER ? '../sw.js' : 'sw.js', {scope: MY_VER ? '../' : './'}).catch(()=>{});   // עבודה גם בלי אינטרנט
 document.addEventListener('click', () => {   // מסך מלא, ובטלפון/טאבלט – נעילה לרוחב
