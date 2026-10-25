@@ -205,18 +205,17 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
     </div>
     <div class="card">
       <h2>הפטרה</h2>
-      <div class="row"><div class="lbl"><b>להציג את ההפטרה</b><small>בראש ההודעות, מערב שבת / חג ועד צאתם</small></div><label class="sw"><input type="checkbox" id="haftara"><span></span></label></div>
+      <div class="row"><div class="lbl"><b>להציג את ההפטרה</b><small>בראש ההודעות, עד צאת השבת / החג</small></div><label class="sw"><input type="checkbox" id="haftara"><span></span></label></div>
       <div id="haftBox" hidden>
         <label class="cap" style="margin-top:10px">נוסח</label>
         <div class="seg" id="nusach" data-vals="ashk,seph" data-labels="אשכנז,ספרד / עדות המזרח"></div>
+        <label class="cap" style="margin-top:10px">מתי להציג</label>
+        <div class="seg" id="haftFrom" data-vals="erev,day" data-labels="מיום שישי / ערב חג,רק בשבת / בחג עצמו"></div>
       </div>
     </div>
     <div class="card">
       <h2>ברכות ושמחות</h2>
       <p class="hint" style="margin-bottom:10px">מופיע בראש ההודעות במסך בתאריכים שנבחרו (צריך שתהיה משבצת "הודעות").</p>
-      <label class="cap" for="mazalTitle">כותרת הברכה במסך</label>
-      <input class="field" type="text" id="mazalTitle" placeholder="בשעה טובה">
-      <div class="seg" id="mazalSug" style="margin:8px 0 12px"></div>
       <div id="mazalList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px"></div>
       <button class="add" type="button" id="addMazal">+ הוספת ברכה</button>
     </div>
@@ -393,11 +392,18 @@ function learnPicker(){
   });
 }
 // ---------- מזל טוב ----------
+const MAZAL_TITLES = ['בשעה טובה','בשעה טובה ומוצלחת','ברכות ואיחולים','שמחות בקהילה','ברכת מזל טוב'];
 function mazalCard(z){
   const d = document.createElement('div'); d.className = 'pr';
-  d.innerHTML = `<div><label class="cap">נוסח</label><input type="text" class="field mt" placeholder="למשפחת כהן להולדת הבת"></div>
+  d.innerHTML = `<div><label class="cap">כותרת</label><input type="text" class="field mtt" placeholder="בשעה טובה"></div>
+    <div class="seg msug" style="margin:6px 0 4px"></div>
+    <div><label class="cap">נוסח</label><input type="text" class="field mt" placeholder="למשפחת כהן להולדת הבת"></div>
     <div class="two"><div><label class="cap">מתאריך</label><input class="field mf" type="date" dir="ltr"></div><div><label class="cap">עד תאריך</label><input class="field mto" type="date" dir="ltr"></div></div>
     <button type="button" class="del">מחיקה</button>`;
+  d.querySelector('.mtt').value = z.title || '';
+  d.querySelector('.msug').innerHTML = MAZAL_TITLES.map(t => `<button type="button">${t}</button>`).join('');
+  d.querySelector('.msug').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; z.title = d.querySelector('.mtt').value = b.textContent; changed(); });
+  d.querySelector('.mtt').addEventListener('input', e => { z.title = e.target.value; changed(); });
   d.querySelector('.mt').value = z.text || ''; d.querySelector('.mf').value = z.from || ''; d.querySelector('.mto').value = z.to || '';
   d.querySelector('.mt').addEventListener('input', e => { z.text = e.target.value; changed(); });
   d.querySelector('.mf').addEventListener('change', e => { z.from = e.target.value; if(!z.to || z.to < z.from){ z.to = z.from; d.querySelector('.mto').value = z.to; } changed(); });
@@ -407,7 +413,7 @@ function mazalCard(z){
 }
 $('addMazal').addEventListener('click', () => {
   const t = new Date(), iso = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,10);
-  const z = {text:'', from: iso, to: iso}; S.mazal.push(z); const c = mazalCard(z); $('mazalList').appendChild(c); c.querySelector('.mt').focus(); changed();
+  const z = {title: 'בשעה טובה', text:'', from: iso, to: iso}; S.mazal.push(z); const c = mazalCard(z); $('mazalList').appendChild(c); c.querySelector('.mt').focus(); changed();
 });
 const ZDAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','מוצאי שבת / שבת'];
 function zoomCard(z){
@@ -514,11 +520,9 @@ function bind(){
   $('haftara').checked = !!S.haftara; $('haftBox').hidden = !S.haftara;
   $('haftara').addEventListener('change', e => { S.haftara = e.target.checked; $('haftBox').hidden = !S.haftara; changed(); });
   segment($('nusach'), S.nusach || '', v => { S.nusach = v; changed(); });
+  segment($('haftFrom'), S.haftFrom || 'erev', v => { S.haftFrom = v; changed(); });
   S.mazal = S.mazal || [];
-  $('mazalTitle').value = S.mazalTitle || '';
-  $('mazalTitle').addEventListener('input', e => { S.mazalTitle = e.target.value; changed(); });
-  $('mazalSug').innerHTML = ['בשעה טובה','בשעה טובה ומוצלחת','ברכות ואיחולים','שמחות בקהילה','ברכת מזל טוב'].map(t => `<button type="button">${t}</button>`).join('');
-  $('mazalSug').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.mazalTitle = $('mazalTitle').value = b.textContent; changed(); });
+  S.mazal.forEach(z => { if (!z.title) z.title = S.mazalTitle || 'בשעה טובה'; });   // כותרת לכל ברכה בנפרד
   S.mazal.forEach(z => $('mazalList').appendChild(mazalCard(z)));
   S.zoom = S.zoom || [];
   S.zoom.forEach(z => $('zoomList').appendChild(zoomCard(z)));

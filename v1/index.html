@@ -177,10 +177,10 @@ function parseSettings(text){
     else if(/^תחנון/.test(k)) c.tachanun = !/^(לא|no|0)/i.test(v);
     else if(/ספירת העומר/.test(k)) c.omerB = /בעומר/.test(v);
     else if(/כותרת ברכה/.test(k)) c.mazalTitle = v;
-    else if(/^הפטרה/.test(k)) c.haftara = /ספרד|עדות/.test(v) ? 'seph' : 'ashk';
+    else if(/^הפטרה/.test(k)){ c.haftara = /ספרד|עדות/.test(v) ? 'seph' : 'ashk'; c.haftDay = /בשבת|ביום|בחג/.test(v); }
     else if(/^מזל טוב/.test(k)){   // ! מזל טוב 2026-10-25 2026-10-31: הטקסט
-      const d = k.match(/(\d{4}-\d{2}-\d{2})(?:\s+(\d{4}-\d{2}-\d{2}))?/);
-      if(d && v) (c.mazal = c.mazal || []).push({from: d[1], to: d[2] || d[1], text: v});
+      const d = k.match(/(\d{4}-\d{2}-\d{2})(?:\s+(\d{4}-\d{2}-\d{2}))?/), tt = (k.match(/\[([^\]]+)\]/) || [])[1];
+      if(d && v) (c.mazal = c.mazal || []).push({from: d[1], to: d[2] || d[1], text: v, title: tt || ''});
     }
     else if(/כותרת זום/.test(k)) c.zoomTitle = v;
     else if(/שיעור זום/.test(k)){   // "ה 21:00-22:00" (ש = שבת / מוצאי שבת)
@@ -476,6 +476,7 @@ function haftaraToday(){
   const items = (data.cal.items || []).filter(i => i.leyning && (i.leyning.haftarah || i.leyning.haftarah_sephardic));
   for(const d of [today, tomorrow]){   // היום, או מחר (ערב שבת / ערב חג)
     if(d === today && BASE.havdalah && now >= t(BASE.havdalah)) continue;   // אחרי צאת השבת / החג
+    if(d === tomorrow && CFG.haftDay && !(BASE.sunset && now >= t(BASE.sunset))) continue;   // "רק בשבת עצמה" – מכניסת השבת (שקיעה)
     const list = items.filter(i => i.date.slice(0,10) === d);
     const it = list.find(i => i.category === 'parashat') || list.find(i => i.category === 'holiday');
     if(!it) continue;
@@ -682,7 +683,7 @@ function messagesBySide(targets){
   }
   return res;
 }
-const msgHtml = list => list.map(m => m.haft ? `<div class="m mz hf"><span>${esc(m.haft.title)}</span>${m.haft.ref.map(g => g.map(x => `<i class="nw">${esc(x)}</i>`).join(' ')).join(' · ')}${m.haft.reason ? `<small>${esc(m.haft.reason)}</small>` : ''}</div>` : m.mazal ? `<div class="m mz"><span>${esc(CFG.mazalTitle || 'בשעה טובה')}</span>${esc(m.body).replace(/\n/g,'<br>')}</div>` : `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
+const msgHtml = list => list.map(m => m.haft ? `<div class="m mz hf"><span>${esc(m.haft.title)}</span>${m.haft.ref.map(g => g.map(x => `<i class="nw">${esc(x)}</i>`).join(' ')).join(' · ')}${m.haft.reason ? `<small>${esc(m.haft.reason)}</small>` : ''}</div>` : m.mazal ? `<div class="m mz"><span>${esc(m.mazal)}</span>${esc(m.body).replace(/\n/g,'<br>')}</div>` : `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
 function content(type, where, msgs){
   const side = where !== 'B';
   if(type === 'daf') return side ? {html:`<div class="pnl compact"><div class="lbl">הדף היומי</div><div class="v">${DAF}</div></div>`}
@@ -725,7 +726,7 @@ function renderSlots(){
   const today = nowParts().date, mz = (CFG.mazal || []).filter(x => x.from <= today && today <= x.to);
   if(mz.length && targets.length){
     const side = targets.includes('L') ? 'L' : targets[0];
-    msgs[side] = mz.map(x => ({body: x.text, mazal: true})).concat(msgs[side]);
+    msgs[side] = mz.map(x => ({body: x.text, mazal: x.title || CFG.mazalTitle || 'בשעה טובה'})).concat(msgs[side]);
   }
   const hf = targets.length ? haftaraToday() : null;   // הפטרה – בראש ההודעות, מערב שבת/חג ועד צאתם
   if(hf){ const side = targets.includes('L') ? 'L' : targets[0]; msgs[side] = [{haft: hf}].concat(msgs[side]); }
