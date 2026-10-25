@@ -286,8 +286,8 @@ const CITIES = [
  ['קרית ארבע',31.5300,35.1150,20],['אריאל',32.1060,35.1730,20],['אחר / חוץ לארץ',null,null,18]];
 const OTHER = 'אחר / חוץ לארץ';
 const TZS = ['Asia/Jerusalem','Europe/London','Europe/Paris','Europe/Antwerp','America/New_York','America/Chicago','America/Los_Angeles','America/Toronto','America/Sao_Paulo','America/Argentina/Buenos_Aires','America/Mexico_City','Australia/Sydney','Africa/Johannesburg','Europe/Moscow','Europe/Kiev'];
-const SLOTS = [['daf','דף יומי'],['msgs','הודעות'],['zmanim','זמני היום'],['prayers','תפילות'],['learn','לימוד יומי'],['tefila','היום בתפילה']];
-const SLOT_NAME = Object.fromEntries(SLOTS);
+const SLOTS = [['msgs','הודעות'],['zmanim','זמני היום'],['prayers','תפילות'],['learn','לימוד יומי'],['tefila','היום בתפילה']];
+const SLOT_NAME = Object.assign({daf:'לימוד יומי'}, Object.fromEntries(SLOTS));
 let S = null, DOC = '';
 
 // ---------- ניווט ----------
@@ -451,6 +451,12 @@ async function save(){
 
 // ---------- טעינה ----------
 function bind(){
+  S.learn = S.learn || [];
+  // "דף יומי" כמשבצת נפרדת הוחלף ב"לימוד יומי" (שבו מסמנים את הדף היומי)
+  if (['slotR','slotL','slotB'].some(k => (S[k] || []).includes('daf'))) {
+    ['slotR','slotL','slotB'].forEach(k => { S[k] = [...new Set((S[k] || []).map(x => x === 'daf' ? 'learn' : x))]; });
+    if (!S.learn.includes('daf')) S.learn = ['daf', ...S.learn];
+  }
   $('title').textContent = S.name || 'לוח זמנים'; document.title = (S.name || 'לוח זמנים') + ' – הגדרות';
   $('name').value = S.name || '';
   $('name').addEventListener('input', e => { S.name = e.target.value; $('title').textContent = S.name || 'לוח זמנים'; changed(); });
@@ -487,7 +493,8 @@ function bind(){
   $('clock').addEventListener('input', e => { S.clock = +e.target.value; $('clockV').textContent = S.clock + '%'; preview(); changed(); });
   preview();
 
-  S.learn = S.learn || []; learnPicker();
+  S.learn = S.learn || [];
+  learnPicker();
   $('tachanun').checked = S.tachanun !== false;
   $('tachanun').addEventListener('change', e => { S.tachanun = e.target.checked; changed(); });
   segment($('omerB'), S.omerB ? '1' : '0', v => { S.omerB = v === '1'; changed(); });
