@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>התקנת מסך במחשב</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700;900&family=Heebo:wght@400;500;700;800&display=swap">
+<style>
+/* פריסה: עמודת קריאה אחת; שלבים ממוספרים לפי סדר העבודה בשטח; קבצים מלאים בסוף, מקופלים */
+:root{
+  --bg:#f6f4ee; --panel:#ffffff; --ink:#18223a; --muted:#5b6478; --line:#dcd6c6;
+  --navy:#132a52; --gold:#a8791f; --gold-soft:#f3e7c9; --ok:#2f7d4f; --no:#b2402f; --code:#f1eee5;
+  --f-display:'Frank Ruhl Libre','David Libre',Georgia,serif;
+  --f-body:'Heebo','Segoe UI',Arial,sans-serif;
+  --f-mono:ui-monospace,'Cascadia Mono',Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1730; --panel:#13234a; --ink:#f1ece0; --muted:#a9b4cc; --line:#2a3d68;
+  --navy:#f7de9a; --gold:#e2b857; --gold-soft:#2a3557; --ok:#6fcf97; --no:#ff8f7a; --code:#0a1328; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1730; --panel:#13234a; --ink:#f1ece0; --muted:#a9b4cc; --line:#2a3d68;
+  --navy:#f7de9a; --gold:#e2b857; --gold-soft:#2a3557; --ok:#6fcf97; --no:#ff8f7a; --code:#0a1328; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.65;direction:rtl;text-align:right}
+.wrap{max-width:780px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:30px}
+header h1{font-family:var(--f-display);font-weight:900;font-size:clamp(30px,6vw,42px);line-height:1.15;color:var(--navy);margin:0;text-wrap:balance}
+header p{margin:8px 0 0;color:var(--muted)}
+h2{font-family:var(--f-display);font-weight:700;font-size:27px;color:var(--navy);margin:0;text-wrap:balance}
+h2 small{font-family:var(--f-body);font-size:15px;font-weight:700;color:var(--gold);display:block;letter-spacing:.03em}
+h3{font-size:18px;font-weight:800;margin:0 0 4px}
+section{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
+.toc{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 18px;margin:0;padding:0;list-style:none}
+.toc a{text-decoration:none}
+a{color:var(--gold);font-weight:700;text-underline-offset:3px}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+ol.steps{list-style:none;margin:0;padding:0;counter-reset:s;display:flex;flex-direction:column;gap:12px}
+ol.steps>li{counter-increment:s;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;grid-template-columns:42px 1fr;gap:12px;min-width:0}
+ol.steps>li::before{content:counter(s);font-family:var(--f-display);font-weight:900;font-size:22px;width:38px;height:38px;border-radius:50%;background:var(--navy);color:var(--bg);display:flex;align-items:center;justify-content:center}
+ol.steps>li>div{min-width:0}
+ul,ol.in{margin:6px 0 0;padding-right:22px}
+li{margin:3px 0}
+.path{font-weight:700;background:var(--gold-soft);padding:1px 7px;border-radius:6px}
+.k{font-family:var(--f-mono);font-size:15px;font-weight:700;border:1px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:0 6px;background:var(--panel);white-space:nowrap;direction:ltr;display:inline-block}
+.ltr{direction:ltr;unicode-bidi:isolate;font-family:var(--f-mono);font-size:15px}
+.dl{display:flex;flex-direction:column;gap:8px}
+.dl a.main{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--navy);color:var(--bg);text-decoration:none;border-radius:12px;padding:14px 18px;font-size:18px}
+.dl a.main span{font-weight:500;font-size:15px;opacity:.85}
+.files{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.files a{display:block;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel);text-decoration:none;min-width:0}
+.files a b{display:block;direction:ltr;text-align:right;font-family:var(--f-mono);font-size:15px;color:var(--ink)}
+.files a span{font-size:14px;color:var(--muted);font-weight:500}
+.note{border-right:4px solid var(--gold);background:var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:16px}
+.warn{border-right-color:var(--no)}
+.code{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.code code{font-family:var(--f-mono);font-size:15px;direction:ltr;text-align:left;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:6px 10px;overflow-x:auto;max-width:100%;flex:1 1 240px;user-select:all}
+button.cp{font-family:var(--f-body);font-weight:700;font-size:14px;border:1px solid var(--gold);background:transparent;color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+summary{cursor:pointer;font-weight:800;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+summary .ltr{font-weight:700}
+pre{margin:10px 0 0;background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-x:auto;direction:ltr;text-align:left;font-family:var(--f-mono);font-size:13px;line-height:1.5;max-height:420px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{padding:10px 14px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+th{font-weight:800;color:var(--muted);font-size:14px}
+tr:last-child td{border-bottom:0}
+.src{font-size:14px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <h1>התקנת לוח הזמנים במחשב של בית הכנסת</h1>
+  <p>מדריך מלא, מהמחשב הריק ועד מסך שעולה לבד כל בוקר. מתאים ל־Windows 10 ו־11.</p>
+</header>
+
+<nav class="panel" aria-label="תוכן">
+  <ul class="toc">
+    <li><a href="#need">א. מה צריך</a></li>
+    <li><a href="#files">ב. הורדת הקבצים</a></li>
+    <li><a href="#install">ג. התקנה אוטומטית</a></li>
+    <li><a href="#approve">ד. אישור המסך</a></li>
+    <li><a href="#windows">ה. הגדרות Windows</a></li>
+    <li><a href="#manual">ו. קיצור דרך ואייקון ידנית</a></li>
+    <li><a href="#zoom">ז. זום ו־OBS (לא חובה)</a></li>
+    <li><a href="#daily">ח. שימוש יומיומי</a></li>
+    <li><a href="#trouble">ט. תקלות נפוצות</a></li>
+    <li><a href="#source">י. הקבצים המלאים</a></li>
+  </ul>
+</nav>
+
+<section id="need">
+  <h2><small>א</small>מה צריך</h2>
+  <div class="panel"><ul>
+    <li>מחשב Windows 10 או 11 (גם מיני־מחשב קטן מאחורי המסך מתאים), מחובר למסך או לטלוויזיה ב־HDMI.</li>
+    <li>חיבור לאינטרנט (כבל רשת או Wi‑Fi).</li>
+    <li>דפדפן <b>Google Chrome</b>. אם אין – מורידים מ־<a href="https://www.google.com/chrome/" target="_blank" rel="noopener">google.com/chrome</a>.</li>
+    <li>ה<b>מזהה של בית הכנסת</b> מגיליון הניהול, עמודה "מזהה" – למשל <span class="ltr">rs-bircat-mordechai</span>.</li>
+    <li>בגיליון, בעמודה "מספר מסכים", צריך להיות מקום פנוי למסך הזה.</li>
+  </ul></div>
+</section>
+
+<section id="files">
+  <h2><small>ב</small>הורדת הקבצים</h2>
+  <div class="dl">
+    <a class="main" href="https://oferme.github.io/zmanim/pc/zmanim-pc.zip" target="_blank" rel="noopener">הורדת כל הקבצים בקובץ אחד (ZIP) <span>מומלץ</span></a>
+    <div class="files">
+      <a href="https://oferme.github.io/zmanim/pc/install.bat" target="_blank" rel="noopener"><b>install.bat</b><span>מפעיל את ההתקנה</span></a>
+      <a href="https://oferme.github.io/zmanim/pc/install.ps1" target="_blank" rel="noopener"><b>install.ps1</b><span>ההתקנה עצמה</span></a>
+      <a href="https://oferme.github.io/zmanim/pc/zmanim-online.bat" target="_blank" rel="noopener"><b>zmanim-online.bat</b><span>פותח את המסך במצב קיוסק</span></a>
+      <a href="https://oferme.github.io/zmanim/pc/zoom-helper.ps1" target="_blank" rel="noopener"><b>zoom-helper.ps1</b><span>שיעורי זום (לא חובה)</span></a>
+      <a href="https://oferme.github.io/zmanim/pc/zmanim.ico" target="_blank" rel="noopener"><b>zmanim.ico</b><span>האייקון של קיצור הדרך</span></a>
+    </div>
+  </div>
+  <div class="panel">
+    <ol class="in">
+      <li>במחשב של בית הכנסת פותחים את הקישור "הורדת כל הקבצים" (אפשר לשלוח לעצמכם את הקישור למדריך בוואטסאפ או במייל).</li>
+      <li>הקובץ <span class="ltr">zmanim-pc.zip</span> יורד לתיקיית <b>הורדות</b>.</li>
+      <li>קליק ימני על הקובץ ← <b>חלץ הכל</b> (Extract All) ← <b>חלץ</b>. נפתחת תיקייה <span class="ltr">zmanim-pc</span> עם חמישה קבצים.</li>
+    </ol>
+  </div>
+  <div class="note">חשוב לחלץ קודם. הפעלה ישירות מתוך קובץ ה־ZIP לא תעבוד.</div>
+</section>
+
+<section id="install">
+  <h2><small>ג</small>התקנה אוטומטית</h2>
+  <ol class="steps">
+    <li><div>
+      <h3>מפעילים את ההתקנה</h3>
+      בתיקייה שחולצה לוחצים פעמיים על <span class="ltr">install.bat</span>.
+      <div class="note" style="margin-top:8px">אם מופיע חלון כחול "Windows הגן על המחשב שלך" – לוחצים <b>מידע נוסף</b> ← <b>הפעל בכל זאת</b>. זה קורה עם כל קובץ שהורד מהאינטרנט.</div>
+    </div></li>
+    <li><div>
+      <h3>מקלידים את מזהה בית הכנסת</h3>
+      נפתח חלון שחור שמבקש <span class="ltr">ID</span>. מקלידים את המזהה מהגיליון באנגלית, למשל <span class="ltr">rs-bircat-mordechai</span>, ולוחצים <span class="k">Enter</span>.
+    </div></li>
+    <li><div>
+      <h3>ההתקנה מסתיימת לבד</h3>
+      ההתקנה:
+      <ul>
+        <li>מעתיקה את הקבצים לתיקייה קבועה במחשב: <span class="ltr">%LocalAppData%\ZmanimDisplay</span></li>
+        <li>יוצרת <b>קיצור דרך "לוח זמנים" עם האייקון</b> בשולחן העבודה.</li>
+        <li>מוסיפה את אותו קיצור דרך ל<b>הפעלה האוטומטית</b> – כך שהמסך עולה לבד בכל הדלקה של המחשב.</li>
+        <li>פותחת את המסך מיד.</li>
+      </ul>
+      בסוף לוחצים מקש כלשהו כדי לסגור את החלון השחור. את התיקייה <span class="ltr">zmanim-pc</span> שבהורדות אפשר למחוק.
+    </div></li>
+  </ol>
+</section>
+
+<section id="approve">
+  <h2><small>ד</small>אישור המסך</h2>
+  <div class="panel">
+    בפעם הראשונה שהמסך נפתח הוא נרשם לבד בגיליון <b>"מסכים"</b>.
+    <ul>
+      <li>אם יש מקום במכסה של בית הכנסת – הוא מאושר מיד ולוח הזמנים עולה.</li>
+      <li>אם מופיע <b>"מסך זה ממתין לאישור"</b> עם קוד בן 4 ספרות – פותחים את הגיליון "מסכים", מוצאים את השורה עם הקוד, ומשנים את הסטטוס ל<b>"מאושר"</b>. תוך דקה–שתיים המסך עולה.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="windows">
+  <h2><small>ה</small>הגדרות Windows – שהמסך יעבוד לבד</h2>
+  <ol class="steps">
+    <li><div>
+      <h3>שהמחשב לא ייכנס לשינה</h3>
+      <span class="path">הגדרות ← מערכת ← הפעלה ושינה</span> (ב־Windows 11: "צריכת חשמל"). בשתי האפשרויות – כיבוי המסך ומצב שינה – בוחרים <b>אף פעם</b>.
+    </div></li>
+    <li><div>
+      <h3>כניסה אוטומטית בלי סיסמה</h3>
+      כדי שאחרי הפסקת חשמל המחשב יגיע לבד עד לוח הזמנים:
+      <ol class="in">
+        <li>לוחצים <span class="k">Win</span>+<span class="k">R</span>, כותבים <span class="ltr">netplwiz</span> ולוחצים <span class="k">Enter</span>.</li>
+        <li>מבטלים את הסימון "על המשתמשים להזין שם משתמש וסיסמה" ← אישור, ומקלידים את הסיסמה פעמיים.</li>
+      </ol>
+      <div class="note" style="margin-top:8px">אם האפשרות לא מופיעה ב־Windows 11: <span class="path">הגדרות ← חשבונות ← אפשרויות כניסה</span> ← מכבים את "לאפשר כניסה עם Windows Hello בלבד", וחוזרים ל־netplwiz.</div>
+    </div></li>
+    <li><div>
+      <h3>עדכוני Windows לא בזמן תפילה</h3>
+      <span class="path">הגדרות ← Windows Update ← אפשרויות מתקדמות ← שעות פעילות</span> – מגדירים למשל 05:00 עד 23:00, כדי שהמחשב לא יופעל מחדש באמצע היום.
+    </div></li>
+    <li><div>
+      <h3>דלוק אחרי הפסקת חשמל (לא חובה)</h3>
+      רוב המחשבים לא נדלקים לבד כשהחשמל חוזר. בהגדרות ה־BIOS של המחשב יש בדרך כלל אפשרות בשם <span class="ltr">Restore on AC Power Loss</span> או <span class="ltr">After Power Failure</span> – מעבירים ל־<span class="ltr">Power On</span>. הדרך להיכנס ל־BIOS שונה בין יצרנים (בדרך כלל <span class="k">Del</span> או <span class="k">F2</span> בהדלקה). אם לא בטוחים – מדלגים.
+    </div></li>
+    <li><div>
+      <h3>בודקים</h3>
+      מפעילים מחדש את המחשב. בלי לגעת בכלום, לוח הזמנים אמור לעלות לבד במסך מלא תוך דקה.
+    </div></li>
+  </ol>
+</section>
+
+<section id="manual">
+  <h2><small>ו</small>קיצור דרך ואייקון – ידנית</h2>
+  <p>ההתקנה האוטומטית עושה את כל זה. החלק הזה למקרה שרוצים לעשות ידנית, או לתקן קיצור דרך שנמחק.</p>
+  <ol class="steps">
+    <li><div>
+      <h3>תיקייה קבועה</h3>
+      יוצרים תיקייה, למשל <span class="ltr">C:\Zmanim</span>, ומעתיקים אליה את <span class="ltr">zmanim-online.bat</span>, <span class="ltr">zoom-helper.ps1</span> ו־<span class="ltr">zmanim.ico</span>. לא מזיזים אותם משם אחר כך.
+    </div></li>
+    <li><div>
+      <h3>קובץ המזהה</h3>
+      באותה תיקייה: קליק ימני ← <b>חדש ← מסמך טקסט</b>, קוראים לו <span class="ltr">shul.txt</span>, פותחים אותו וכותבים בשורה הראשונה רק את המזהה (למשל <span class="ltr">rs-bircat-mordechai</span>). שומרים.
+      <div class="note" style="margin-top:8px">אם אין קובץ כזה, בפעם הראשונה ש־<span class="ltr">zmanim-online.bat</span> רץ הוא שואל את המזהה ושומר אותו לבד.</div>
+    </div></li>
+    <li><div>
+      <h3>קיצור דרך בשולחן העבודה</h3>
+      קליק ימני על <span class="ltr">zmanim-online.bat</span> ← <b>הצג אפשרויות נוספות</b> (ב־Windows 11) ← <b>שלח אל ← שולחן העבודה (צור קיצור דרך)</b>. בשולחן העבודה: קליק ימני על הקיצור ← <b>שנה שם</b> ← "לוח זמנים".
+    </div></li>
+    <li><div>
+      <h3>האייקון</h3>
+      קליק ימני על הקיצור ← <b>מאפיינים</b> ← לשונית <b>קיצור דרך</b> ← <b>שנה סמל…</b> ← <b>עיון…</b> ← בוחרים את <span class="ltr">zmanim.ico</span> מהתיקייה ← אישור ← אישור.
+      <br>באותו חלון, בשדה <b>הפעל</b>, כדאי לבחור <b>ממוזער</b> – כך החלון השחור הקטן לא קופץ.
+    </div></li>
+    <li><div>
+      <h3>הפעלה אוטומטית</h3>
+      לוחצים <span class="k">Win</span>+<span class="k">R</span>, כותבים <span class="ltr">shell:startup</span> ולוחצים <span class="k">Enter</span>. נפתחת תיקיית ההפעלה האוטומטית. מעתיקים אליה את קיצור הדרך מהשולחן (קליק ימני ← העתק, ושם קליק ימני ← הדבק).
+    </div></li>
+  </ol>
+  <div class="note warn">אם היו במחשב קיצורי דרך ישנים של לוח הזמנים (למשל לקובץ <span class="ltr">zmanim.html</span>), מוחקים אותם משולחן העבודה ומ־<span class="ltr">shell:startup</span>, כדי ששני מסכים לא ייפתחו יחד.</div>
+</section>
+
+<section id="zoom">
+  <h2><small>ז</small>שיעורי זום ו־OBS (לא חובה)</h2>
+  <div class="panel">
+    רק לבתי כנסת שמשתתפים בשיעור קבוע בזום. תוכנת העזר <span class="ltr">zoom-helper.ps1</span> כבר הותקנה ורצה ברקע; היא פועלת רק אם הגבאי הגדיר שיעור באפליקציה (לשונית "שליטה" ← "שיעור / שידור חי").
+    <ol class="in">
+      <li>מתקינים <b>Zoom</b> מ־<a href="https://zoom.us/download" target="_blank" rel="noopener">zoom.us/download</a>.</li>
+      <li>בהגדרות Zoom: <b>Audio</b> – "Automatically join audio by computer" ו־"Mute my mic when joining". <b>Video</b> – "Enter full screen when joining".</li>
+      <li>עם OBS ולוגו: מתקינים OBS, מכינים סצנה עם הלוגו וסוגרים. ב־Zoom, ב־<b>Video</b>, בוחרים מצלמה <b>OBS Virtual Camera</b> ולא מסמנים "Turn off my video when joining". תוכנת העזר פותחת את OBS שתי דקות לפני השיעור.</li>
+      <li>ניסיון: באפליקציה מוסיפים שיעור להיום בעוד 5 דקות, למשך 10 דקות, ובודקים שהזום עולה ושהלוח חוזר בסוף.</li>
+    </ol>
+    <p class="src" style="margin:8px 0 0">אם משהו לא עובד, יש יומן בקובץ <span class="ltr">%LocalAppData%\ZmanimKiosk-zoom.log</span>.</p>
+  </div>
+</section>
+
+<section id="daily">
+  <h2><small>ח</small>שימוש יומיומי</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>רוצים ל…</th><th>עושים</th></tr></thead>
+    <tbody>
+      <tr><td>לסגור את המסך</td><td><span class="k">Alt</span>+<span class="k">F4</span>, או בטלפון: אפליקציית ההגדרות ← "שליטה" ← "סגירת התוכנה".</td></tr>
+      <tr><td>לפתוח שוב</td><td>לחיצה כפולה על "לוח זמנים" בשולחן העבודה.</td></tr>
+      <tr><td>לרענן אחרי עדכון</td><td><span class="k">Ctrl</span>+<span class="k">Shift</span>+<span class="k">R</span>. בכל מקרה המסך מתרענן לבד ב־3:00 בלילה.</td></tr>
+      <tr><td>תפריט מסך עם העכבר</td><td>לחיצה כפולה על המסך.</td></tr>
+      <tr><td>לשנות תוכן, זמנים, תפילות</td><td>רק מאפליקציית ההגדרות של הגבאי. במחשב לא צריך לגעת.</td></tr>
+      <tr><td>להחליף בית כנסת במחשב הזה</td><td>מוחקים את <span class="ltr">shul.txt</span> מ־<span class="ltr">%LocalAppData%\ZmanimDisplay</span> ופותחים שוב – הוא ישאל מזהה חדש.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="trouble">
+  <h2><small>ט</small>תקלות נפוצות</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>מה רואים</th><th>מה עושים</th></tr></thead>
+    <tbody>
+      <tr><td>"Google Chrome was not found"</td><td>מתקינים Chrome ופותחים שוב.</td></tr>
+      <tr><td>"מסך זה ממתין לאישור" וקוד</td><td>שלב ד – מאשרים את הקוד בגיליון "מסכים", או מגדילים את "מספר מסכים".</td></tr>
+      <tr><td>"בית הכנסת לא נמצא במערכת"</td><td>המזהה שגוי. מתקנים אותו ב־<span class="ltr">shul.txt</span> (שלב ח, השורה האחרונה).</td></tr>
+      <tr><td>"אין חיבור לאינטרנט"</td><td>בודקים את הרשת. המסך ממשיך להציג את נתוני היום ומנסה שוב כל דקה.</td></tr>
+      <tr><td>המסך לא עולה אחרי הדלקה</td><td>בודקים שיש קיצור דרך ב־<span class="ltr">shell:startup</span>, ושהכניסה האוטומטית מוגדרת (שלב ה).</td></tr>
+      <tr><td>שני מסכים נפתחים יחד</td><td>יש קיצור דרך ישן נוסף ב־<span class="ltr">shell:startup</span>. מוחקים אותו.</td></tr>
+      <tr><td>החלון השחור נשאר פתוח</td><td>בקיצור הדרך: מאפיינים ← הפעל ← ממוזער (שלב ו, צעד 4).</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="source">
+  <h2><small>י</small>הקבצים המלאים</h2>
+  <p>אם הקישורים להורדה לא נפתחים במחשב, אפשר ליצור כל קובץ ידנית: פותחים <b>פנקס רשימות</b>, מדביקים את התוכן, ו<b>שמירה בשם</b> עם השם המדויק (בתיבה "שמור כסוג" בוחרים "כל הקבצים", ובקידוד UTF‑8). את האייקון <span class="ltr">zmanim.ico</span> אפשר רק להוריד.</p>
+  <details>
+    <summary><span><span class="ltr">zmanim-online.bat</span> – פותח את לוח הזמנים במצב קיוסק</span><button type="button" class="cp" data-copy="f-zmanim-online-bat">העתקת התוכן</button></summary>
+    <pre id="f-zmanim-online-bat">@echo off
+rem ====== Zmanim display for the synagogue computer. Alt+F4 closes it ======
+rem The synagogue ID is kept in shul.txt next to this file (the installer writes it).
+set &quot;HERE=%~dp0&quot;
+set &quot;SHUL=&quot;
+if exist &quot;%HERE%shul.txt&quot; set /p SHUL=&lt;&quot;%HERE%shul.txt&quot;
+if &quot;%SHUL%&quot;==&quot;&quot; (
+  set /p SHUL=Synagogue ID from the sheet, column mazhe [for example ohel-moshe]: 
+  call echo %%SHUL%%&gt;&quot;%HERE%shul.txt&quot;
+)
+for /f &quot;tokens=* delims= &quot; %%a in (&quot;%SHUL%&quot;) do set &quot;SHUL=%%a&quot;
+set &quot;PAGE=https://oferme.github.io/zmanim/?shul=%SHUL%&quot;
+rem Server address (for Zoom shiurim) - do not change:
+set &quot;API=https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec&quot;
+
+set &quot;CHROME=%ProgramFiles%\Google\Chrome\Application\chrome.exe&quot;
+if not exist &quot;%CHROME%&quot; set &quot;CHROME=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe&quot;
+if not exist &quot;%CHROME%&quot; set &quot;CHROME=%LocalAppData%\Google\Chrome\Application\chrome.exe&quot;
+if not exist &quot;%CHROME%&quot; (
+  echo Google Chrome was not found on this computer. Install it from google.com/chrome and run again.
+  pause
+  exit /b
+)
+start &quot;&quot; &quot;%CHROME%&quot; --kiosk --user-data-dir=&quot;%LocalAppData%\ZmanimKiosk&quot; --no-first-run --disable-session-crashed-bubble --hide-crash-restore-bubble --noerrdialogs --disable-translate --autoplay-policy=no-user-gesture-required &quot;%PAGE%&quot;
+
+rem Zoom helper: joins the Zoom shiurim at the times set in the settings app (runs hidden, only if the file is here)
+if exist &quot;%HERE%zoom-helper.ps1&quot; start &quot;&quot; powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File &quot;%HERE%zoom-helper.ps1&quot; -Page &quot;%PAGE%&quot; -Chrome &quot;%CHROME%&quot; -Api &quot;%API%&quot;
+</pre>
+  </details>
+  <details>
+    <summary><span><span class="ltr">install.bat</span> – מפעיל את ההתקנה</span><button type="button" class="cp" data-copy="f-install-bat">העתקת התוכן</button></summary>
+    <pre id="f-install-bat">@echo off
+rem Double-click this file to install the zmanim screen on this computer.
+powershell -NoProfile -ExecutionPolicy Bypass -File &quot;%~dp0install.ps1&quot;
+pause
+</pre>
+  </details>
+  <details>
+    <summary><span><span class="ltr">install.ps1</span> – ההתקנה: העתקה, מזהה, קיצורי דרך ואייקון</span><button type="button" class="cp" data-copy="f-install-ps1">העתקת התוכן</button></summary>
+    <pre id="f-install-ps1"># התקנת לוח הזמנים במחשב של בית הכנסת – מעתיק את הקבצים, שומר את מזהה בית הכנסת,
+# ויוצר קיצור דרך עם אייקון בשולחן העבודה ובהפעלה האוטומטית (Startup).
+$ErrorActionPreference = &#x27;Stop&#x27;
+$src  = Split-Path -Parent $MyInvocation.MyCommand.Path
+$dest = Join-Path $env:LOCALAPPDATA &#x27;ZmanimDisplay&#x27;
+New-Item -ItemType Directory -Force -Path $dest | Out-Null
+foreach ($f in &#x27;zmanim-online.bat&#x27;, &#x27;zoom-helper.ps1&#x27;, &#x27;zmanim.ico&#x27;) {
+  $p = Join-Path $src $f
+  if (Test-Path $p) { Copy-Item $p $dest -Force; Unblock-File (Join-Path $dest $f) -ErrorAction SilentlyContinue }
+}
+Write-Host &#x27;&#x27;
+Write-Host &#x27;Synagogue ID - from the management sheet, column &quot;mazhe&quot; (for example: ohel-moshe)&#x27;
+$id = &#x27;&#x27;
+while ($id -notmatch &#x27;^[a-z0-9-]+$&#x27;) { $id = (Read-Host &#x27;ID&#x27;).Trim().ToLower() }
+Set-Content -Path (Join-Path $dest &#x27;shul.txt&#x27;) -Value $id -Encoding ASCII
+
+$shell = New-Object -ComObject WScript.Shell
+$name  = &#x27;לוח זמנים.lnk&#x27;
+foreach ($dir in @([Environment]::GetFolderPath(&#x27;Desktop&#x27;), [Environment]::GetFolderPath(&#x27;Startup&#x27;))) {
+  $l = $shell.CreateShortcut((Join-Path $dir $name))
+  $l.TargetPath = Join-Path $dest &#x27;zmanim-online.bat&#x27;
+  $l.WorkingDirectory = $dest
+  $l.IconLocation = (Join-Path $dest &#x27;zmanim.ico&#x27;) + &#x27;,0&#x27;
+  $l.WindowStyle = 7
+  $l.Description = &#x27;לוח זמנים – בית הכנסת&#x27;
+  $l.Save()
+}
+Write-Host &#x27;&#x27;
+Write-Host &#x27;Done. A shortcut was added to the Desktop and to Startup. Starting the screen now...&#x27;
+Start-Sleep -Seconds 2
+Start-Process (Join-Path $dest &#x27;zmanim-online.bat&#x27;) -WorkingDirectory $dest -WindowStyle Minimized
+</pre>
+  </details>
+  <details>
+    <summary><span><span class="ltr">zoom-helper.ps1</span> – שיעורי זום ו־OBS</span><button type="button" class="cp" data-copy="f-zoom-helper-ps1">העתקת התוכן</button></summary>
+    <pre id="f-zoom-helper-ps1"># Zmanim display - Zoom helper.
+# Runs hidden in the background (started by zmanim-online.bat).
+# At the times the gabbai set in the settings app it closes the zmanim screen and joins the Zoom shiur
+# (or opens the web site of the broadcast), and when the shiur time is over it returns to the zmanim screen.
+# YouTube broadcasts are shown by the zmanim screen itself, so this helper ignores them.
+param([string]$Page, [string]$Chrome, [string]$Api)
+
+$ErrorActionPreference = &#x27;SilentlyContinue&#x27;
+$mutex = New-Object System.Threading.Mutex($false, &#x27;Local\ZmanimZoomHelper&#x27;)
+if (-not $mutex.WaitOne(0)) { exit }          # already running
+
+$shul = &#x27;&#x27;
+if ($Page -match &#x27;shul=([A-Za-z0-9-]+)&#x27;) { $shul = $matches[1].ToLower() }
+if (-not $shul -or -not $Api) { exit }
+$kioskDir = Join-Path $env:LOCALAPPDATA &#x27;ZmanimKiosk&#x27;
+$logFile  = Join-Path $env:LOCALAPPDATA &#x27;ZmanimKiosk-zoom.log&#x27;
+function Log($t) { try { Add-Content -Path $logFile -Value ((Get-Date).ToString(&#x27;yyyy-MM-dd HH:mm:ss&#x27;) + &#x27;  &#x27; + $t) -Encoding UTF8 } catch {} }
+
+$sessions = @()
+$lastFetch = [datetime]::MinValue
+$current = $null      # key of the shiur we are in now
+$currentType = &#x27;&#x27;
+$done = @{}           # shiurim already joined (key -&gt; $true)
+
+function Fetch {
+  try {
+    $u = $Api + &#x27;?shul=&#x27; + $shul + &#x27;&amp;what=zoom&amp;t=&#x27; + [DateTime]::Now.Ticks
+    $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 40 -Uri $u
+    $txt = [Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray())
+    if ($txt -match &#x27;^ERR&#x27;) { return }
+    $list = @()
+    foreach ($l in ($txt -split &quot;`n&quot;)) {
+      $p = $l.Trim() -split &#x27;\|&#x27;
+      if ($p.Count -ge 6 -and $p[0] -eq &#x27;zoom&#x27;) {
+        $type = if ($p.Count -ge 7 -and $p[6]) { $p[6].Trim() } else { &#x27;zoom&#x27; }
+        $obs = -not ($p.Count -ge 8 -and $p[7].Trim() -eq &#x27;0&#x27;)
+        if ($type -ne &#x27;youtube&#x27;) {
+          $list += [pscustomobject]@{ Day = [int]$p[1]; Start = $p[2]; End = $p[3]; Link = $p[4]; Name = $p[5]; Type = $type; Obs = $obs }
+        }
+      }
+    }
+    $script:sessions = $list
+    $script:lastFetch = Get-Date
+  } catch { Log (&#x27;fetch failed: &#x27; + $_) }
+}
+
+function Minutes($hm) { $a = $hm -split &#x27;:&#x27;; return [int]$a[0] * 60 + [int]$a[1] }
+
+# Is the shiur on now? Returns the key (date of the start + time), or $null
+function ActiveKey($s, $now) {
+  $st = Minutes $s.Start
+  $en = if ($s.End) { Minutes $s.End } else { ($st + 90) % 1440 }
+  $cur = $now.Hour * 60 + $now.Minute
+  $dow = [int]$now.DayOfWeek
+  if ($en -gt $st) {
+    if ($dow -eq $s.Day -and $cur -ge $st -and $cur -lt $en) { return $now.ToString(&#x27;yyyy-MM-dd&#x27;) + &#x27; &#x27; + $s.Start }
+  } else {   # crosses midnight (for example motzei Shabbat 23:00-00:30)
+    if ($dow -eq $s.Day -and $cur -ge $st) { return $now.ToString(&#x27;yyyy-MM-dd&#x27;) + &#x27; &#x27; + $s.Start }
+    if ((($dow + 6) % 7) -eq $s.Day -and $cur -lt $en) { return $now.AddDays(-1).ToString(&#x27;yyyy-MM-dd&#x27;) + &#x27; &#x27; + $s.Start }
+  }
+  return $null
+}
+
+function KioskProcs { Get-CimInstance Win32_Process -Filter &quot;Name=&#x27;chrome.exe&#x27;&quot; | Where-Object { $_.CommandLine -like &#x27;*ZmanimKiosk*&#x27; } }
+function Stop-Kiosk { KioskProcs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force } }
+function Start-Kiosk {
+  if (KioskProcs) { return }
+  Start-Process -FilePath $Chrome -ArgumentList @(&#x27;--kiosk&#x27;, (&#x27;--user-data-dir=&quot;&#x27; + $kioskDir + &#x27;&quot;&#x27;), &#x27;--no-first-run&#x27;,
+    &#x27;--disable-session-crashed-bubble&#x27;, &#x27;--hide-crash-restore-bubble&#x27;, &#x27;--noerrdialogs&#x27;, &#x27;--disable-translate&#x27;, &#x27;--autoplay-policy=no-user-gesture-required&#x27;, $Page)
+}
+
+function Start-OBS([int]$wait = 0) {   # optional: OBS virtual camera with the synagogue logo
+  if (Get-Process obs64) { return }
+  foreach ($p in @(&quot;$env:ProgramFiles\obs-studio\bin\64bit\obs64.exe&quot;, &quot;${env:ProgramFiles(x86)}\obs-studio\bin\64bit\obs64.exe&quot;)) {
+    if (Test-Path $p) {
+      Start-Process -FilePath $p -WorkingDirectory (Split-Path $p) -ArgumentList @(&#x27;--startvirtualcam&#x27;, &#x27;--minimize-to-tray&#x27;, &#x27;--disable-shutdown-check&#x27;)
+      Log &#x27;OBS started&#x27;
+      if ($wait -gt 0) { Start-Sleep -Seconds $wait }
+      return
+    }
+  }
+}
+
+$liveDir = Join-Path $env:LOCALAPPDATA &#x27;ZmanimLive&#x27;
+function Open-Web($s) {   # web broadcast: separate full-screen Chrome window
+  Start-Process -FilePath $Chrome -ArgumentList @(&#x27;--kiosk&#x27;, (&#x27;--user-data-dir=&quot;&#x27; + $liveDir + &#x27;&quot;&#x27;), &#x27;--no-first-run&#x27;,
+    &#x27;--disable-session-crashed-bubble&#x27;, &#x27;--hide-crash-restore-bubble&#x27;, &#x27;--noerrdialogs&#x27;, &#x27;--autoplay-policy=no-user-gesture-required&#x27;, $s.Link)
+  Log (&#x27;open web &#x27; + $s.Start + &#x27; &#x27; + $s.Link)
+}
+function Close-Web {
+  Get-CimInstance Win32_Process -Filter &quot;Name=&#x27;chrome.exe&#x27;&quot; | Where-Object { $_.CommandLine -like &#x27;*ZmanimLive*&#x27; } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+}
+
+function Join-Zoom($s) {
+  $name = [uri]::EscapeDataString($s.Name)
+  if ($s.Link -match &#x27;/j/(\d+)&#x27;) {
+    $conf = $matches[1]
+    $pw = &#x27;&#x27;
+    if ($s.Link -match &#x27;[?&amp;]pwd=([^&amp;#\s]+)&#x27;) { $pw = &#x27;&amp;pwd=&#x27; + $matches[1] }
+    $url = &#x27;zoommtg://zoom.us/join?action=join&amp;confno=&#x27; + $conf + $pw + &#x27;&amp;uname=&#x27; + $name
+  } else {
+    $url = $s.Link   # other link types - opened as is
+  }
+  Start-Process $url
+  Log (&#x27;join &#x27; + $s.Start + &#x27; &#x27; + $s.Link)
+}
+
+function Leave-Zoom {
+  Get-Process Zoom | Stop-Process -Force
+  Log &#x27;leave&#x27;
+}
+
+$zoomInstalled = Test-Path &#x27;Registry::HKEY_CLASSES_ROOT\zoommtg&#x27;
+if (-not $zoomInstalled) { Log &#x27;Zoom is not installed - helper idle&#x27; }
+Log (&#x27;helper started for &#x27; + $shul)
+
+while ($true) {
+  if (((Get-Date) - $lastFetch).TotalMinutes -ge 2) { Fetch }
+  $now = Get-Date
+  $active = $null; $key = $null
+  foreach ($s in $sessions) { $k = ActiveKey $s $now; if ($k) { $active = $s; $key = $k } }
+  # OBS opens 2 minutes before a Zoom shiur, so the logo camera is ready when Zoom joins
+  if (-not $active) {
+    foreach ($s in $sessions) { if ($s.Type -eq &#x27;zoom&#x27; -and $s.Obs -and (ActiveKey $s $now.AddMinutes(2))) { Start-OBS } }
+  }
+
+  if ($active -and -not $done.ContainsKey($key) -and ($active.Type -eq &#x27;web&#x27; -or $zoomInstalled)) {
+    $done[$key] = $true
+    $script:current = $key
+    $script:currentType = $active.Type
+    Stop-Kiosk
+    if ($active.Type -eq &#x27;web&#x27;) { Open-Web $active }
+    else {
+      if ($active.Obs) { Start-OBS 15 }   # normally already open from 2 minutes before
+      Join-Zoom $active
+    }
+  }
+  elseif ($current -and $current -ne $key) {   # shiur time is over (or the shiur was deleted)
+    $script:current = $null
+    if ($currentType -eq &#x27;web&#x27;) { Close-Web } else { Leave-Zoom }
+    Start-Sleep -Seconds 3
+    Start-Kiosk
+  }
+  Start-Sleep -Seconds 20
+}
+</pre>
+  </details>
+</section>
+
+<footer class="src">המדריך מתאים לגרסת המערכת הנוכחית. הקבצים לעיל מתעדכנים יחד עם המערכת, כך שהקישורים תמיד מורידים את הגרסה העדכנית.</footer>
+</div>
+
+<script>
+document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation();
+  const el = document.getElementById(b.dataset.copy), txt = el.textContent;
+  const done = () => { b.textContent = 'הועתק'; setTimeout(() => b.textContent = 'העתקת התוכן', 1500); };
+  const sel = () => { const d = el.closest('details'); if (d) d.open = true; const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+  try { navigator.clipboard.writeText(txt).then(done, sel); } catch (err) { sel(); }
+}));
+</script>
+
+</body>
+</html>
