@@ -316,7 +316,7 @@ function segment(el, value, onPick){
   el.addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; set(b.dataset.v); onPick(b.dataset.v); });
 }
 function slotPicker(id){
-  const el = $(id);
+  const el = $(id); S[id] = S[id] || [];
   el.innerHTML = SLOTS.map(([v,t]) => `<button type="button" data-v="${v}" aria-pressed="false">${t}</button>`).join('');
   const paint = () => el.querySelectorAll('button').forEach(b => { const on = S[id].includes(b.dataset.v); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
   paint();
