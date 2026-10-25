@@ -61,6 +61,13 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
 .zl .row b .s{font-size:.6em;color:var(--muted)}
 .zl .row.hl,.zl .row.hl b{color:var(--gold2)}
 .grid .pnl.wide{flex:1;max-height:calc(var(--u)*12);display:flex;flex-direction:column}
+.ll .li{padding:calc(var(--u)*.6) 0;border-bottom:1px solid rgba(226,184,87,.15);text-align:right}
+.ll .li span{display:block;font-size:calc(var(--u)*1.5);color:var(--muted);font-weight:600}
+.ll .li b{display:block;font-size:calc(var(--u)*2.15);color:var(--text);font-weight:800;line-height:1.3}
+.card.lc{max-width:calc(var(--u)*26)}
+.card .t.lt{font-size:calc(var(--u)*2.3);line-height:1.3;white-space:normal}
+.pnl .m.mz{color:var(--gold2);text-align:center}
+.pnl .m.mz span{display:block;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:1.35em}
 .card .t.multi{font-size:calc(var(--u)*3.2);white-space:nowrap}
 .card.mw{max-width:calc(var(--u)*30)}
 .clockrow{position:relative;width:100%;display:flex;justify-content:center;align-items:center}
@@ -149,14 +156,21 @@ let CFG = {};
 // תוכן משבצת: "דף יומי", "הודעות", "זמני היום", "זמני תפילות", "ריק". כמה תכנים בפסיקים = מתחלפים
 function slotList(v){
   return v.split(/[,،]/).map(x => x.trim()).filter(Boolean).map(x =>
-    /דף/.test(x) ? 'daf' : /הודע/.test(x) ? 'msgs' : /תפיל/.test(x) ? 'prayers' : /זמני|זמנים/.test(x) ? 'zmanim' : 'none');
+    /לימוד/.test(x) ? 'learn' : /בתפילה|הזכרות/.test(x) ? 'tefila' : /דף/.test(x) ? 'daf' : /הודע/.test(x) ? 'msgs' : /תפיל/.test(x) ? 'prayers' : /זמני|זמנים/.test(x) ? 'zmanim' : 'none');
 }
 function parseSettings(text){
   const c = {};
   for(const line of (text||'').split(/\r?\n/)){
     const m = line.match(/^\s*!\s*([^:=]+?)\s*[:=]\s*(.*?)\s*$/); if(!m) continue;
     const k = m[1].replace(/\s+/g,' '), v = m[2];
-    if(/כותרת זום/.test(k)) c.zoomTitle = v;
+    if(/לימוד יומי/.test(k)) c.learn = v.split(/[,\s]+/).filter(x => LEARN_DEF[x]);
+    else if(/^תחנון/.test(k)) c.tachanun = !/^(לא|no|0)/i.test(v);
+    else if(/ספירת העומר/.test(k)) c.omerB = /בעומר/.test(v);
+    else if(/^מזל טוב/.test(k)){   // ! מזל טוב 2026-10-25 2026-10-31: הטקסט
+      const d = k.match(/(\d{4}-\d{2}-\d{2})(?:\s+(\d{4}-\d{2}-\d{2}))?/);
+      if(d && v) (c.mazal = c.mazal || []).push({from: d[1], to: d[2] || d[1], text: v});
+    }
+    else if(/כותרת זום/.test(k)) c.zoomTitle = v;
     else if(/שיעור זום/.test(k)){   // "ה 21:00-22:00" (ש = שבת / מוצאי שבת)
       const m2 = v.match(/^([אבגדהוש])\S*\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
       if(m2) (c.zoom = c.zoom || []).push({d: 'אבגדהוש'.indexOf(m2[1]), t: m2[2], e: m2[3] || ''});
@@ -190,6 +204,8 @@ function parseSettings(text){
   if(!c.candleMin && c.geonameid === '281184') c.candleMin = '40';   // מנהג ירושלים
   if(c.useElev === undefined) c.useElev = !!(c.geonameid === '281184' || c.elev);
   if(c.israel === undefined) c.israel = true;
+  if(c.tachanun === undefined) c.tachanun = true;
+  c.learn = c.learn || [];
   return c;
 }
 const locQ = () => CFG.lat ? `latitude=${CFG.lat}&longitude=${CFG.lon}&tzid=${encodeURIComponent(TZ)}` : `geonameid=${CFG.geonameid}`;
@@ -230,6 +246,55 @@ function nowParts(){
 async function j(url){ const r = await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json(); }
 
 let data = null, loadedFor = null;
+// ===================== לימוד יומי (מ-Hebcal) =====================
+// מפתח: [פרמטר ב-Hebcal, קטגוריה בתשובה, שם במסך]. "daf" – מחושב במסך עצמו
+const LEARN_DEF = {
+  daf:   [null, null, 'הדף היומי'],
+  yyomi: ['yyomi', 'yerushalmi', 'ירושלמי יומי'],
+  myomi: ['myomi', 'mishnayomi', 'משנה יומית'],
+  dr1:   ['dr1', 'dailyRambam1', 'רמב״ם – פרק ליום'],
+  dr3:   ['dr3', 'dailyRambam3', 'רמב״ם – 3 פרקים'],
+  dsm:   ['dsm', 'seferHaMitzvot', 'ספר המצוות'],
+  nyomi: ['nyomi', 'nachyomi', 'נ״ך יומי'],
+  dty:   ['dty', 'tanakhYomi', 'תנ״ך יומי'],
+  dps:   ['dps', 'dailyPsalms', 'תהילים יומי'],
+  dksa:  ['dksa', 'kitzurShulchanAruch', 'קיצור שולחן ערוך'],
+  ahsy:  ['ahsy', 'arukhHaShulchanYomi', 'ערוך השולחן'],
+  dcc:   ['dcc', 'chofetzChaim', 'חפץ חיים'],
+  dshl:  ['dshl', 'shemiratHaLashon', 'שמירת הלשון'],
+  dw:    ['dw', 'dafWeekly', 'דף שבועי'],
+  dpa:   ['dpa', 'pirkeiAvotSummer', 'פרקי אבות']
+};
+let LEARN = {};   // מפתח -> טקסט של היום
+const heNums = s => s.replace(/\d+/g, d => hebNum(+d));
+function learnText(key, it){
+  let s = String((/[\u05d0-\u05ea]/.test(it.hebrew || '') ? it.hebrew : it.title) || '').trim();
+  s = s.replace(/^(?:[^:\d]{2,30}|Day \d+):\s+/, '');                       // "דף יומי: ..." / "Day 5: ..."
+  if(key === 'dsm') s = s.replace(/Positive Commandments?/g, 'מצוות עשה').replace(/Negative Commandments?/g, 'לא תעשה')
+                         .replace(/;?\s*Note About Varying Customs/g, '').replace(/;\s*/g, ' · ');
+  s = s.replace(/^(ירושלמי|תהלים|תהילים|פרקי אבות)\s+/, '');
+  return strip(heNums(s));
+}
+async function loadLearn(today){
+  const keys = (CFG.learn || []).filter(k => LEARN_DEF[k] && LEARN_DEF[k][0]);
+  if(!keys.length){ LEARN = {}; return; }
+  const ck = 'learn_' + SHUL, sig = today + '|' + keys.join(',');
+  try{
+    const r = await j(`https://www.hebcal.com/hebcal?v=1&cfg=json&lg=he&start=${today}&end=${today}&${keys.map(k => LEARN_DEF[k][0] + '=on').join('&')}`);
+    const out = {};
+    for(const it of (r.items || [])){
+      const k = keys.find(k => LEARN_DEF[k][1].toLowerCase() === String(it.category || '').toLowerCase());
+      if(k && !out[k]) out[k] = learnText(k, it);
+    }
+    LEARN = out;
+    try{ localStorage.setItem(ck, JSON.stringify({sig, out})); }catch(e){}
+  }catch(e){
+    try{ const c = JSON.parse(localStorage.getItem(ck)); if(c && c.sig === sig) LEARN = c.out; }catch(_){}
+  }
+}
+function learnList(){
+  return (CFG.learn || []).map(k => [LEARN_DEF[k][2], k === 'daf' ? DAF : LEARN[k]]).filter(x => x[1]);
+}
 
 async function load(){
   const today = nowParts().date;
@@ -247,6 +312,7 @@ async function load(){
       j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1`)   // נץ החמה במישור עם שניות
     ]);
     data = {today,z,h1,h2,cal,hs,sat,zj,zs};
+    loadLearn(today).then(() => renderSlots());
     try{ localStorage.setItem('zmanim_' + SHUL, JSON.stringify(data)); }catch(e){}
     $('status').textContent = '';
   }catch(e){
@@ -308,7 +374,7 @@ function render(){
   $('mev').classList.toggle('rc', !!rcToday);
   $('mev').innerHTML = rcToday ? `<b>${rcToday}</b>` : mevTxt;
   $('days').innerHTML = (rcToday || mevTxt) ? '' : monthStrip(H, dow0);
-  curH = H; curH1 = data.h1; renderSlots(); applyBlack();
+  curH = H; curH1 = data.h1; TEF = tefilaToday(H, base, dow0); renderSlots(); applyBlack();
   // פרשת השבוע – תמיד. אם השבת הקרובה היא חג (אין פרשה), מוצג שם השבת
   const shabHol = items.find(i => i.category==='holiday' && i.date.slice(0,10)===data.sat);
   $('sub').textContent = parsha ? strip(parsha.hebrew || parsha.title) : (shabHol ? 'שבת ' + strip(shabHol.hebrew || shabHol.title) : '');
@@ -369,6 +435,66 @@ function hebNum(n){
   let s = hund[Math.floor(n/100)]; n %= 100;
   s += n===15 ? 'טו' : n===16 ? 'טז' : tens[Math.floor(n/10)] + ones[n%10];
   return s.length > 1 ? s.slice(0,-1) + '״' + s.slice(-1) : s + '׳';
+}
+// ===================== היום בתפילה: הזכרות + ספירת העומר =====================
+// H = התאריך העברי המוצג (מתחלף בשקיעה), base = התאריך הלועזי של אותו יום
+function omerText(H){
+  let n = 0;
+  if(H.hm === 'Nisan' && H.hd >= 16) n = H.hd - 15;
+  else if(H.hm === 'Iyyar') n = 15 + H.hd;
+  else if(H.hm === 'Sivan' && H.hd <= 5) n = 44 + H.hd;
+  if(!n) return '';
+  const w = Math.floor(n / 7), d = n % 7, end = CFG.omerB ? 'בעומר' : 'לעומר';
+  if(n === 1) return 'היום יום אחד ' + end;
+  let t = 'היום ' + hebNum(n) + (n >= 11 ? ' יום' : ' ימים');
+  if(w) t += ', שהם ' + (w === 1 ? 'שבוע אחד' : hebNum(w) + ' שבועות') + (d ? (d === 1 ? ' ויום אחד' : ' ו' + hebNum(d) + ' ימים') : '');
+  return t + ' ' + end;
+}
+function tefilaToday(H, base, dow0){
+  if(!H || !H.hm) return [];
+  const m = H.hm, d = H.hd, IL = CFG.israel !== false, out = [];
+  const adar = m === 'Adar' || m === 'Adar II';
+  const items = ((data && data.cal && data.cal.items) || []).filter(i => i.date.slice(0,10) === base);
+  // גשם / טל
+  if((m === 'Tishrei' && d === 22)) out.push(['גבורות', 'ממוסף: משיב הרוח ומוריד הגשם']);
+  else if(m === 'Nisan' && d === 15) out.push(['גבורות', 'ממוסף: מוריד הטל']);
+  else if((m === 'Tishrei' && d > 22) || ['Cheshvan','Kislev','Tevet',"Sh'vat",'Adar','Adar I','Adar II'].includes(m) || (m === 'Nisan' && d < 15)) out.push(['גבורות', 'משיב הרוח ומוריד הגשם']);
+  else out.push(['גבורות', 'מוריד הטל']);
+  // ברכת השנים
+  let rain;
+  if(IL) rain = (m === 'Cheshvan' && d >= 7) || ['Kislev','Tevet',"Sh'vat",'Adar','Adar I','Adar II'].includes(m) || (m === 'Nisan' && d < 15);
+  else { const g = new Date(base + 'T12:00:00Z'), y = g.getUTCFullYear(), mo = g.getUTCMonth() + 1, gl = yy => (yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0;
+         rain = (mo === 12 && g.getUTCDate() >= (gl(y + 1) ? 6 : 5)) || (mo <= 4 && !(m === 'Nisan' && d >= 15) && !['Iyyar','Sivan'].includes(m)); }
+  out.push(['ברכת השנים', rain ? 'ותן טל ומטר לברכה' : 'ותן ברכה']);
+  if(m === 'Tishrei' && d <= 10) out.push(['עשרת ימי תשובה', 'המלך הקדוש · המלך המשפט · זכרנו לחיים']);
+  // יעלה ויבוא
+  const rc = (d === 30) || (d === 1);
+  const yt = (m === 'Tishrei' && (d <= 2 || (d >= 15 && d <= (IL ? 22 : 23)))) || (m === 'Nisan' && d >= 15 && d <= (IL ? 21 : 22)) || (m === 'Sivan' && (d === 6 || (!IL && d === 7)));
+  if(rc || yt) out.push(['בתפילה', 'יעלה ויבוא']);
+  // על הניסים
+  const kislevLen = monthLen(m === 'Tevet' ? H.hy : H.hy, 'Kislev');
+  const chanuka = (m === 'Kislev' && d >= 25) || (m === 'Tevet' && d <= (kislevLen === 30 ? 2 : 3));
+  const jlm = CFG.geonameid === '281184';
+  const purim = adar && d === (jlm ? 15 : 14);
+  if(chanuka) out.push(['בתפילה ובברכת המזון', 'על הניסים (חנוכה)']);
+  if(purim) out.push(['בתפילה ובברכת המזון', 'על הניסים (פורים)']);
+  // תענית ציבור
+  const fast = items.find(i => (i.subcat === 'fast' || /Tzom|Ta'anit Esther|Asara|Tish'a/i.test(i.title)) && !/Kippur|Bechorot/i.test(i.title));
+  if(fast) out.push(['תענית ציבור', /Tish'a/i.test(fast.title) ? 'עננו · במנחה: נחם' : 'עננו']);
+  // הלל
+  let hallel = '';
+  if(chanuka || (m === 'Tishrei' && d >= 15 && d <= (IL ? 22 : 23)) || (m === 'Nisan' && (d === 15 || (!IL && d === 16))) || (m === 'Sivan' && (d === 6 || (!IL && d === 7)))) hallel = 'הלל שלם';
+  else if((m === 'Nisan' && d >= 16 && d <= (IL ? 21 : 22)) || (rc && !(m === 'Tishrei' && d === 1))) hallel = 'חצי הלל';
+  if(hallel) out.push(['הלל', hallel]);
+  // תחנון (בימי חול)
+  if(CFG.tachanun && dow0 !== 6 && !yt){
+    const noTach = rc || m === 'Nisan' || chanuka || (m === 'Iyyar' && (d === 14 || d === 18)) || (m === 'Sivan' && d <= 12) || (m === 'Av' && (d === 9 || d === 15))
+      || (m === 'Elul' && d === 29) || (m === 'Tishrei' && d >= 9) || (m === "Sh'vat" && d === 15) || ((adar || m === 'Adar I') && (d === 14 || d === 15));
+    if(noTach) out.push(['תחנון', 'אין אומרים תחנון']);
+  }
+  const om = omerText(H);
+  if(om) out.push(['ספירת העומר', om]);
+  return out;
 }
 // קוביות ימי החודש: שבתות מודגשות, היום הכי מודגש
 function monthStrip(H, dow0){
@@ -463,7 +589,7 @@ function parseMessages(text){
 }
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 // ===================== משבצות המסך =====================
-let DAF = '', ZCARDS = [], BASE = {}, IS_SAT = false, IS_FRI = false;
+let DAF = '', ZCARDS = [], BASE = {}, IS_SAT = false, IS_FRI = false, TEF = [];
 const toMin = v => { if(!v) return null; const x = (v.length > 8 ? v.slice(11,19) : v).split(':').map(Number); return x[0]*60 + x[1] + (x[2]||0)/60; };
 const fromMin = m => { m = Math.floor(((m % 1440) + 1440) % 1440); return pad(Math.floor(m/60)) + ':' + pad(m % 60); };
 const BASES = [['הדלקת נרות','candles'],['הדלקה','candles'],['צאת השבת','havdalah'],['צאת שבת','havdalah'],['צאת','havdalah'],['השקיעה','sunset'],['שקיעה','sunset'],['הנץ','netz'],['נץ','netz'],['חצות','chatzot']];
@@ -505,7 +631,7 @@ function messagesBySide(targets){
   }
   return res;
 }
-const msgHtml = list => list.map(m => `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
+const msgHtml = list => list.map(m => m.mazal ? `<div class="m mz"><span>מזל טוב!</span>${esc(m.body).replace(/\n/g,'<br>')}</div>` : `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
 function content(type, where, msgs){
   const side = where !== 'B';
   if(type === 'daf') return side ? {html:`<div class="pnl compact"><div class="lbl">הדף היומי</div><div class="v">${DAF}</div></div>`}
@@ -521,6 +647,16 @@ function content(type, where, msgs){
     return side ? {html:`<div class="pnl tall"><div class="lbl">זמני תפילות</div><div class="vp"><div class="in zl">${P.map(p => `<div class="row${p.next?' hl':''}"><span>${esc(p.label)}</span><b>${tt(p)}</b></div>`).join('')}</div></div></div>`, scroll:true}
                 : {html: P.map(p => `<div class="card${p.next?' hl':''}${p.times.length>1?' mw':''}"><div class="lbl">${esc(p.label)}</div><div class="t${p.times.length>1?' multi':''}">${tt(p)}</div></div>`).join(''), cards: P.length};
   }
+  if(type === 'learn'){
+    const L = learnList(); if(!L.length) return null;
+    return side ? {html:`<div class="pnl tall"><div class="lbl">לימוד יומי</div><div class="vp"><div class="in ll">${L.map(([l,v]) => `<div class="li"><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}</div></div></div>`, scroll:true}
+                : {html: L.map(([l,v]) => `<div class="card lc"><div class="lbl">${esc(l)}</div><div class="t lt">${esc(v)}</div></div>`).join(''), cards: L.length};
+  }
+  if(type === 'tefila'){
+    if(!TEF.length) return null;
+    return side ? {html:`<div class="pnl tall"><div class="lbl">היום בתפילה</div><div class="vp"><div class="in ll">${TEF.map(([l,v]) => `<div class="li"><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}</div></div></div>`, scroll:true}
+                : {html: TEF.map(([l,v]) => `<div class="card lc"><div class="lbl">${esc(l)}</div><div class="t lt">${esc(v)}</div></div>`).join(''), cards: TEF.length};
+  }
   if(type === 'msgs'){
     if(!msgs || !msgs.length) return null;
     return {html:`<div class="pnl gold ${side ? 'tall' : 'wide'}"><div class="lbl">הודעות</div><div class="vp"><div class="in">${msgHtml(msgs)}</div></div></div>`, scroll:true};
@@ -532,6 +668,12 @@ function renderSlots(){
   const slots = {R: CFG.slotR, L: CFG.slotL, B: CFG.slotB};
   const targets = ['L','R','B'].filter(k => slots[k].includes('msgs'));
   const msgs = (MSG_URL && curH) ? messagesBySide(targets) : {L:[],R:[],B:[]};
+  // מזל טוב – מופיע בראש ההודעות בתאריכים שנקבעו
+  const today = nowParts().date, mz = (CFG.mazal || []).filter(x => x.from <= today && today <= x.to);
+  if(mz.length && targets.length){
+    const side = targets.includes('L') ? 'L' : targets[0];
+    msgs[side] = mz.map(x => ({body: x.text, mazal: true})).concat(msgs[side]);
+  }
   const sec = Math.floor(Date.now() / 1000);
   for(const k of ['R','L','B']){
     const el = k === 'B' ? $('grid') : $('slot' + k);

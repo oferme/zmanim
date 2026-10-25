@@ -163,6 +163,18 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <div class="slotpick"><div class="head"><b>משבצת תחתונה</b></div><div class="seg slot" id="slotB"></div></div>
     </div>
     <div class="card">
+      <h2>לימוד יומי</h2>
+      <p class="hint" style="margin-bottom:10px">מסמנים מה להציג, ובוחרים "לימוד יומי" באחת המשבצות למעלה.</p>
+      <div class="seg" id="learn"></div>
+    </div>
+    <div class="card">
+      <h2>היום בתפילה</h2>
+      <p class="hint" style="margin-bottom:10px">משיב הרוח / מוריד הטל, ותן טל ומטר / ותן ברכה, יעלה ויבוא, על הניסים, עננו, הלל, וספירת העומר – מתעדכן לבד לפי התאריך. כדי שיופיע בוחרים "היום בתפילה" באחת המשבצות.</p>
+      <div class="row"><div class="lbl"><b>להציג "אין אומרים תחנון"</b><small>לפי המנהג הרווח</small></div><label class="sw"><input type="checkbox" id="tachanun"><span></span></label></div>
+      <label class="cap" style="margin-top:10px">נוסח ספירת העומר</label>
+      <div class="seg" id="omerB" data-vals="0,1" data-labels="לעומר,בעומר"></div>
+    </div>
+    <div class="card">
       <h2>תצוגה</h2>
       <label class="cap">החלפה בין תכנים כל</label>
       <div class="seg" id="rotate" data-vals="10,20,30,60,120" data-labels="10 שנ׳,20 שנ׳,30 שנ׳,דקה,2 דק׳"></div>
@@ -188,6 +200,12 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <h2>הודעות</h2>
       <p class="hint" style="margin-bottom:12px">את ההודעות למסך כותבים במסמך ההודעות של בית הכנסת.</p>
       <a class="big gold" id="docBtn" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">פתיחת מסמך ההודעות</a>
+    </div>
+    <div class="card">
+      <h2>מזל טוב</h2>
+      <p class="hint" style="margin-bottom:10px">מופיע בראש ההודעות במסך בתאריכים שנבחרו (צריך שתהיה משבצת "הודעות").</p>
+      <div id="mazalList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px"></div>
+      <button class="add" type="button" id="addMazal">+ הוספת מזל טוב</button>
     </div>
     <div class="card">
       <h2>שיעור / שידור חי</h2>
@@ -265,7 +283,7 @@ const CITIES = [
  ['קרית ארבע',31.5300,35.1150,20],['אריאל',32.1060,35.1730,20],['אחר / חוץ לארץ',null,null,18]];
 const OTHER = 'אחר / חוץ לארץ';
 const TZS = ['Asia/Jerusalem','Europe/London','Europe/Paris','Europe/Antwerp','America/New_York','America/Chicago','America/Los_Angeles','America/Toronto','America/Sao_Paulo','America/Argentina/Buenos_Aires','America/Mexico_City','Australia/Sydney','Africa/Johannesburg','Europe/Moscow','Europe/Kiev'];
-const SLOTS = [['daf','דף יומי'],['msgs','הודעות'],['zmanim','זמני היום'],['prayers','תפילות']];
+const SLOTS = [['daf','דף יומי'],['msgs','הודעות'],['zmanim','זמני היום'],['prayers','תפילות'],['learn','לימוד יומי'],['tefila','היום בתפילה']];
 const SLOT_NAME = Object.fromEntries(SLOTS);
 let S = null, DOC = '';
 
@@ -346,6 +364,38 @@ function syncLive(){
   $('linkCap').textContent = x[0]; $('zoomLink').placeholder = x[1]; $('liveHint').textContent = x[2];
   $('zoomOnly').hidden = t !== 'zoom';
 }
+// ---------- לימוד יומי ----------
+const LEARN = [['daf','הדף היומי'],['yyomi','ירושלמי יומי'],['myomi','משנה יומית'],['dr1','רמב״ם – פרק ליום'],['dr3','רמב״ם – 3 פרקים'],['dsm','ספר המצוות'],
+  ['nyomi','נ״ך יומי'],['dty','תנ״ך יומי'],['dps','תהילים יומי'],['dksa','קיצור שולחן ערוך'],['ahsy','ערוך השולחן'],['dcc','חפץ חיים'],['dshl','שמירת הלשון'],['dw','דף שבועי'],['dpa','פרקי אבות (בשבתות הקיץ)']];
+function learnPicker(){
+  const el = $('learn');
+  el.innerHTML = LEARN.map(([v,t]) => `<button type="button" data-v="${v}" aria-pressed="false">${t}</button>`).join('');
+  const paint = () => el.querySelectorAll('button').forEach(b => { const on = S.learn.includes(b.dataset.v); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  paint();
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    const v = b.dataset.v;
+    S.learn = S.learn.includes(v) ? S.learn.filter(x => x !== v) : LEARN.map(x => x[0]).filter(x => x === v || S.learn.includes(x));
+    paint(); changed();
+  });
+}
+// ---------- מזל טוב ----------
+function mazalCard(z){
+  const d = document.createElement('div'); d.className = 'pr';
+  d.innerHTML = `<div><label class="cap">נוסח</label><input type="text" class="field mt" placeholder="למשפחת כהן להולדת הבת"></div>
+    <div class="two"><div><label class="cap">מתאריך</label><input class="field mf" type="date" dir="ltr"></div><div><label class="cap">עד תאריך</label><input class="field mto" type="date" dir="ltr"></div></div>
+    <button type="button" class="del">מחיקה</button>`;
+  d.querySelector('.mt').value = z.text || ''; d.querySelector('.mf').value = z.from || ''; d.querySelector('.mto').value = z.to || '';
+  d.querySelector('.mt').addEventListener('input', e => { z.text = e.target.value; changed(); });
+  d.querySelector('.mf').addEventListener('change', e => { z.from = e.target.value; if(!z.to || z.to < z.from){ z.to = z.from; d.querySelector('.mto').value = z.to; } changed(); });
+  d.querySelector('.mto').addEventListener('change', e => { z.to = e.target.value; changed(); });
+  d.querySelector('.del').addEventListener('click', () => { S.mazal = S.mazal.filter(x => x !== z); d.remove(); changed(); });
+  return d;
+}
+$('addMazal').addEventListener('click', () => {
+  const t = new Date(), iso = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  const z = {text:'', from: iso, to: iso}; S.mazal.push(z); const c = mazalCard(z); $('mazalList').appendChild(c); c.querySelector('.mt').focus(); changed();
+});
 const ZDAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','מוצאי שבת / שבת'];
 function zoomCard(z){
   const d = document.createElement('div'); d.className = 'pr';
@@ -434,6 +484,12 @@ function bind(){
   $('clock').addEventListener('input', e => { S.clock = +e.target.value; $('clockV').textContent = S.clock + '%'; preview(); changed(); });
   preview();
 
+  S.learn = S.learn || []; learnPicker();
+  $('tachanun').checked = S.tachanun !== false;
+  $('tachanun').addEventListener('change', e => { S.tachanun = e.target.checked; changed(); });
+  segment($('omerB'), S.omerB ? '1' : '0', v => { S.omerB = v === '1'; changed(); });
+  S.mazal = S.mazal || [];
+  S.mazal.forEach(z => $('mazalList').appendChild(mazalCard(z)));
   S.zoom = S.zoom || [];
   S.zoom.forEach(z => $('zoomList').appendChild(zoomCard(z)));
   $('zoomTitle').value = S.zoomTitle || ''; $('zoomLink').value = S.zoomLink || ''; $('zoomName').value = S.zoomName || '';
