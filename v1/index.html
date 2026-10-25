@@ -16,11 +16,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg1);color:var(--text);fo
 body{background:radial-gradient(ellipse at 50% 42%,var(--bg2) 0%,var(--bg1) 72%);display:flex;align-items:center;justify-content:center;cursor:none;user-select:none;-webkit-user-select:none}
 body.cur{cursor:default}
 .stage{width:calc(var(--u)*100);height:calc(var(--u)*56.25);display:flex;flex-direction:column;padding:calc(var(--u)*2.4) calc(var(--u)*3.2) calc(var(--u)*2.6)}
-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:calc(var(--u)*1.4);border-bottom:1px solid var(--line)}
-.blk .small{font-size:calc(var(--u)*2.3);color:var(--muted);font-weight:600}
-.blk .big{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:calc(var(--u)*4.4);color:var(--gold2);line-height:1.15}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:calc(var(--u)*.9);border-bottom:1px solid var(--line)}
+.blk .small{font-size:calc(var(--u)*1.9);color:var(--muted);font-weight:600}
+.blk .big{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:calc(var(--u)*3.4);color:var(--gold2);line-height:1.15}
 .blk.left{text-align:left}
-.blk.left .big{color:var(--text);font-family:'Heebo',sans-serif;font-weight:800;font-size:calc(var(--u)*3.8)}
+.blk.left .big{color:var(--text);font-family:'Heebo',sans-serif;font-weight:800;font-size:calc(var(--u)*3)}
 .center{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*1.2)}
 .clock{direction:ltr;font-weight:800;font-size:calc(var(--u)*17);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.01em;text-shadow:0 0 calc(var(--u)*3) rgba(226,184,87,.18)}
 .clock .sec{font-size:.32em;color:var(--gold);margin-left:.15em;vertical-align:.12em}
@@ -37,9 +37,9 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
 .card.hl{background:linear-gradient(180deg,rgba(226,184,87,.22),rgba(226,184,87,.07));border-color:var(--gold)}
 .card.hl .lbl{color:var(--gold2)}
 .card.hl .t{color:var(--gold2)}
-.mev{margin-top:calc(var(--u)*1.3);padding:calc(var(--u)*.9) calc(var(--u)*2);border:1px solid var(--gold);border-radius:calc(var(--u)*1);background:rgba(226,184,87,.1);text-align:center;font-size:calc(var(--u)*1.85);font-weight:600;color:var(--gold2);white-space:nowrap;overflow:hidden}
+.mev{margin-top:calc(var(--u)*1);padding:calc(var(--u)*.5) calc(var(--u)*2);border:1px solid var(--gold);border-radius:calc(var(--u)*1);background:rgba(226,184,87,.1);text-align:center;font-size:calc(var(--u)*1.85);font-weight:600;color:var(--gold2);white-space:nowrap;overflow:hidden}
 .mev b{color:var(--text);font-weight:800}
-.mev.rc{font-size:calc(var(--u)*3);font-family:'Frank Ruhl Libre',serif;background:linear-gradient(180deg,rgba(226,184,87,.3),rgba(226,184,87,.1))}
+.mev.rc{font-size:calc(var(--u)*2.3);font-family:'Frank Ruhl Libre',serif;background:linear-gradient(180deg,rgba(226,184,87,.3),rgba(226,184,87,.1))}
 .mev.rc b{color:var(--gold2)}
 .mev:empty{display:none}
 .slot.side{position:absolute;top:calc(var(--u)*1.6);bottom:calc(var(--u)*1.6);width:calc(var(--u)*20.5);display:flex;flex-direction:column;justify-content:center}
@@ -125,8 +125,8 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
     <div class="sub" id="sub"></div>
   </div>
   <div class="grid" id="grid"></div>
-  <div class="mev" id="mev"></div>
   <div class="days" id="days"></div>
+  <div class="mev" id="mev"></div>
 </div>
 <div class="status" id="status"></div>
 <div class="notice" id="notice"></div>
@@ -387,7 +387,7 @@ function render(){
   const mevTxt = rcToday ? '' : mevarchimLine(H, dow0, base);
   $('mev').classList.toggle('rc', !!rcToday);
   $('mev').innerHTML = rcToday ? `<b>${rcToday}</b>` : mevTxt;
-  $('days').innerHTML = (rcToday || mevTxt) ? '' : monthStrip(H, dow0);
+  $('days').innerHTML = monthStrip(H, dow0);   // קוביות החודש – תמיד. שורת המולד / ראש חודש – מתחתיהן
   curH = H; curH1 = data.h1; TEF = tefilaToday(H, base, dow0); renderSlots(); applyBlack();
   // פרשת השבוע – תמיד. אם השבת הקרובה היא חג (אין פרשה), מוצג שם השבת
   const shabHol = items.find(i => i.category==='holiday' && i.date.slice(0,10)===data.sat);
@@ -429,12 +429,12 @@ function roshChodeshToday(h){
   if(h.hd === 30){ const list = isLeap(h.hy) ? LEAP : REG; const i = list.indexOf(h.hm); name = list[(i+1) % list.length]; }
   return `ראש חודש ${HEB_M[name]} – חודש טוב`;
 }
-// תקופת שבת מברכים: מיום ראשון של שבוע שבת מברכים ועד יום לפני ראש חודש
+// תקופת שבת מברכים: מיום רביעי שלפני שבת מברכים ועד יום לפני ראש חודש
 function mevarchimLine(H, dow0, base){
   if(!H || !H.hd || !H.hm || H.hm === 'Elul') return '';
   const L = monthLen(H.hy, H.hm);
   let smHd = 23; while(((smHd - H.hd - (6 - dow0)) % 7 + 7) % 7 !== 0) smHd++;   // תאריך שבת מברכים (כ״ג–כ״ט)
-  if(H.hd < smHd - 6 || H.hd > 29) return '';
+  if(H.hd < smHd - 3 || H.hd > 29) return '';   // מיום רביעי שלפני שבת מברכים ועד ערב ראש חודש
   let list = isLeap(H.hy) ? LEAP : REG, idx = list.indexOf(H.hm) + 1, y = H.hy;
   if(idx <= 0) return '';
   if(idx >= list.length){ y = H.hy + 1; idx = 0; list = isLeap(y) ? LEAP : REG; }
