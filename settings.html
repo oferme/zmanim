@@ -204,6 +204,14 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <a class="big gold" id="docBtn" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">פתיחת מסמך ההודעות</a>
     </div>
     <div class="card">
+      <h2>הפטרה</h2>
+      <div class="row"><div class="lbl"><b>להציג את ההפטרה</b><small>בראש ההודעות, מערב שבת / חג ועד צאתם</small></div><label class="sw"><input type="checkbox" id="haftara"><span></span></label></div>
+      <div id="haftBox" hidden>
+        <label class="cap" style="margin-top:10px">נוסח</label>
+        <div class="seg" id="nusach" data-vals="ashk,seph" data-labels="אשכנז,ספרד / עדות המזרח"></div>
+      </div>
+    </div>
+    <div class="card">
       <h2>ברכות ושמחות</h2>
       <p class="hint" style="margin-bottom:10px">מופיע בראש ההודעות במסך בתאריכים שנבחרו (צריך שתהיה משבצת "הודעות").</p>
       <label class="cap" for="mazalTitle">כותרת הברכה במסך</label>
@@ -431,6 +439,7 @@ $('addPrayer').addEventListener('click', () => {
 let timer = null;
 function status(t, cls){ const s = $('status'); s.textContent = t; s.className = 'chip-status ' + (cls || ''); }
 function valid(){
+  if (S.haftara && !S.nusach) return 'בחרו נוסח להפטרה';
   if (S.zoomLink && !LIVE_RE[S.liveType || 'zoom'].test(S.zoomLink.trim())) return { zoom: 'קישור הזום לא תקין', youtube: 'קישור היוטיוב לא תקין', web: 'הקישור צריך להתחיל ב-https://' }[S.liveType || 'zoom'];
   if (S.city === OTHER && (!/^-?\d+(\.\d+)?$/.test(String(S.lat).trim()) || !/^-?\d+(\.\d+)?$/.test(String(S.lon).trim()))) return 'חסרים קו רוחב וקו אורך';
   return '';
@@ -502,6 +511,9 @@ function bind(){
   $('tachanun').checked = S.tachanun !== false;
   $('tachanun').addEventListener('change', e => { S.tachanun = e.target.checked; changed(); });
   segment($('omerB'), S.omerB ? '1' : '0', v => { S.omerB = v === '1'; changed(); });
+  $('haftara').checked = !!S.haftara; $('haftBox').hidden = !S.haftara;
+  $('haftara').addEventListener('change', e => { S.haftara = e.target.checked; $('haftBox').hidden = !S.haftara; changed(); });
+  segment($('nusach'), S.nusach || '', v => { S.nusach = v; changed(); });
   S.mazal = S.mazal || [];
   $('mazalTitle').value = S.mazalTitle || '';
   $('mazalTitle').addEventListener('input', e => { S.mazalTitle = e.target.value; changed(); });

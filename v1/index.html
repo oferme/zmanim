@@ -73,6 +73,10 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
 .card.lc{max-width:calc(var(--u)*26)}
 .card .t.lt{font-size:calc(var(--u)*2.3);line-height:1.3;white-space:normal}
 .pnl .m.mz{color:var(--gold2);text-align:center}
+.pnl .m.hf{color:var(--text);font-size:calc(var(--u)*1.9)}
+.pnl .m.hf .nw{font-style:normal;white-space:nowrap;display:inline-block}
+.pnl .m.hf span{color:var(--gold2)}
+.pnl .m.hf small{display:block;font-size:.8em;color:var(--muted)}
 .pnl .m.mz span{display:block;font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:1.35em}
 .card .t.multi{font-size:calc(var(--u)*3.2);white-space:nowrap}
 .card.mw{max-width:calc(var(--u)*30)}
@@ -173,6 +177,7 @@ function parseSettings(text){
     else if(/^תחנון/.test(k)) c.tachanun = !/^(לא|no|0)/i.test(v);
     else if(/ספירת העומר/.test(k)) c.omerB = /בעומר/.test(v);
     else if(/כותרת ברכה/.test(k)) c.mazalTitle = v;
+    else if(/^הפטרה/.test(k)) c.haftara = /ספרד|עדות/.test(v) ? 'seph' : 'ashk';
     else if(/^מזל טוב/.test(k)){   // ! מזל טוב 2026-10-25 2026-10-31: הטקסט
       const d = k.match(/(\d{4}-\d{2}-\d{2})(?:\s+(\d{4}-\d{2}-\d{2}))?/);
       if(d && v) (c.mazal = c.mazal || []).push({from: d[1], to: d[2] || d[1], text: v});
@@ -450,6 +455,38 @@ function hebNum(n){
   s += n===15 ? 'טו' : n===16 ? 'טז' : tens[Math.floor(n/10)] + ones[n%10];
   return s.length > 1 ? s.slice(0,-1) + '״' + s.slice(-1) : s + '׳';
 }
+// ===================== הפטרה (מלוח הקריאות של Hebcal) =====================
+const BOOKS_HE = {Joshua:'יהושע',Judges:'שופטים','I Samuel':'שמואל א׳','II Samuel':'שמואל ב׳','I Kings':'מלכים א׳','II Kings':'מלכים ב׳',Isaiah:'ישעיהו',
+  Jeremiah:'ירמיהו',Ezekiel:'יחזקאל',Hosea:'הושע',Joel:'יואל',Amos:'עמוס',Obadiah:'עובדיה',Jonah:'יונה',Micah:'מיכה',Nahum:'נחום',Habakkuk:'חבקוק',
+  Zephaniah:'צפניה',Haggai:'חגי',Zechariah:'זכריה',Malachi:'מלאכי'};
+const HAFT_REASON = [[/Rosh Chodesh Chanukah/,'שבת ראש חודש וחנוכה'],[/Rosh Chodesh/,'שבת ראש חודש'],[/Machar Chodesh/,'שבת מחר חודש'],[/Shekalim/,'פרשת שקלים'],[/Zachor/,'פרשת זכור'],
+  [/Parah/,'פרשת פרה'],[/HaChodesh/,'פרשת החודש'],[/HaGadol/,'שבת הגדול'],[/Shuva/,'שבת שובה'],[/Chanukah/,'שבת חנוכה']];
+const cv = x => x.split(':').map(n => hebNum(+n)).join(',\u00a0');   // פרק, פסוק – בלי שבירת שורה
+function haftaraHe(str){   // "Isaiah 54:11-55:5; Hosea 14:2-10" → "ישעיהו נ״ד, י״א – נ״ה, ה׳ · הושע י״ד, ב׳ – י׳"
+  return str.split(/;\s*/).map(part => {
+    const m = part.match(/^((?:I{1,2} )?[A-Z][a-z]+)\s+(.+)$/); if(!m) return part;
+    const ranges = m[2].split(/,\s*/).map(r => { const [a, b] = r.split('-'); if(!b) return cv(a);
+      return cv(a) + '\u00a0–\u00a0' + (b.includes(':') ? cv(b) : hebNum(+b)); });
+    return [BOOKS_HE[m[1]] || m[1], ...ranges];
+  });   // [[ספר, טווח, טווח...], ...]
+}
+function haftaraToday(){
+  if(!CFG.haftara || !data || !data.cal) return null;
+  const n = nowParts(), today = n.date, tomorrow = addDays(today, 1), now = `${n.h}:${n.m}`;
+  const items = (data.cal.items || []).filter(i => i.leyning && (i.leyning.haftarah || i.leyning.haftarah_sephardic));
+  for(const d of [today, tomorrow]){   // היום, או מחר (ערב שבת / ערב חג)
+    if(d === today && BASE.havdalah && now >= t(BASE.havdalah)) continue;   // אחרי צאת השבת / החג
+    const list = items.filter(i => i.date.slice(0,10) === d);
+    const it = list.find(i => i.category === 'parashat') || list.find(i => i.category === 'holiday');
+    if(!it) continue;
+    const raw = (CFG.haftara === 'seph' && it.leyning.haftarah_sephardic) || it.leyning.haftarah || it.leyning.haftarah_sephardic;
+    const [ref, why] = raw.split(/\s*\|\s*/);
+    const reason = why ? ((HAFT_REASON.find(([re]) => re.test(why)) || [])[1] || '') : '';
+    const title = it.category === 'parashat' ? 'הפטרת השבת' : 'הפטרה – ' + strip(it.hebrew || it.title);
+    return {title, ref: haftaraHe(ref), reason};
+  }
+  return null;
+}
 // ===================== היום בתפילה: הזכרות + ספירת העומר =====================
 // H = התאריך העברי המוצג (מתחלף בשקיעה), base = התאריך הלועזי של אותו יום
 function omerText(H){
@@ -645,7 +682,7 @@ function messagesBySide(targets){
   }
   return res;
 }
-const msgHtml = list => list.map(m => m.mazal ? `<div class="m mz"><span>${esc(CFG.mazalTitle || 'בשעה טובה')}</span>${esc(m.body).replace(/\n/g,'<br>')}</div>` : `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
+const msgHtml = list => list.map(m => m.haft ? `<div class="m mz hf"><span>${esc(m.haft.title)}</span>${m.haft.ref.map(g => g.map(x => `<i class="nw">${esc(x)}</i>`).join(' ')).join(' · ')}${m.haft.reason ? `<small>${esc(m.haft.reason)}</small>` : ''}</div>` : m.mazal ? `<div class="m mz"><span>${esc(CFG.mazalTitle || 'בשעה טובה')}</span>${esc(m.body).replace(/\n/g,'<br>')}</div>` : `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
 function content(type, where, msgs){
   const side = where !== 'B';
   if(type === 'daf') return side ? {html:`<div class="pnl compact"><div class="lbl">הדף היומי</div><div class="v">${DAF}</div></div>`}
@@ -690,6 +727,8 @@ function renderSlots(){
     const side = targets.includes('L') ? 'L' : targets[0];
     msgs[side] = mz.map(x => ({body: x.text, mazal: true})).concat(msgs[side]);
   }
+  const hf = targets.length ? haftaraToday() : null;   // הפטרה – בראש ההודעות, מערב שבת/חג ועד צאתם
+  if(hf){ const side = targets.includes('L') ? 'L' : targets[0]; msgs[side] = [{haft: hf}].concat(msgs[side]); }
   const sec = Math.floor(Date.now() / 1000);
   for(const k of ['R','L','B']){
     const el = k === 'B' ? $('grid') : $('slot' + k);
