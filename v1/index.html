@@ -64,6 +64,11 @@ header{display:flex;justify-content:space-between;align-items:flex-start;padding
 .ll .li{padding:calc(var(--u)*.6) 0;border-bottom:1px solid rgba(226,184,87,.15);text-align:right}
 .ll .li span{display:block;font-size:calc(var(--u)*1.5);color:var(--muted);font-weight:600}
 .ll .li b{display:block;font-size:calc(var(--u)*2.15);color:var(--text);font-weight:800;line-height:1.3}
+.stack{display:flex;flex-direction:column;gap:calc(var(--u)*1)}
+.stack.n3 .pnl{padding:calc(var(--u)*.7) calc(var(--u)*1)}
+.stack.n3 .pnl .v{font-size:calc(var(--u)*2.8)}
+.stack.n3 .pnl .v.sm{font-size:calc(var(--u)*2.1);line-height:1.25}
+.stack.n3 .pnl.compact>.lbl{font-size:calc(var(--u)*1.5)}
 .pnl .v.sm{font-size:calc(var(--u)*2.4);white-space:normal}
 .card.lc{max-width:calc(var(--u)*26)}
 .card .t.lt{font-size:calc(var(--u)*2.3);line-height:1.3;white-space:normal}
@@ -208,6 +213,10 @@ function parseSettings(text){
   if(c.israel === undefined) c.israel = true;
   if(c.tachanun === undefined) c.tachanun = true;
   c.learn = c.learn || [];
+  if([c.slotR, c.slotL, c.slotB].some(a => a.includes('daf'))){   // "דף יומי" כמשבצת נפרדת הוחלף ב"לימוד יומי"
+    ['slotR','slotL','slotB'].forEach(k => { c[k] = [...new Set(c[k].map(x => x === 'daf' ? 'learn' : x))]; });
+    if(!c.learn.includes('daf')) c.learn = ['daf', ...c.learn];
+  }
   return c;
 }
 const locQ = () => CFG.lat ? `latitude=${CFG.lat}&longitude=${CFG.lon}&tzid=${encodeURIComponent(TZ)}` : `geonameid=${CFG.geonameid}`;
@@ -275,7 +284,7 @@ function learnText(key, it){
   if(key === 'dsm') s = s.replace(/Positive Commandments?/g, 'מצוות עשה').replace(/Negative Commandments?/g, 'לא תעשה')
                          .replace(/;?\s*Note About Varying Customs/g, '').replace(/;\s*/g, ' · ');
   s = s.replace(/^(ירושלמי|תהלים|תהילים|פרקי אבות)\s+/, '');
-  return strip(heNums(s));
+  return strip(heNums(s)).replace(/(\S)-(\S)/g, '$1\u2011$2');   // טווח (ג׳-ה׳) לא נשבר בין שורות
 }
 async function loadLearn(today){
   const keys = (CFG.learn || []).filter(k => LEARN_DEF[k] && LEARN_DEF[k][0]);
@@ -651,7 +660,8 @@ function content(type, where, msgs){
   }
   if(type === 'learn'){
     const L = learnList(); if(!L.length) return null;
-    if(side && L.length === 1) return {html:`<div class="pnl compact"><div class="lbl">${esc(L[0][0])}</div><div class="v${L[0][1].length > 14 ? ' sm' : ''}">${esc(L[0][1])}</div></div>`};   // לימוד אחד – משבצת קטנה כמו הדף היומי
+    // עד 3 לימודים – משבצות קטנות אחת מתחת לשנייה (כמו הדף היומי). יותר – רשימה נגללת
+    if(side && L.length <= 3) return {html:`<div class="stack n${L.length}">${L.map(([l,v]) => `<div class="pnl compact"><div class="lbl">${esc(l)}</div><div class="v${v.length > 14 ? ' sm' : ''}">${esc(v)}</div></div>`).join('')}</div>`};
     return side ? {html:`<div class="pnl tall"><div class="lbl">לימוד יומי</div><div class="vp"><div class="in ll">${L.map(([l,v]) => `<div class="li"><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}</div></div></div>`, scroll:true}
                 : {html: L.map(([l,v]) => `<div class="card lc"><div class="lbl">${esc(l)}</div><div class="t lt">${esc(v)}</div></div>`).join(''), cards: L.length};
   }
