@@ -180,6 +180,8 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <div class="seg" id="rotate" data-vals="10,20,30,60,120" data-labels="10 שנ׳,20 שנ׳,30 שנ׳,דקה,2 דק׳"></div>
       <label class="cap" for="clock">גודל השעון: <b id="clockV"></b></label>
       <input type="range" id="clock" min="60" max="100" step="5">
+      <label class="cap" for="bottom">גודל השורה התחתונה: <b id="bottomV"></b></label>
+      <input type="range" id="bottom" min="60" max="100" step="5">
     </div>
   </section>
 
@@ -491,6 +493,8 @@ function bind(){
   segment($('rotate'), S.rotate || 30, v => { S.rotate = +v; changed(); });
   $('clock').value = S.clock || 100; $('clockV').textContent = (S.clock || 100) + '%';
   $('clock').addEventListener('input', e => { S.clock = +e.target.value; $('clockV').textContent = S.clock + '%'; preview(); changed(); });
+  $('bottom').value = S.bottom || 90; $('bottomV').textContent = (S.bottom || 90) + '%';
+  $('bottom').addEventListener('input', e => { S.bottom = +e.target.value; $('bottomV').textContent = S.bottom + '%'; changed(); });
   preview();
 
   S.learn = S.learn || [];

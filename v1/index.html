@@ -198,6 +198,7 @@ function parseSettings(text){
     else if(/משבצת שמאל/.test(k)) c.slotL = slotList(v);
     else if(/משבצת תחתונה/.test(k)) c.slotB = slotList(v);
     else if(/גודל שעון/.test(k)) c.clock = +((v.match(/\d+/)||[100])[0]);
+    else if(/גודל שורה תחתונה/.test(k)) c.bottom = +((v.match(/\d+/)||[90])[0]);
     else if(/החלפה/.test(k)) c.rotate = Math.max(5, +((v.match(/\d+/)||[30])[0]));
     else if(/^תפילה/.test(k)){
       const q = (k.match(/\[([^\]]+)\]/)||[])[1] || '';
@@ -207,6 +208,7 @@ function parseSettings(text){
   }
   c.slotR = c.slotR || ['daf']; c.slotL = c.slotL || ['msgs']; c.slotB = c.slotB || ['zmanim'];
   c.clock = c.clock || 100; c.rotate = c.rotate || 30;
+  c.bottom = Math.min(100, Math.max(60, c.bottom || 90));   // ברירת מחדל 90% – שלא ייגע במשבצות שבצדדים
   if(!c.geonameid && !c.lat) c.geonameid = '281184';            // ברירת מחדל: ירושלים
   if(!c.candleMin && c.geonameid === '281184') c.candleMin = '40';   // מנהג ירושלים
   if(c.useElev === undefined) c.useElev = !!(c.geonameid === '281184' || c.elev);
@@ -751,6 +753,7 @@ async function loadMsgs(){
   if(!booted || cfgKey !== lastCfg){ lastCfg = cfgKey; booted = true; load(); }   // הגדרות השתנו – טוען זמנים מחדש
   checkRemoteClose();
   const ck = document.querySelector('.clock'); if(ck) ck.style.fontSize = `calc(var(--u)*${(17*CFG.clock/100).toFixed(2)})`;
+  $('grid').style.zoom = CFG.bottom / 100;
   renderSlots(); applyBlack();
 }
 loadMsgs(); setInterval(loadMsgs, 2*60*1000);   // בדיקה כל 2 דקות
