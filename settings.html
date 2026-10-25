@@ -80,6 +80,8 @@ input[type=range]{width:100%;accent-color:var(--gold)}
 .pr .top{display:flex;gap:10px}
 .pr .top .field{flex:1}
 .pr .del{border:0;background:none;color:var(--danger);font-size:14px;padding:4px 2px;align-self:flex-start;cursor:pointer}
+.rotbox{margin:8px 0 4px;padding:10px 12px;border:1px dashed var(--line);border-radius:12px}
+.rotbox .seg button{padding:6px 12px;font-size:14px}
 .pr .seg button{padding:6px 12px;font-size:14px}
 .add{width:100%;padding:14px;border-radius:14px;border:1.5px dashed var(--gold);background:none;color:var(--gold2);font-weight:700;cursor:pointer}
 .hint{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
@@ -179,8 +181,6 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
     </div>
     <div class="card">
       <h2>תצוגה</h2>
-      <label class="cap">החלפה בין תכנים כל</label>
-      <div class="seg" id="rotate" data-vals="10,20,30,60,120" data-labels="10 שנ׳,20 שנ׳,30 שנ׳,דקה,2 דק׳"></div>
       <label class="cap" for="clock">גודל השעון: <b id="clockV"></b></label>
       <input type="range" id="clock" min="60" max="100" step="5">
       <label class="cap" for="bottom">גודל השורה התחתונה: <b id="bottomV"></b></label>
@@ -329,8 +329,16 @@ function segment(el, value, onPick){
   set(value);
   el.addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; set(b.dataset.v); onPick(b.dataset.v); });
 }
+const ROT_KEY = {slotR:'rotR', slotL:'rotL', slotB:'rotB'};
 function slotPicker(id){
   const el = $(id); S[id] = S[id] || [];
+  // זמן החלפה למשבצת הזו – מופיע כשנבחרו בה 2 תכנים או יותר
+  const rk = ROT_KEY[id], box = document.createElement('div');
+  box.className = 'rotbox'; box.innerHTML = '<label class="cap">החלפה בין התכנים כל</label><div class="seg" data-vals="10,20,30,60,120" data-labels="10 שנ׳,20 שנ׳,30 שנ׳,דקה,2 דק׳"></div>';
+  el.after(box);
+  segment(box.querySelector('.seg'), S[rk] || S.rotate || 30, v => { S[rk] = +v; changed(); });
+  const syncRot = () => { box.hidden = S[id].length < 2; };
+  syncRot();
   el.innerHTML = SLOTS.map(([v,t]) => `<button type="button" data-v="${v}" aria-pressed="false">${t}</button>`).join('');
   const paint = () => el.querySelectorAll('button').forEach(b => { const on = S[id].includes(b.dataset.v); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
   paint();
@@ -338,7 +346,7 @@ function slotPicker(id){
     const b = e.target.closest('button'); if(!b) return;
     const v = b.dataset.v, a = S[id];
     S[id] = a.includes(v) ? a.filter(x => x !== v) : [...a, v];
-    paint(); preview(); changed();
+    paint(); syncRot(); preview(); changed();
   });
 }
 function preview(){
@@ -520,7 +528,6 @@ function bind(){
   syncCity();
 
   ['slotR','slotL','slotB'].forEach(slotPicker);
-  segment($('rotate'), S.rotate || 30, v => { S.rotate = +v; changed(); });
   $('clock').value = S.clock || 100; $('clockV').textContent = (S.clock || 100) + '%';
   $('clock').addEventListener('input', e => { S.clock = +e.target.value; $('clockV').textContent = S.clock + '%'; preview(); changed(); });
   segment($('gdate'), S.gdate || 'long', v => { S.gdate = v; changed(); });

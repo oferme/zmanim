@@ -214,6 +214,7 @@ function parseSettings(text){
     else if(/משבצת תחתונה/.test(k)) c.slotB = slotList(v);
     else if(/גודל שעון/.test(k)) c.clock = +((v.match(/\d+/)||[100])[0]);
     else if(/גודל שורה תחתונה/.test(k)) c.bottom = +((v.match(/\d+/)||[90])[0]);
+    else if(/החלפה (ימין|שמאל|תחתונה)/.test(k)) c['rot' + ({'ימין':'R','שמאל':'L','תחתונה':'B'})[k.match(/ימין|שמאל|תחתונה/)[0]]] = Math.max(5, +((v.match(/\d+/)||[30])[0]));   // זמן החלפה לכל משבצת בנפרד
     else if(/החלפה/.test(k)) c.rotate = Math.max(5, +((v.match(/\d+/)||[30])[0]));
     else if(/^תפילה/.test(k)){
       const q = (k.match(/\[([^\]]+)\]/)||[])[1] || '';
@@ -777,7 +778,7 @@ function renderSlots(){
   for(const k of ['R','L','B']){
     const el = k === 'B' ? $('grid') : $('slot' + k);
     const items = slots[k].map(tp => content(tp, k, msgs[k])).filter(Boolean);
-    let c = items.length ? items[Math.floor(sec / CFG.rotate) % items.length] : null;
+    let c = items.length ? items[Math.floor(sec / (CFG['rot' + k] || CFG.rotate)) % items.length] : null;
     // הנץ: משעה לפני ועד שעה אחרי – קוביית הנץ קבועה בשורה התחתונה (שליח הציבור מסתכל עליה), שאר התוכן ממשיך להתחלף
     if(k === 'B' && slots.B.length && netzWindow() && !(c && c.netz)){
       const nz = ZCARDS.find(x => x[0] === 'הנץ החמה');
