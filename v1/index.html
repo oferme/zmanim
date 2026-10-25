@@ -716,7 +716,8 @@ function content(type, where, msgs){
     const P = prayersToday(); if(!P.length) return null;
     const tt = p => p.times.map(x => x.replace(/^0(\d)/,'$1')).join(' · ');
     return side ? {html:`<div class="pnl tall"><div class="lbl">זמני תפילות</div><div class="vp"><div class="in zl">${P.map(p => `<div class="row${p.next?' hl':''}"><span>${esc(p.label)}</span><b>${tt(p)}</b></div>`).join('')}</div></div></div>`, scroll:true}
-                : {html: P.map(p => `<div class="card${p.next?' hl':''}${p.times.length>1?' mw':''}"><div class="lbl">${esc(p.label)}</div><div class="t${p.times.length>1?' multi':''}">${tt(p)}</div></div>`).join(''), cards: P.length};
+                : (() => { const parts = P.map(p => [p.times[0], `<div class="card${p.next?' hl':''}${p.times.length>1?' mw':''}"><div class="lbl">${esc(p.label)}</div><div class="t${p.times.length>1?' multi':''}">${tt(p)}</div></div>`]);
+                           return {html: parts.map(x => x[1]).join(''), cards: P.length, parts}; })();
   }
   if(type === 'learn'){
     const L = learnList(); if(!L.length) return null;
@@ -763,7 +764,14 @@ function renderSlots(){
     if(k === 'B' && slots.B.length && netzWindow() && !(c && c.netz)){
       const nz = ZCARDS.find(x => x[0] === 'הנץ החמה');
       if(nz){ const card = `<div class="card hl"><div class="lbl">${nz[0]}</div><div class="t">${show(nz[1])}</div></div>`;
-              c = {html: card + (c ? c.html : ''), cards: 1 + ((c && c.cards) || (c ? 2 : 0)), scroll: c && c.scroll}; }
+              let html;
+              if(c && c.parts){   // זמני תפילות – הנץ נכנס לפי סדר השעות
+                const key = t(nz[1]).padStart(5, '0'), parts = c.parts.slice();
+                const i = parts.findIndex(x => x[0].padStart(5, '0') > key);
+                parts.splice(i < 0 ? parts.length : i, 0, [key, card]);
+                html = parts.map(x => x[1]).join('');
+              } else html = card + (c ? c.html : '');
+              c = {html, cards: 1 + ((c && c.cards) || (c ? 2 : 0)), scroll: c && c.scroll}; }
     }
     if(k === 'B') el.classList.toggle('many', !!(c && c.cards > 4));
     setSlot(el, c ? c.html : '', c && c.scroll);
