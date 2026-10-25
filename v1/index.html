@@ -166,6 +166,7 @@ function parseSettings(text){
     if(/לימוד יומי/.test(k)) c.learn = v.split(/[,\s]+/).filter(x => LEARN_DEF[x]);
     else if(/^תחנון/.test(k)) c.tachanun = !/^(לא|no|0)/i.test(v);
     else if(/ספירת העומר/.test(k)) c.omerB = /בעומר/.test(v);
+    else if(/כותרת ברכה/.test(k)) c.mazalTitle = v;
     else if(/^מזל טוב/.test(k)){   // ! מזל טוב 2026-10-25 2026-10-31: הטקסט
       const d = k.match(/(\d{4}-\d{2}-\d{2})(?:\s+(\d{4}-\d{2}-\d{2}))?/);
       if(d && v) (c.mazal = c.mazal || []).push({from: d[1], to: d[2] || d[1], text: v});
@@ -631,7 +632,7 @@ function messagesBySide(targets){
   }
   return res;
 }
-const msgHtml = list => list.map(m => m.mazal ? `<div class="m mz"><span>מזל טוב!</span>${esc(m.body).replace(/\n/g,'<br>')}</div>` : `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
+const msgHtml = list => list.map(m => m.mazal ? `<div class="m mz"><span>${esc(CFG.mazalTitle || 'בשעה טובה')}</span>${esc(m.body).replace(/\n/g,'<br>')}</div>` : `<div class="m">${esc(m.body).replace(/\n/g,'<br>')}</div>`).join('<div class="sep"></div>');
 function content(type, where, msgs){
   const side = where !== 'B';
   if(type === 'daf') return side ? {html:`<div class="pnl compact"><div class="lbl">הדף היומי</div><div class="v">${DAF}</div></div>`}
@@ -684,13 +685,20 @@ function renderSlots(){
   }
 }
 function setSlot(el, html, scroll){
-  if(el._html === html) return;
-  el._html = html; cancelAnimationFrame(el._raf);
+  if(el._html === html){   // אותו תוכן – אבל אם בינתיים הוא גדל (גופנים נטענו וכו') ועכשיו לא נכנס, מתחילים לגלול
+    if(scroll && !el._scrolling) startScroll(el);
+    return;
+  }
+  el._html = html; el._scrolling = false; cancelAnimationFrame(el._raf);
   el.innerHTML = html;
+  if(scroll) startScroll(el);
+}
+function startScroll(el){
   const vp = el.querySelector('.vp'), inner = el.querySelector('.in');
-  if(!scroll || !vp || !inner) return;
+  if(!vp || !inner) return;
   const h = inner.scrollHeight;
   if(h <= vp.clientHeight + 2) return;                        // נכנס – בלי גלילה
+  el._scrolling = true;
   vp.classList.add('scroll');
   const body = inner.innerHTML;
   inner.innerHTML = body + '<div class="gap"></div>' + body;   // גלילה רציפה כלפי מעלה

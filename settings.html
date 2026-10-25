@@ -202,10 +202,13 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <a class="big gold" id="docBtn" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">פתיחת מסמך ההודעות</a>
     </div>
     <div class="card">
-      <h2>מזל טוב</h2>
+      <h2>ברכות ושמחות</h2>
       <p class="hint" style="margin-bottom:10px">מופיע בראש ההודעות במסך בתאריכים שנבחרו (צריך שתהיה משבצת "הודעות").</p>
+      <label class="cap" for="mazalTitle">כותרת הברכה במסך</label>
+      <input class="field" type="text" id="mazalTitle" placeholder="בשעה טובה">
+      <div class="seg" id="mazalSug" style="margin:8px 0 12px"></div>
       <div id="mazalList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px"></div>
-      <button class="add" type="button" id="addMazal">+ הוספת מזל טוב</button>
+      <button class="add" type="button" id="addMazal">+ הוספת ברכה</button>
     </div>
     <div class="card">
       <h2>שיעור / שידור חי</h2>
@@ -489,6 +492,10 @@ function bind(){
   $('tachanun').addEventListener('change', e => { S.tachanun = e.target.checked; changed(); });
   segment($('omerB'), S.omerB ? '1' : '0', v => { S.omerB = v === '1'; changed(); });
   S.mazal = S.mazal || [];
+  $('mazalTitle').value = S.mazalTitle || '';
+  $('mazalTitle').addEventListener('input', e => { S.mazalTitle = e.target.value; changed(); });
+  $('mazalSug').innerHTML = ['בשעה טובה','בשעה טובה ומוצלחת','ברכות ואיחולים','שמחות בקהילה','ברכת מזל טוב'].map(t => `<button type="button">${t}</button>`).join('');
+  $('mazalSug').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.mazalTitle = $('mazalTitle').value = b.textContent; changed(); });
   S.mazal.forEach(z => $('mazalList').appendChild(mazalCard(z)));
   S.zoom = S.zoom || [];
   S.zoom.forEach(z => $('zoomList').appendChild(zoomCard(z)));
