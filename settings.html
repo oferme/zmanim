@@ -171,6 +171,9 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <h2>היום בתפילה</h2>
       <p class="hint" style="margin-bottom:10px">משיב הרוח / מוריד הטל, ותן טל ומטר / ותן ברכה, יעלה ויבוא, על הניסים, עננו, הלל, וספירת העומר – מתעדכן לבד לפי התאריך. כדי שיופיע בוחרים "היום בתפילה" באחת המשבצות.</p>
       <div class="row"><div class="lbl"><b>להציג "אין אומרים תחנון"</b><small>לפי המנהג הרווח</small></div><label class="sw"><input type="checkbox" id="tachanun"><span></span></label></div>
+      <label class="cap" style="margin-top:10px">כמה זמן להציג שינויי נוסח קבועים</label>
+      <div class="seg" id="remind" data-vals="30,14,0" data-labels="30 יום,14 יום,כל התקופה"></div>
+      <p class="hint" style="margin-top:6px">משיב הרוח / מוריד הטל, ותן טל ומטר / ותן ברכה – מוצגים מיום השינוי. 30 יום = 90 תפילות, ואז כבר רגילים. שאר ההזכרות (יעלה ויבוא, על הניסים, הלל...) מוצגות תמיד בימים שלהן.</p>
       <label class="cap" style="margin-top:10px">נוסח ספירת העומר</label>
       <div class="seg" id="omerB" data-vals="0,1" data-labels="לעומר,בעומר"></div>
     </div>
@@ -516,6 +519,7 @@ function bind(){
   learnPicker();
   $('tachanun').checked = S.tachanun !== false;
   $('tachanun').addEventListener('change', e => { S.tachanun = e.target.checked; changed(); });
+  segment($('remind'), String(S.remind ?? 30), v => { S.remind = +v; changed(); });
   segment($('omerB'), S.omerB ? '1' : '0', v => { S.omerB = v === '1'; changed(); });
   $('haftara').checked = !!S.haftara; $('haftBox').hidden = !S.haftara;
   $('haftara').addEventListener('change', e => { S.haftara = e.target.checked; $('haftBox').hidden = !S.haftara; changed(); });

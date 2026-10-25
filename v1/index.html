@@ -175,6 +175,7 @@ function parseSettings(text){
     const k = m[1].replace(/\s+/g,' '), v = m[2];
     if(/לימוד יומי/.test(k)) c.learn = v.split(/[,\s]+/).filter(x => LEARN_DEF[x]);
     else if(/^תחנון/.test(k)) c.tachanun = !/^(לא|no|0)/i.test(v);
+    else if(/תזכורת נוסח/.test(k)) c.remind = /תמיד|כל/.test(v) ? 0 : +((v.match(/\d+/)||[30])[0]);
     else if(/ספירת העומר/.test(k)) c.omerB = /בעומר/.test(v);
     else if(/כותרת ברכה/.test(k)) c.mazalTitle = v;
     else if(/^הפטרה/.test(k)){ c.haftara = /ספרד|עדות/.test(v) ? 'seph' : 'ashk'; c.haftDay = /בשבת|ביום|בחג/.test(v); }
@@ -219,6 +220,7 @@ function parseSettings(text){
   if(c.useElev === undefined) c.useElev = !!(c.geonameid === '281184' || c.elev);
   if(c.israel === undefined) c.israel = true;
   if(c.tachanun === undefined) c.tachanun = true;
+  if(c.remind === undefined) c.remind = 30;   // שינויי נוסח (גשם/טל, ותן טל ומטר) – מוצגים 30 יום מהשינוי
   c.learn = c.learn || [];
   if([c.slotR, c.slotL, c.slotB].some(a => a.includes('daf'))){   // "דף יומי" כמשבצת נפרדת הוחלף ב"לימוד יומי"
     ['slotR','slotL','slotB'].forEach(k => { c[k] = [...new Set(c[k].map(x => x === 'daf' ? 'learn' : x))]; });
@@ -507,17 +509,33 @@ function tefilaToday(H, base, dow0){
   const m = H.hm, d = H.hd, IL = CFG.israel !== false, out = [];
   const adar = m === 'Adar' || m === 'Adar II';
   const items = ((data && data.cal && data.cal.items) || []).filter(i => i.date.slice(0,10) === base);
+  // שינויי נוסח קבועים מוצגים רק בימים הראשונים אחרי השינוי (ברירת מחדל 30 יום – אז כבר רגילים)
+  const W = CFG.remind, list = isLeap(H.hy) ? LEAP : REG;
+  const idx = (mm, dd) => { let n = dd - 1; for(const x of list){ if(x === mm) return n; n += monthLen(H.hy, x); } return 9999; };
+  const since = (mm, dd) => idx(m, d) - idx(mm, dd);                 // ימים מאז התאריך (באותה שנה עברית)
+  const fresh = k => !W || (k >= 0 && k < W);
+  const len0 = out.length;
   // גשם / טל
   if((m === 'Tishrei' && d === 22)) out.push(['גבורות', 'ממוסף: משיב הרוח ומוריד הגשם']);
   else if(m === 'Nisan' && d === 15) out.push(['גבורות', 'ממוסף: מוריד הטל']);
   else if((m === 'Tishrei' && d > 22) || ['Cheshvan','Kislev','Tevet',"Sh'vat",'Adar','Adar I','Adar II'].includes(m) || (m === 'Nisan' && d < 15)) out.push(['גבורות', 'משיב הרוח ומוריד הגשם']);
   else out.push(['גבורות', 'מוריד הטל']);
+  { const rainSeason = (m === 'Tishrei' && d >= 22) || !['Nisan','Iyyar','Sivan','Tamuz','Av','Elul','Tishrei'].includes(m) || (m === 'Nisan' && d < 15);
+    const k = rainSeason ? since('Tishrei', 22) : (m === 'Tishrei' ? 9999 : since('Nisan', 15));
+    if(!fresh(k)) out.length = len0; }
+  const len1 = out.length;
   // ברכת השנים
   let rain;
   if(IL) rain = (m === 'Cheshvan' && d >= 7) || ['Kislev','Tevet',"Sh'vat",'Adar','Adar I','Adar II'].includes(m) || (m === 'Nisan' && d < 15);
   else { const g = new Date(base + 'T12:00:00Z'), y = g.getUTCFullYear(), mo = g.getUTCMonth() + 1, gl = yy => (yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0;
          rain = (mo === 12 && g.getUTCDate() >= (gl(y + 1) ? 6 : 5)) || (mo <= 4 && !(m === 'Nisan' && d >= 15) && !['Iyyar','Sivan'].includes(m)); }
   out.push(['ברכת השנים', rain ? 'ותן טל ומטר לברכה' : 'ותן ברכה']);
+  { let k;
+    if(rain && IL) k = since('Cheshvan', 7);
+    else if(rain){ const g = new Date(base + 'T12:00:00Z'), y0 = g.getUTCMonth() === 11 ? g.getUTCFullYear() : g.getUTCFullYear() - 1, gl = yy => (yy % 4 === 0 && yy % 100 !== 0) || yy % 400 === 0;
+                   k = Math.round((g - Date.UTC(y0, 11, gl(y0 + 1) ? 6 : 5, 12)) / 864e5); }   // היום שמתחיל בערבית של 4/5 בדצמבר
+    else k = (m === 'Tishrei' || m === 'Cheshvan') ? 9999 : since('Nisan', 15);
+    if(!fresh(k)) out.length = len1; }
   if(m === 'Tishrei' && d <= 10) out.push(['עשרת ימי תשובה', 'המלך הקדוש · המלך המשפט · זכרנו לחיים']);
   // יעלה ויבוא
   const rc = (d === 30) || (d === 1);
