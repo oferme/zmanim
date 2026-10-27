@@ -235,23 +235,18 @@ nav .pill{padding:3px 18px;border-radius:999px;transition:background .2s}
       <button class="add" type="button" id="addMazal">+ הוספת ברכה</button>
     </div>
     <div class="card">
-      <h2>שיעור / שידור חי</h2>
-      <p class="hint" style="margin-bottom:10px">בשעה שנקבעה המסך עובר לבד לשידור במסך מלא, ובסיום חוזר ללוח הזמנים. 10 דקות לפני – הודעה במסך.</p>
-      <label class="cap">איפה השידור</label>
-      <div class="seg" id="liveType" data-vals="zoom,youtube,web" data-labels="זום,יוטיוב,אתר אחר"></div>
-      <p class="hint" id="liveHint" style="margin-top:8px"></p>
-      <label class="cap" for="zoomTitle" style="margin-top:10px">כותרת (מופיעה במסך)</label>
-      <input class="field" type="text" id="zoomTitle" placeholder="הדף היומי עם הרב...">
-      <label class="cap" for="zoomLink" style="margin-top:10px" id="linkCap">קישור</label>
-      <input class="field" type="url" id="zoomLink" dir="ltr" placeholder="https://">
-      <div id="zoomOnly">
-        <label class="cap" for="zoomName" style="margin-top:10px">השם שיופיע בזום</label>
-        <input class="field" type="text" id="zoomName" placeholder="בית הכנסת ...">
-        <div class="row" style="margin-top:8px"><div class="lbl"><b>להפעיל OBS לפני ההצטרפות</b><small>מצלמה וירטואלית עם הלוגו של בית הכנסת</small></div><label class="sw"><input type="checkbox" id="liveObs"><span></span></label></div>
-      </div>
-      <div id="zoomList" style="display:flex;flex-direction:column;gap:10px;margin:12px 0 10px"></div>
+      <h2>שיעורים ושידורים</h2>
+      <p class="hint" style="margin-bottom:10px">בשעה שנקבעה המסך עובר לבד לשיעור במסך מלא, ובסיום חוזר ללוח הזמנים. 10 דקות לפני – הודעה במסך. לכל שיעור קישור משלו: זום, יוטיוב (חי או מוקלט) או אתר אחר.</p>
+      <div id="zoomList" style="display:flex;flex-direction:column;gap:10px;margin:0 0 10px"></div>
       <button class="add" type="button" id="addZoom">+ הוספת שיעור</button>
       <p class="hint" style="margin-top:10px">"עד השעה" – מתי לחזור ללוח הזמנים. אם לא ממלאים – אחרי שעה וחצי.</p>
+      <div id="zoomOnly" hidden style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+        <h3 style="margin:0 0 6px;font-size:16px">לשיעורי זום</h3>
+        <label class="cap" for="zoomName">השם שיופיע בזום</label>
+        <input class="field" type="text" id="zoomName" placeholder="בית הכנסת ...">
+        <div class="row" style="margin-top:8px"><div class="lbl"><b>להפעיל OBS לפני ההצטרפות</b><small>מצלמה וירטואלית עם הלוגו של בית הכנסת</small></div><label class="sw"><input type="checkbox" id="liveObs"><span></span></label></div>
+        <p class="hint" style="margin-top:6px">זום ואתר אחר – צריך שבמחשב של בית הכנסת יותקנו Zoom ותוכנת העזר. יוטיוב מוצג במסך עצמו, גם בטאבלט או בסטרימר.</p>
+      </div>
     </div>
     <div class="card">
       <h2>כיבוי המסך</h2>
@@ -394,11 +389,7 @@ const LIVE_TXT = {
   youtube: ['קישור לשידור ביוטיוב', 'https://www.youtube.com/live/...', 'השידור מוצג במסך עצמו – גם בטאבלט. מדביקים קישור לשידור (או לסרטון), או קישור לערוץ מהצורה youtube.com/channel/UC... כדי להציג תמיד את השידור החי של הערוץ.'],
   web: ['כתובת האתר', 'https://...', 'האתר נפתח במסך מלא במחשב של בית הכנסת. צריך שבמחשב תותקן תוכנת העזר.']
 };
-function syncLive(){
-  const t = S.liveType || 'zoom', x = LIVE_TXT[t];
-  $('linkCap').textContent = x[0]; $('zoomLink').placeholder = x[1]; $('liveHint').textContent = x[2];
-  $('zoomOnly').hidden = t !== 'zoom';
-}
+function syncLive(){ $('zoomOnly').hidden = !S.zoom.some(z => z.type !== 'youtube'); }
 // ---------- לימוד יומי ----------
 const LEARN = [['daf','הדף היומי'],['yyomi','ירושלמי יומי'],['myomi','משנה יומית'],['dr1','רמב״ם – פרק ליום'],['dr3','רמב״ם – 3 פרקים'],['dsm','ספר המצוות'],
   ['nyomi','נ״ך יומי'],['dty','תנ״ך יומי'],['dps','תהילים יומי'],['dksa','קיצור שולחן ערוך'],['ahsy','ערוך השולחן'],['dcc','חפץ חיים'],['dshl','שמירת הלשון'],['dw','דף שבועי'],['dpa','פרקי אבות (בשבתות הקיץ)']];
@@ -438,22 +429,35 @@ $('addMazal').addEventListener('click', () => {
   const t = new Date(), iso = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,10);
   const z = {title: 'בשעה טובה', text:'', from: iso, to: iso}; S.mazal.push(z); const c = mazalCard(z); $('mazalList').appendChild(c); c.querySelector('.mt').focus(); changed();
 });
-const ZDAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','מוצאי שבת / שבת'];
+const ZDAYS = [['0','א׳'],['1','ב׳'],['2','ג׳'],['3','ד׳'],['4','ה׳'],['5','ו׳'],['6','שבת / מוצ״ש']];
 function zoomCard(z){
   const d = document.createElement('div'); d.className = 'pr';
-  d.innerHTML = `<div><label class="cap">יום</label><select class="field zd"></select></div>
+  d.innerHTML = `<div><label class="cap">כותרת (מופיעה במסך)</label><input type="text" class="field ztl" placeholder="הדף היומי עם הרב..."></div>
+    <div><label class="cap">איפה השיעור</label><div class="seg zty" data-vals="zoom,youtube,web" data-labels="זום,יוטיוב,אתר אחר"></div></div>
+    <div><label class="cap zlc">קישור</label><input type="url" class="field zl" dir="ltr"><p class="hint zh" style="margin-top:4px"></p></div>
+    <div><label class="cap">ימים</label><div class="seg zds"></div></div>
     <div class="two"><div><label class="cap">מהשעה</label><input class="field zt" type="time" dir="ltr"></div><div><label class="cap">עד השעה</label><input class="field ze" type="time" dir="ltr"></div></div>
     <button type="button" class="del">מחיקה</button>`;
-  ZDAYS.forEach((n,i) => d.querySelector('.zd').add(new Option(n, i)));
-  d.querySelector('.zd').value = z.d; d.querySelector('.zt').value = z.t || ''; d.querySelector('.ze').value = z.e || '';
-  d.querySelector('.zd').addEventListener('change', e => { z.d = +e.target.value; changed(); });
-  d.querySelector('.zt').addEventListener('change', e => { z.t = e.target.value; changed(); });
-  d.querySelector('.ze').addEventListener('change', e => { z.e = e.target.value; changed(); });
-  d.querySelector('.del').addEventListener('click', () => { S.zoom = S.zoom.filter(x => x !== z); d.remove(); changed(); });
+  const q = c => d.querySelector(c);
+  const syncType = () => { const x = LIVE_TXT[z.type]; q('.zlc').textContent = x[0]; q('.zl').placeholder = x[1]; q('.zh').textContent = x[2]; syncLive(); };
+  q('.ztl').value = z.title || ''; q('.zl').value = z.link || ''; q('.zt').value = z.t || ''; q('.ze').value = z.e || '';
+  q('.ztl').addEventListener('input', e => { z.title = e.target.value; changed(); });
+  q('.zl').addEventListener('input', e => { z.link = e.target.value.trim(); changed(); });
+  segment(q('.zty'), z.type, v => { z.type = v; syncType(); changed(); });
+  const ds = q('.zds');
+  ds.innerHTML = ZDAYS.map(([v,t]) => `<button type="button" data-v="${v}">${t}</button>`).join('');
+  const paint = () => ds.querySelectorAll('button').forEach(b => { const on = z.ds.includes(+b.dataset.v); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  paint();
+  ds.addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; const v = +b.dataset.v;
+    z.ds = z.ds.includes(v) ? z.ds.filter(x => x !== v) : [...z.ds, v].sort(); paint(); changed(); });
+  q('.zt').addEventListener('change', e => { z.t = e.target.value; changed(); });
+  q('.ze').addEventListener('change', e => { z.e = e.target.value; changed(); });
+  q('.del').addEventListener('click', () => { S.zoom = S.zoom.filter(x => x !== z); d.remove(); syncLive(); changed(); });
+  syncType();
   return d;
 }
 $('addZoom').addEventListener('click', () => {
-  const z = {d:4, t:'21:00', e:'22:00'}; S.zoom.push(z); $('zoomList').appendChild(zoomCard(z)); changed();
+  const z = {title:'', type:'zoom', link:'', ds:[4], t:'21:00', e:'22:00'}; S.zoom.push(z); const c = zoomCard(z); $('zoomList').appendChild(c); c.querySelector('.ztl').focus(); changed();
 });
 $('addOff').addEventListener('click', () => {
   const o = {d:1, m:'תשרי', from:'', to:''}; S.offDates.push(o); $('offDates').appendChild(offCard(o)); changed();
@@ -469,7 +473,10 @@ let timer = null;
 function status(t, cls){ const s = $('status'); s.textContent = t; s.className = 'chip-status ' + (cls || ''); }
 function valid(){
   if (S.haftara && !S.nusach) return 'בחרו נוסח להפטרה';
-  if (S.zoomLink && !LIVE_RE[S.liveType || 'zoom'].test(S.zoomLink.trim())) return { zoom: 'קישור הזום לא תקין', youtube: 'קישור היוטיוב לא תקין', web: 'הקישור צריך להתחיל ב-https://' }[S.liveType || 'zoom'];
+  for (const z of S.zoom || []) {
+    if (z.link && !LIVE_RE[z.type || 'zoom'].test(z.link.trim())) return ({ zoom: 'קישור הזום לא תקין', youtube: 'קישור היוטיוב לא תקין', web: 'הקישור צריך להתחיל ב-https://' })[z.type || 'zoom'] + (z.title ? ' (' + z.title + ')' : '');
+    if (!z.ds.length) return 'בחרו לפחות יום אחד לשיעור' + (z.title ? ' (' + z.title + ')' : '');
+  }
   if (S.city === OTHER && (!/^-?\d+(\.\d+)?$/.test(String(S.lat).trim()) || !/^-?\d+(\.\d+)?$/.test(String(S.lon).trim()))) return 'חסרים קו רוחב וקו אורך';
   return '';
 }
@@ -570,12 +577,12 @@ function bind(){
   S.mazal.forEach(z => { if (!z.title) z.title = S.mazalTitle || 'בשעה טובה'; });   // כותרת לכל ברכה בנפרד
   S.mazal.forEach(z => $('mazalList').appendChild(mazalCard(z)));
   S.zoom = S.zoom || [];
+  // שיעורים ישנים (קישור אחד לכולם) – מקבלים את הקישור, הסוג והכותרת הכלליים
+  S.zoom.forEach(z => { if (!Array.isArray(z.ds)) z.ds = [+z.d || 0]; if (!z.type) z.type = S.liveType || 'zoom';
+    if (!z.link) z.link = S.zoomLink || ''; if (z.title === undefined) z.title = S.zoomTitle || ''; });
   S.zoom.forEach(z => $('zoomList').appendChild(zoomCard(z)));
-  $('zoomTitle').value = S.zoomTitle || ''; $('zoomLink').value = S.zoomLink || ''; $('zoomName').value = S.zoomName || '';
-  $('zoomTitle').addEventListener('input', e => { S.zoomTitle = e.target.value; changed(); });
-  $('zoomLink').addEventListener('input', e => { S.zoomLink = e.target.value.trim(); changed(); });
+  $('zoomName').value = S.zoomName || '';
   $('zoomName').addEventListener('input', e => { S.zoomName = e.target.value; changed(); });
-  segment($('liveType'), S.liveType || 'zoom', v => { S.liveType = v; syncLive(); changed(); });
   $('liveObs').checked = S.liveObs !== false;
   $('liveObs').addEventListener('change', e => { S.liveObs = e.target.checked; changed(); });
   syncLive();

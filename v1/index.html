@@ -169,7 +169,7 @@ const DEVICE = (() => {
   let h = 0; for(const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9000;
   return {id, code: String(1000 + h)};
 })();
-const NEED_SERVER = 12;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
+const NEED_SERVER = 13;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
 const MY_VER = (location.pathname.match(/\/v(\d+)\//) || [])[1] || null;   // הגרסה של הקובץ הזה (לפי התיקייה)
 let TZ = 'Asia/Jerusalem';
 // הגדרות בית הכנסת – נקראות משורות שמתחילות ב-! במסמך של בית הכנסת
@@ -203,6 +203,11 @@ function parseSettings(text){
       if(m2) (c.zoom = c.zoom || []).push({d: 'אבגדהוש'.indexOf(m2[1]), t: m2[2], e: m2[3] || ''});
     }
     else if(/שידור יוטיוב/.test(k)) c.youtube = v;
+    else if(/שיעור חי/.test(k)){   // "אבגדה 17:00-17:45 | youtube | כותרת | קישור"
+      const [when, type, title, link] = v.split('|').map(x => x.trim());
+      const m2 = (when || '').match(/^([אבגדהוש]+)\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
+      if(m2) (c.live = c.live || []).push({ds: [...m2[1]].map(ch => 'אבגדהוש'.indexOf(ch)), t: m2[2], e: m2[3] || '', type: type || 'zoom', title: title || '', link: link || ''});
+    }
     else if(/^שם/.test(k)) c.name = v;
     else if(/מזהה מיקום|geonameid/i.test(k)) c.geonameid = (v.match(/\d+/)||[])[0];
     else if(/קואורדינטות|קווי|מיקום/.test(k)){ const n = v.match(/-?\d+(\.\d+)?/g); if(n && n.length>=2){ c.lat = n[0]; c.lon = n[1]; } }
@@ -238,6 +243,7 @@ function parseSettings(text){
   if(c.tachanun === undefined) c.tachanun = true;
   if(c.remind === undefined) c.remind = 30;   // שינויי נוסח (גשם/טל, ותן טל ומטר) – מוצגים 30 יום מהשינוי
   c.learn = c.learn || [];
+  if(!c.live) c.live = (c.zoom || []).map(z => ({ds: [z.d], t: z.t, e: z.e, type: c.youtube ? 'youtube' : 'zoom', title: c.zoomTitle || '', link: c.youtube || ''}));   // שורות ישנות
   if([c.slotR, c.slotL, c.slotB].some(a => a.includes('daf'))){   // "דף יומי" כמשבצת נפרדת הוחלף ב"לימוד יומי"
     ['slotR','slotL','slotB'].forEach(k => { c[k] = [...new Set(c[k].map(x => x === 'daf' ? 'learn' : x))]; });
     if(!c.learn.includes('daf')) c.learn = ['daf', ...c.learn];
@@ -968,11 +974,11 @@ function zoomBar(n){
   const el = $('zoomBar'); if(!el) return;
   let txt = '';
   const dow = DOW_EN.indexOf(n.dow), cur = (+n.h)*60 + (+n.m);
-  for(const z of (CFG.zoom || [])){
-    if(z.d !== dow) continue;
-    const [h,m] = z.t.split(':').map(Number), left = h*60 + m - cur;
-    if(left > 0 && left <= 10) txt = `${CFG.zoomTitle || 'שיעור בזום'} – מתחיל בעוד ${left === 1 ? 'דקה' : left + ' דקות'}`;
-    else if(left <= 0 && left > -2) txt = `${CFG.zoomTitle || 'שיעור בזום'} – מתחיל עכשיו`;
+  for(const z of (CFG.live || [])){
+    if(!z.ds.includes(dow)) continue;
+    const [h,m] = z.t.split(':').map(Number), left = h*60 + m - cur, name = z.title || 'שיעור';
+    if(left > 0 && left <= 10) txt = `${name} – מתחיל בעוד ${left === 1 ? 'דקה' : left + ' דקות'}`;
+    else if(left <= 0 && left > -2) txt = `${name} – מתחיל עכשיו`;
   }
   el.textContent = txt; el.style.display = txt ? 'block' : 'none';
 }
@@ -986,15 +992,15 @@ function ytEmbed(u){
 function liveNow(n){   // השיעור שמתקיים עכשיו (כולל שיעור שעובר את חצות)
   const dow = DOW_EN.indexOf(n.dow), cur = (+n.h)*60 + (+n.m);
   const mins = t => { const [h,m] = t.split(':').map(Number); return h*60 + m; };
-  return (CFG.zoom || []).find(z => {
+  return (CFG.live || []).find(z => {
     const st = mins(z.t), en = z.e ? mins(z.e) : (st + 90) % 1440;
-    if(en > st) return z.d === dow && cur >= st && cur < en;
-    return (z.d === dow && cur >= st) || ((z.d + 1) % 7 === dow && cur < en);
+    if(en > st) return z.ds.includes(dow) && cur >= st && cur < en;
+    return (z.ds.includes(dow) && cur >= st) || z.ds.includes((dow + 6) % 7) && cur < en;
   });
 }
 let liveSrc = '';
 function liveView(n){
-  const src = (CFG.youtube && liveNow(n)) ? ytEmbed(CFG.youtube) : null, box = $('live');
+  const z = liveNow(n), src = (z && z.type === 'youtube' && z.link) ? ytEmbed(z.link) : null, box = $('live');   // יוטיוב – מוצג במסך עצמו
   if((src || '') === liveSrc) return;
   liveSrc = src || '';
   box.innerHTML = src ? `<iframe src="${src}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>` : '';
