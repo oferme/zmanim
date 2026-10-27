@@ -104,6 +104,7 @@ header{position:relative;display:flex;justify-content:space-between;align-items:
 .notice{white-space:pre-line;line-height:1.6;position:fixed;inset:0;z-index:55;background:var(--bg1);display:none;align-items:center;justify-content:center;text-align:center;padding:5vw;font-size:calc(var(--u)*3.2);font-weight:700;color:var(--gold2)}
 .notice.on{display:flex}
 .status.srv{left:auto;right:calc(var(--u)*1)}
+.status.lrn{left:50%;transform:translateX(-50%)}
 .status{position:fixed;bottom:calc(var(--u)*.6);left:calc(var(--u)*1);font-size:calc(var(--u)*1.3);color:#ff9e8a}
 #live{display:none;position:fixed;inset:0;background:#000;z-index:52}#live iframe{width:100%;height:100%;border:0}
 #zoomBar{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--u)*1.2);padding:calc(var(--u)*.9) calc(var(--u)*2.4);border-radius:calc(var(--u)*1);background:linear-gradient(180deg,#f0cf7a,#d9a93f);color:#1a1405;font:800 calc(var(--u)*2.4) 'Heebo',sans-serif;box-shadow:0 0 calc(var(--u)*3) rgba(226,184,87,.45);z-index:40;white-space:nowrap}
@@ -141,6 +142,7 @@ header{position:relative;display:flex;justify-content:space-between;align-items:
 </div>
 <div class="status" id="status"></div>
 <div class="status srv" id="srvWarn"></div>
+<div class="status lrn" id="learnErr"></div>
 <div class="notice" id="notice"></div>
 <div class="black" id="black"><span id="blackNote"></span></div>
 <div class="menu" id="menu"><div class="box">
@@ -311,21 +313,20 @@ function learnText(key, it){
   return strip(heNums(s)).replace(/(\S)-(\S)/g, '$1\u2011$2');   // טווח (ג׳-ה׳) לא נשבר בין שורות
 }
 async function loadLearn(today){
+  // כל לימוד נטען בבקשה נפרדת – אם אחד נכשל, השאר עדיין מוצגים
   const keys = (CFG.learn || []).filter(k => LEARN_DEF[k] && LEARN_DEF[k][0]);
-  if(!keys.length){ LEARN = {}; return; }
-  const ck = 'learn_' + SHUL, sig = today + '|' + keys.join(',');
-  try{
-    const r = await j(`https://www.hebcal.com/hebcal?v=1&cfg=json&lg=he&start=${today}&end=${today}&${keys.map(k => LEARN_DEF[k][0] + '=on').join('&')}`);
-    const out = {};
-    for(const it of (r.items || [])){
-      const k = keys.find(k => LEARN_DEF[k][1].toLowerCase() === String(it.category || '').toLowerCase());
-      if(k && !out[k]) out[k] = learnText(k, it);
-    }
-    LEARN = out;
-    try{ localStorage.setItem(ck, JSON.stringify({sig, out})); }catch(e){}
-  }catch(e){
-    try{ const c = JSON.parse(localStorage.getItem(ck)); if(c && c.sig === sig) LEARN = c.out; }catch(_){}
-  }
+  if(!keys.length){ LEARN = {}; $('learnErr').textContent = ''; return; }
+  let cache = {};
+  try{ cache = JSON.parse(localStorage.getItem('learn_' + SHUL)) || {}; }catch(e){}
+  if(cache.date !== today) cache = {date: today};
+  const res = await Promise.allSettled(keys.map(k => j(`https://www.hebcal.com/hebcal?v=1&cfg=json&lg=he&start=${today}&end=${today}&${LEARN_DEF[k][0]}=on`)
+    .then(r => { const it = (r.items || []).find(i => String(i.category || '').toLowerCase() === LEARN_DEF[k][1].toLowerCase()) || (r.items || [])[0];
+                 if(it) cache[k] = learnText(k, it); return !!it; })));
+  const failed = keys.filter((k, i) => res[i].status !== 'fulfilled');
+  LEARN = {}; keys.forEach(k => { if(cache[k]) LEARN[k] = cache[k]; });
+  try{ localStorage.setItem('learn_' + SHUL, JSON.stringify(cache)); }catch(e){}
+  $('learnErr').textContent = failed.length && failed.some(k => !LEARN[k]) ? 'הלימוד היומי לא נטען (' + failed.map(k => LEARN_DEF[k][2]).join(', ') + ') – מנסה שוב' : '';
+  if(failed.length){ console.warn('learn failed', failed, res); clearTimeout(loadLearn._t); loadLearn._t = setTimeout(() => loadLearn(today).then(renderSlots), 10 * 60 * 1000); }
 }
 function learnList(){
   return (CFG.learn || []).map(k => [LEARN_DEF[k][2], k === 'daf' ? DAF : LEARN[k]]).filter(x => x[1]);
@@ -843,7 +844,7 @@ function startScroll(el){
   el._raf = requestAnimationFrame(step);
 }
 function notice(txt){ $('blackNote').textContent = ''; $('notice').textContent = txt; $('notice').classList.toggle('on', !!txt); }
-let booted = false, lastCfg = '';
+let booted = false, lastCfg = '', lastLearn = '';
 async function loadMsgs(){
   if(!SHUL){ notice('לא הוגדר בית כנסת. יש להוסיף לכתובת: ?shul=מזהה'); return; }
   let text = null;
@@ -866,8 +867,11 @@ async function loadMsgs(){
   $('srvWarn').textContent = (CFG.server || 0) < NEED_SERVER ? 'השרת לא מעודכן – יש להדביק את הקוד החדש ב־Apps Script ולפרוס "גרסה חדשה"' : '';
   if(CFG.sysVer && MY_VER && CFG.sysVer !== MY_VER){ location.replace('../?shul=' + encodeURIComponent(SHUL)); return; }   // הוגדרה גרסה אחרת – עוברים אליה
   if(CFG.name) document.title = 'לוח זמנים – ' + CFG.name;
-  const cfgKey = JSON.stringify(CFG);
-  if(!booted || cfgKey !== lastCfg){ lastCfg = cfgKey; booted = true; load(); }   // הגדרות השתנו – טוען זמנים מחדש
+  // זמנים נטענים מחדש רק כשהמיקום / הגדרות הזמנים משתנים, והלימוד – רק כשבחירת הלימודים משתנה (פחות בקשות ל-Hebcal)
+  const cfgKey = JSON.stringify([CFG.geonameid, CFG.lat, CFG.lon, CFG.tz, CFG.israel, CFG.candleMin, CFG.havdalahMin, CFG.useElev, CFG.elev]);
+  const learnKey = (CFG.learn || []).join(',');
+  if(!booted || cfgKey !== lastCfg){ lastCfg = cfgKey; lastLearn = learnKey; booted = true; load(); }
+  else if(learnKey !== lastLearn && data){ lastLearn = learnKey; loadLearn(data.today).then(renderSlots); }
   checkRemoteClose();
   const ck = document.querySelector('.clock'); if(ck) ck.style.fontSize = `calc(var(--u)*${(17*CFG.clock/100).toFixed(2)})`;
   $('grid').style.zoom = CFG.bottom / 100;
