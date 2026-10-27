@@ -319,14 +319,25 @@ async function loadLearn(today){
   let cache = {};
   try{ cache = JSON.parse(localStorage.getItem('learn_' + SHUL)) || {}; }catch(e){}
   if(cache.date !== today) cache = {date: today};
-  const res = await Promise.allSettled(keys.map(k => j(`https://www.hebcal.com/hebcal?v=1&cfg=json&lg=he&start=${today}&end=${today}&${LEARN_DEF[k][0]}=on`)
-    .then(r => { const it = (r.items || []).find(i => String(i.category || '').toLowerCase() === LEARN_DEF[k][1].toLowerCase()) || (r.items || [])[0];
-                 if(it) cache[k] = learnText(k, it); return !!it; })));
+  // בקשה אחר בקשה, עם הפסקה קצרה – כדי ש-Hebcal לא יחסום בגלל הרבה בקשות בבת אחת. לימוד שכבר נטען היום לא נטען שוב
+  const res = [];
+  for(const k of keys){
+    if(cache[k]){ res.push({status:'fulfilled'}); continue; }
+    try{
+      const r = await j(`https://www.hebcal.com/hebcal?v=1&cfg=json&lg=he&start=${today}&end=${today}&${LEARN_DEF[k][0]}=on`);
+      const it = (r.items || []).find(i => String(i.category || '').toLowerCase() === LEARN_DEF[k][1].toLowerCase()) || (r.items || [])[0];
+      if(it) cache[k] = learnText(k, it);
+      res.push({status:'fulfilled'});
+    }catch(e){ res.push({status:'rejected', reason: String(e)}); }
+    await new Promise(ok => setTimeout(ok, 400));
+  }
   const failed = keys.filter((k, i) => res[i].status !== 'fulfilled');
   LEARN = {}; keys.forEach(k => { if(cache[k]) LEARN[k] = cache[k]; });
   try{ localStorage.setItem('learn_' + SHUL, JSON.stringify(cache)); }catch(e){}
   $('learnErr').textContent = failed.length && failed.some(k => !LEARN[k]) ? 'הלימוד היומי לא נטען (' + failed.map(k => LEARN_DEF[k][2]).join(', ') + ') – מנסה שוב' : '';
-  if(failed.length){ console.warn('learn failed', failed, res); clearTimeout(loadLearn._t); loadLearn._t = setTimeout(() => loadLearn(today).then(renderSlots), 10 * 60 * 1000); }
+  if(failed.length){ console.warn('learn failed', failed, res); clearTimeout(loadLearn._t); loadLearn._n = (loadLearn._n || 0) + 1;
+                   loadLearn._t = setTimeout(() => loadLearn(today).then(renderSlots), (loadLearn._n < 3 ? 1 : 10) * 60 * 1000); }   // ניסיון חוזר: אחרי דקה, ואז כל 10 דקות
+  else loadLearn._n = 0;
 }
 function learnList(){
   return (CFG.learn || []).map(k => [LEARN_DEF[k][2], k === 'daf' ? DAF : LEARN[k]]).filter(x => x[1]);
