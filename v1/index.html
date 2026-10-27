@@ -103,6 +103,7 @@ header{position:relative;display:flex;justify-content:space-between;align-items:
 .menu .note{font-size:calc(var(--u)*1.6);color:#ff9e8a;min-height:1.2em}
 .notice{white-space:pre-line;line-height:1.6;position:fixed;inset:0;z-index:55;background:var(--bg1);display:none;align-items:center;justify-content:center;text-align:center;padding:5vw;font-size:calc(var(--u)*3.2);font-weight:700;color:var(--gold2)}
 .notice.on{display:flex}
+.status.srv{left:auto;right:calc(var(--u)*1)}
 .status{position:fixed;bottom:calc(var(--u)*.6);left:calc(var(--u)*1);font-size:calc(var(--u)*1.3);color:#ff9e8a}
 #live{display:none;position:fixed;inset:0;background:#000;z-index:52}#live iframe{width:100%;height:100%;border:0}
 #zoomBar{display:none;position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--u)*1.2);padding:calc(var(--u)*.9) calc(var(--u)*2.4);border-radius:calc(var(--u)*1);background:linear-gradient(180deg,#f0cf7a,#d9a93f);color:#1a1405;font:800 calc(var(--u)*2.4) 'Heebo',sans-serif;box-shadow:0 0 calc(var(--u)*3) rgba(226,184,87,.45);z-index:40;white-space:nowrap}
@@ -139,6 +140,7 @@ header{position:relative;display:flex;justify-content:space-between;align-items:
   <div class="mev" id="mev"></div>
 </div>
 <div class="status" id="status"></div>
+<div class="status srv" id="srvWarn"></div>
 <div class="notice" id="notice"></div>
 <div class="black" id="black"><span id="blackNote"></span></div>
 <div class="menu" id="menu"><div class="box">
@@ -165,6 +167,7 @@ const DEVICE = (() => {
   let h = 0; for(const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9000;
   return {id, code: String(1000 + h)};
 })();
+const NEED_SERVER = 12;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
 const MY_VER = (location.pathname.match(/\/v(\d+)\//) || [])[1] || null;   // הגרסה של הקובץ הזה (לפי התיקייה)
 let TZ = 'Asia/Jerusalem';
 // הגדרות בית הכנסת – נקראות משורות שמתחילות ב-! במסמך של בית הכנסת
@@ -209,6 +212,7 @@ function parseSettings(text){
     else if(/^ישראל/.test(k)) c.israel = !/^(לא|no|0)/i.test(v);
     else if(/טבלת נץ/.test(k)) c.netzTable = v;
     else if(/גרסת מערכת/.test(k)) c.sysVer = (v.match(/\d+/)||[])[0];
+    else if(/גרסת שרת/.test(k)) c.server = +((v.match(/\d+/)||[0])[0]);
     else if(/משבצת ימין/.test(k)) c.slotR = slotList(v);
     else if(/משבצת שמאל/.test(k)) c.slotL = slotList(v);
     else if(/משבצת תחתונה/.test(k)) c.slotB = slotList(v);
@@ -858,6 +862,8 @@ async function loadMsgs(){
   notice('');
   msgText = text;
   CFG = parseSettings(text); TZ = CFG.tz || 'Asia/Jerusalem';
+  // השרת (Apps Script) ישן מהמסך – חלק מהאפשרויות לא יגיעו. מתריע בפינה עד שפורסים גרסה חדשה
+  $('srvWarn').textContent = (CFG.server || 0) < NEED_SERVER ? 'השרת לא מעודכן – יש להדביק את הקוד החדש ב־Apps Script ולפרוס "גרסה חדשה"' : '';
   if(CFG.sysVer && MY_VER && CFG.sysVer !== MY_VER){ location.replace('../?shul=' + encodeURIComponent(SHUL)); return; }   // הוגדרה גרסה אחרת – עוברים אליה
   if(CFG.name) document.title = 'לוח זמנים – ' + CFG.name;
   const cfgKey = JSON.stringify(CFG);
