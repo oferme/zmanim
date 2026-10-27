@@ -169,7 +169,7 @@ const DEVICE = (() => {
   let h = 0; for(const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9000;
   return {id, code: String(1000 + h)};
 })();
-const NEED_SERVER = 16;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
+const NEED_SERVER = 17;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
 const MY_VER = (location.pathname.match(/\/v(\d+)\//) || [])[1] || null;   // הגרסה של הקובץ הזה (לפי התיקייה)
 let TZ = 'Asia/Jerusalem';
 // הגדרות בית הכנסת – נקראות משורות שמתחילות ב-! במסמך של בית הכנסת
@@ -400,9 +400,23 @@ async function load(){
 }
 
 // שם בית הכנסת / לוגו – באמצע בין שני התאריכים
+// הלוגו נטען דרך השרת (script.google.com) כ-data URL ונשמר בדפדפן – כך הוא עובר גם בסינון שחוסם את googleusercontent
+let LOGO = {url: '', data: ''};
+try{ LOGO = JSON.parse(localStorage.getItem('logo_' + SHUL)) || LOGO; }catch(e){}
+async function loadLogo(){
+  if(!CFG.logo || LOGO.url === CFG.logo || loadLogo.busy) return;
+  loadLogo.busy = true;
+  try{
+    const r = await fetch(`${API}?shul=${encodeURIComponent(SHUL)}&what=logo&v=${encodeURIComponent(CFG.logo.slice(-20))}`, {cache:'no-store'});
+    const d = (await r.text()).trim();
+    if(/^data:image\//.test(d)){ LOGO = {url: CFG.logo, data: d}; try{ localStorage.setItem('logo_' + SHUL, JSON.stringify(LOGO)); }catch(e){} headerMid(); }
+  }catch(e){}
+  loadLogo.busy = false;
+}
 function headerMid(){
   const el = $('hmid'); if(!el) return;
-  const mode = CFG.header || 'none', name = CFG.name || '', logo = CFG.logo || '';
+  loadLogo();
+  const mode = CFG.header || 'none', name = CFG.name || '', logo = CFG.logo ? (LOGO.url === CFG.logo && LOGO.data ? LOGO.data : CFG.logo) : '';
   const html = (mode === 'logo' || mode === 'both') && logo ? `<img src="${esc(logo)}" alt="">${mode === 'both' && name ? `<span>${esc(name)}</span>` : ''}`
              : (mode === 'name' || mode === 'both') && name ? `<span>${esc(name)}</span>` : '';
   if(el._h !== html){ el._h = html; el.innerHTML = html; }
