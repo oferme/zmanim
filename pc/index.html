@@ -439,9 +439,23 @@ function Close-Web {
   Get-CimInstance Win32_Process -Filter &quot;Name=&#x27;chrome.exe&#x27;&quot; | Where-Object { $_.CommandLine -like &#x27;*ZmanimLive*&#x27; } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 }
 
+function Resolve-ZoomLink($link) {   # short / redirect links (e.g. https://zoom.mydomain.com) -&gt; the real zoom.us/j/... link
+  if ($link -match &#x27;zoom\.(us|com)/(j|w)/\d+&#x27;) { return $link }
+  try {
+    $r = Invoke-WebRequest -UseBasicParsing -Uri $link -MaximumRedirection 6 -TimeoutSec 20
+    $final = &#x27;&#x27;
+    try { $final = $r.BaseResponse.ResponseUri.AbsoluteUri } catch {}
+    if (-not $final) { try { $final = $r.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {} }
+    if ($final -match &#x27;zoom\.(us|com)/(j|w)/\d+&#x27;) { return $final }
+    if ($r.Content -match &#x27;(https://[\w.-]*zoom\.(us|com)/(j|w)/\d+[^\s&quot;&#x27;&#x27;&lt;&gt;]*)&#x27;) { return ($matches[1] -replace &#x27;&amp;amp;&#x27;, &#x27;&amp;&#x27;) }
+  } catch { Log (&#x27;resolve failed: &#x27; + $_) }
+  return $link
+}
+
 function Join-Zoom($s) {
   $name = [uri]::EscapeDataString($s.Name)
-  if ($s.Link -match &#x27;/j/(\d+)&#x27;) {
+  $s.Link = Resolve-ZoomLink $s.Link
+  if ($s.Link -match &#x27;/(?:j|w)/(\d+)&#x27;) {
     $conf = $matches[1]
     $pw = &#x27;&#x27;
     if ($s.Link -match &#x27;[?&amp;]pwd=([^&amp;#\s]+)&#x27;) { $pw = &#x27;&amp;pwd=&#x27; + $matches[1] }

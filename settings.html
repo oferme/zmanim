@@ -383,9 +383,9 @@ function offCard(o){
   return d;
 }
 // ---------- שיעורי זום ----------
-const LIVE_RE = { zoom: /^https:\/\/([\w-]+\.)*zoom\.(us|com)\/\S+$/i, youtube: /^https:\/\/([\w-]+\.)*(youtube\.com|youtu\.be)\/\S+$/i, web: /^https:\/\/\S+$/i };
+const LIVE_RE = { zoom: /^https:\/\/\S+$/i, youtube: /^https:\/\/([\w-]+\.)*(youtube\.com|youtu\.be)\/\S+$/i, web: /^https:\/\/\S+$/i };
 const LIVE_TXT = {
-  zoom: ['קישור לזום', 'https://zoom.us/j/...', 'המחשב מצטרף לזום במסך מלא. צריך שבמחשב יותקנו Zoom ותוכנת העזר.'],
+  zoom: ['קישור לזום', 'https://zoom.us/j/...', 'המחשב מצטרף לזום במסך מלא. אפשר גם קישור מקוצר שמפנה לזום. צריך שבמחשב יותקנו Zoom ותוכנת העזר.'],
   youtube: ['קישור לשידור ביוטיוב', 'https://www.youtube.com/live/...', 'השידור מוצג במסך עצמו – גם בטאבלט. מדביקים קישור לשידור (או לסרטון), או קישור לערוץ מהצורה youtube.com/channel/UC... כדי להציג תמיד את השידור החי של הערוץ.'],
   web: ['כתובת האתר', 'https://...', 'האתר נפתח במסך מלא במחשב של בית הכנסת. צריך שבמחשב תותקן תוכנת העזר.']
 };
