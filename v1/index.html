@@ -169,7 +169,7 @@ const DEVICE = (() => {
   let h = 0; for(const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9000;
   return {id, code: String(1000 + h)};
 })();
-const NEED_SERVER = 15;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
+const NEED_SERVER = 16;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
 const MY_VER = (location.pathname.match(/\/v(\d+)\//) || [])[1] || null;   // הגרסה של הקובץ הזה (לפי התיקייה)
 let TZ = 'Asia/Jerusalem';
 // הגדרות בית הכנסת – נקראות משורות שמתחילות ב-! במסמך של בית הכנסת
@@ -980,6 +980,8 @@ function zoomBar(n){
     if(left > 0 && left <= 10) txt = `${name} – מתחיל בעוד ${left === 1 ? 'דקה' : left + ' דקות'}`;
     else if(left <= 0 && left > -2) txt = `${name} – מתחיל עכשיו`;
   }
+  const lz = liveNow(n);   // שיעור יוטיוב עכשיו, אבל לא נמצא סרטון (למשל אף סרטון לא מתאים לסינון)
+  if(lz && lz.type === 'youtube' && !ytEmbed(lz.link || '')) txt = `${lz.title || 'השיעור'} – לא נמצא סרטון ביוטיוב`;
   el.textContent = txt; el.style.display = txt ? 'block' : 'none';
 }
 // שידור יוטיוב – מוצג במסך עצמו בזמן השיעור
