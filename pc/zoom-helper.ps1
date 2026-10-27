@@ -6,6 +6,8 @@
 param([string]$Page, [string]$Chrome, [string]$Api)
 
 $ErrorActionPreference = 'SilentlyContinue'
+# Windows PowerShell 5.1 does not always use TLS 1.2 by default - Google and YouTube require it
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 $mutex = New-Object System.Threading.Mutex($false, 'Local\ZmanimZoomHelper')
 if (-not $mutex.WaitOne(0)) { exit }          # already running
 
@@ -39,6 +41,7 @@ function Fetch {
         }
       }
     }
+    if ($list.Count -ne $script:sessions.Count) { Log ('schedule: ' + $list.Count + ' shiurim') }
     $script:sessions = $list
     $script:lastFetch = Get-Date
   } catch { Log ('fetch failed: ' + $_) }
@@ -124,8 +127,8 @@ function Leave-Zoom {
   Log 'leave'
 }
 
-$zoomInstalled = Test-Path 'Registry::HKEY_CLASSES_ROOT\zoommtg'
-if (-not $zoomInstalled) { Log 'Zoom is not installed - helper idle' }
+function ZoomInstalled { return (Test-Path 'Registry::HKEY_CLASSES_ROOT\zoommtg') }
+if (-not (ZoomInstalled)) { Log 'Zoom is not installed yet (zoommtg link not registered)' }
 Log ('helper started for ' + $shul)
 
 while ($true) {
@@ -138,7 +141,10 @@ while ($true) {
     foreach ($s in $sessions) { if ($s.Type -eq 'zoom' -and $s.Obs -and (ActiveKey $s $now.AddMinutes(2))) { Start-OBS } }
   }
 
-  if ($active -and -not $done.ContainsKey($key) -and ($active.Type -eq 'web' -or $zoomInstalled)) {
+  if ($active -and -not $done.ContainsKey($key) -and $active.Type -eq 'zoom' -and -not (ZoomInstalled)) {
+    if (-not $done.ContainsKey('nozoom ' + $key)) { $done['nozoom ' + $key] = $true; Log 'shiur time, but Zoom is not installed - install Zoom from zoom.us/download' }
+  }
+  elseif ($active -and -not $done.ContainsKey($key)) {
     $done[$key] = $true
     $script:current = $key
     $script:currentType = $active.Type

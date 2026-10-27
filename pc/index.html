@@ -354,6 +354,8 @@ Start-Process (Join-Path $dest &#x27;zmanim-online.bat&#x27;) -WorkingDirectory 
 param([string]$Page, [string]$Chrome, [string]$Api)
 
 $ErrorActionPreference = &#x27;SilentlyContinue&#x27;
+# Windows PowerShell 5.1 does not always use TLS 1.2 by default - Google and YouTube require it
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 $mutex = New-Object System.Threading.Mutex($false, &#x27;Local\ZmanimZoomHelper&#x27;)
 if (-not $mutex.WaitOne(0)) { exit }          # already running
 
@@ -387,6 +389,7 @@ function Fetch {
         }
       }
     }
+    if ($list.Count -ne $script:sessions.Count) { Log (&#x27;schedule: &#x27; + $list.Count + &#x27; shiurim&#x27;) }
     $script:sessions = $list
     $script:lastFetch = Get-Date
   } catch { Log (&#x27;fetch failed: &#x27; + $_) }
@@ -472,8 +475,8 @@ function Leave-Zoom {
   Log &#x27;leave&#x27;
 }
 
-$zoomInstalled = Test-Path &#x27;Registry::HKEY_CLASSES_ROOT\zoommtg&#x27;
-if (-not $zoomInstalled) { Log &#x27;Zoom is not installed - helper idle&#x27; }
+function ZoomInstalled { return (Test-Path &#x27;Registry::HKEY_CLASSES_ROOT\zoommtg&#x27;) }
+if (-not (ZoomInstalled)) { Log &#x27;Zoom is not installed yet (zoommtg link not registered)&#x27; }
 Log (&#x27;helper started for &#x27; + $shul)
 
 while ($true) {
@@ -486,7 +489,10 @@ while ($true) {
     foreach ($s in $sessions) { if ($s.Type -eq &#x27;zoom&#x27; -and $s.Obs -and (ActiveKey $s $now.AddMinutes(2))) { Start-OBS } }
   }
 
-  if ($active -and -not $done.ContainsKey($key) -and ($active.Type -eq &#x27;web&#x27; -or $zoomInstalled)) {
+  if ($active -and -not $done.ContainsKey($key) -and $active.Type -eq &#x27;zoom&#x27; -and -not (ZoomInstalled)) {
+    if (-not $done.ContainsKey(&#x27;nozoom &#x27; + $key)) { $done[&#x27;nozoom &#x27; + $key] = $true; Log &#x27;shiur time, but Zoom is not installed - install Zoom from zoom.us/download&#x27; }
+  }
+  elseif ($active -and -not $done.ContainsKey($key)) {
     $done[$key] = $true
     $script:current = $key
     $script:currentType = $active.Type
