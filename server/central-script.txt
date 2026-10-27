@@ -1,0 +1,744 @@
+/****************************************************************
+ * לוח זמנים לבתי כנסת – סקריפט מרכזי
+ * מודבק בגיליון "ניהול בתי כנסת" (תוספים ← Apps Script)
+ * כל שורה בגיליון = בית כנסת אחד.
+ *  - ההגדרות נשמרות בגיליון (עמודה "הגדרות") ונערכות בטופס מהטלפון.
+ *  - ההודעות נכתבות במסמך גוגל של בית הכנסת.
+ ****************************************************************/
+
+// כתובת אתר המסך (GitHub Pages), למשל: https://ofer.github.io/zmanim/
+const DISPLAY_URL = 'https://oferme.github.io/zmanim/';
+// כתובת הסקריפט הזה אחרי פריסה (מסתיימת ב-/exec)
+const API_URL = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec';
+
+const SHEET = 'בתי כנסת';
+// כל שורה = "היכל" אחד: הגדרות, הודעות וקישור משלו. כמה היכלות של אותו בית כנסת – אותו שם בעמודה "ארגון".
+// עמודות: מזהה | שם | קישור למסמך | פעיל | גרסה | מייל גבאי | קישור למסך | הערות | מפתח | הגדרות | קישור להגדרות | ארגון | מספר מסכים
+const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח'];
+// מיקום כל עמודה נקבע לפי הכותרת שלה בשורה 1 (כך שאפשר להזיז / להוסיף עמודות בגיליון בלי לשבור את המערכת)
+const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach'];
+let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13 };
+function mapCols_(sh) {
+  const last = Math.max(sh.getLastColumn(), 1);
+  const h = sh.getRange(1, 1, 1, last).getValues()[0].map(x => String(x).replace(/\s+/g, ' ').trim());
+  const m = {}; let next = last;
+  COL_KEYS.forEach((k, i) => {
+    let j = h.indexOf(HEAD[i]);
+    if (j < 0 && k === 'name') j = h.findIndex(x => /^שם/.test(x));
+    if (j < 0) { j = next++; sh.getRange(1, j + 1).setValue(HEAD[i]).setFontWeight('bold'); h[j] = HEAD[i]; }   // עמודה חסרה – נוספת בסוף
+    m[k] = j;
+  });
+  C = m;
+  return sh;
+}
+// בונה שורה חדשה לפי מיקומי העמודות
+function rowOf_(vals) {
+  const arr = new Array(Math.max.apply(null, COL_KEYS.map(k => C[k])) + 1).fill('');
+  Object.keys(vals).forEach(k => { arr[C[k]] = vals[k]; });
+  return arr;
+}
+// לשונית המסכים: כל מחשב/מסך שנרשם
+const DEV_SHEET = 'מסכים';
+const DEV_HEAD = ['מזהה מסך', 'קוד', 'היכל (מזהה)', 'סטטוס', 'נרשם', 'נראה לאחרונה', 'הערות'];
+const D = { dev: 0, code: 1, shul: 2, status: 3, first: 4, last: 5, notes: 6 };
+
+// ---------- תפריט בגיליון ----------
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('לוח זמנים')
+    .addItem('הוספת בית כנסת חדש', 'addShul')
+    .addItem('יצירת / עדכון קישורי הגדרות', 'fillMissingLinks')
+    .addItem('התקנה ראשונית', 'setup')
+    .addSeparator()
+    .addItem('גיבוי עכשיו', 'backupNow')
+    .addItem('הפעלת גיבוי אוטומטי כל לילה', 'enableBackup')
+    .addToUi();
+}
+
+// ---------- גיבוי ----------
+// עותק של הגיליון (כולל הקוד שמחובר אליו) לתיקייה "גיבויים – לוח זמנים" בדרייב. נשמרים 30 העותקים האחרונים.
+// בכל יום ראשון נשלח גם קובץ Excel של הגיליון למייל של בעל הסקריפט – עותק מחוץ לדרייב.
+const BACKUP_FOLDER = 'גיבויים – לוח זמנים';
+function backupFolder_() {
+  const it = DriveApp.getFoldersByName(BACKUP_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(BACKUP_FOLDER);
+}
+function makeBackup_(sendMail) {
+  const ss = sheet_().getParent(), folder = backupFolder_();
+  const stamp = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH-mm');
+  DriveApp.getFileById(ss.getId()).makeCopy('גיבוי ' + stamp + ' – ' + ss.getName(), folder);
+  const files = [], it = folder.getFiles();
+  while (it.hasNext()) files.push(it.next());
+  files.sort((a, b) => b.getDateCreated() - a.getDateCreated());
+  files.slice(30).forEach(f => { try { f.setTrashed(true); } catch (e) {} });
+  if (sendMail) {
+    const url = 'https://docs.google.com/spreadsheets/d/' + ss.getId() + '/export?format=xlsx';
+    const blob = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } }).getBlob()
+      .setName('גיבוי לוח זמנים ' + stamp + '.xlsx');
+    MailApp.sendEmail(Session.getEffectiveUser().getEmail(), 'גיבוי שבועי – ניהול בתי כנסת', 'מצורף גיבוי של גיליון הניהול (' + stamp + ').\nכדאי לשמור את המייל.', { attachments: [blob] });
+  }
+  return stamp;
+}
+function backupNow() {
+  const stamp = makeBackup_(true);
+  SpreadsheetApp.getUi().alert('הגיבוי נשמר (' + stamp + ') בתיקייה "' + BACKUP_FOLDER + '" בדרייב, ונשלח עותק Excel למייל שלך.');
+}
+function backupNightly() { makeBackup_(new Date().getDay() === 0); }   // כל לילה; ביום ראשון – גם למייל
+function enableBackup() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'backupNightly').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('backupNightly').timeBased().everyDays(1).atHour(2).inTimezone('Asia/Jerusalem').create();
+  SpreadsheetApp.getUi().alert('הגיבוי האוטומטי הופעל: כל לילה בסביבות 2:00 נשמר עותק בדרייב, ובכל יום ראשון נשלח גם קובץ Excel למייל שלך.');
+}
+
+// להרצה פעם אחת מהעורך כדי לאשר לסקריפט לגשת ליוטיוב (בשביל "השיעור האחרון")
+function authorizeYoutube() {
+  Logger.log(UrlFetchApp.fetch('https://www.youtube.com/feeds/videos.xml?channel_id=UC_x5XG1OV2P6uZZ5FSM9Ttw', { muteHttpExceptions: true }).getResponseCode());
+}
+
+function setup() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  PropertiesService.getScriptProperties().setProperty('SS_ID', ss.getId());
+  let sh = ss.getSheetByName(SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET);
+    sh.appendRow(HEAD);
+    sh.setFrozenRows(1);
+    sh.setRightToLeft(true);
+  }
+  mapCols_(sh);   // לא דורס כותרות קיימות – רק מוסיף עמודות חסרות
+  let dv = ss.getSheetByName(DEV_SHEET);
+  if (!dv) { dv = ss.insertSheet(DEV_SHEET); dv.appendRow(DEV_HEAD); dv.setFrozenRows(1); dv.setRightToLeft(true); dv.getRange(1, 1, 1, DEV_HEAD.length).setFontWeight('bold'); }
+  const rule = SpreadsheetApp.newDataValidation().requireValueInList(['מאושר', 'ממתין', 'חסום'], true).build();
+  dv.getRange(2, D.status + 1, 1000, 1).setDataValidation(rule);
+  SpreadsheetApp.getUi().alert('ההתקנה הסתיימה. עכשיו אפשר להוסיף בתי כנסת מהתפריט "לוח זמנים".');
+}
+
+function sheet_() {
+  let ss = null;
+  try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) {}
+  if (!ss) ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('SS_ID'));
+  return mapCols_(ss.getSheetByName(SHEET));
+}
+function devSheet_() { return sheet_().getParent().getSheetByName(DEV_SHEET); }
+function findRow_(id) {
+  const sh = sheet_(), rows = sh.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) if (String(rows[i][C.id]).trim().toLowerCase() === id) return { sh, r: i + 1, row: rows[i] };
+  return null;
+}
+const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
+// קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
+const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
+// מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
+const SERVER_BUILD = 17;
+function defaults_(name) {
+  return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
+    useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
+    rotate: 30, clock: 100, bottom: 90, tachanun: true, remind: 30, prayers: [] };
+}
+
+// ---------- הוספת בית כנסת ----------
+function addShul() {
+  const ui = SpreadsheetApp.getUi();
+  const ask = (q) => { const r = ui.prompt(q, ui.ButtonSet.OK_CANCEL); return r.getSelectedButton() === ui.Button.OK ? r.getResponseText().trim() : null; };
+
+  const id = (ask('מזהה קצר באנגלית (אותיות, ספרות ומקף), למשל: ohel-moshe') || '').toLowerCase();
+  if (!id) return;
+  if (!/^[a-z0-9-]+$/.test(id)) { ui.alert('המזהה יכול להכיל רק אותיות באנגלית, ספרות ומקף.'); return; }
+  if (findRow_(id)) { ui.alert('המזהה הזה כבר קיים.'); return; }
+  const name = ask('שם בית הכנסת');
+  if (name === null) return;
+  const org = ask('שם בית הכנסת / המוסד (לקיבוץ כמה היכלות יחד). אם זה היכל יחיד – אפשר להשאיר ריק');
+  if (org === null) return;
+  const scr = ask('כמה מסכים מאושרים להיכל הזה? (מספר)');
+  if (scr === null) return;
+  const email = ask('מייל (ג׳ימייל) של הגבאי/הרב – אפשר להשאיר ריק');
+  if (email === null) return;
+  const nusach = ask('נוסח בית הכנסת: אשכנז / ספרד / עדות המזרח – אפשר להשאיר ריק');
+  if (nusach === null) return;
+
+  const docUrl = createDoc_(name, email);
+  const doc = { getUrl: () => docUrl };
+
+  const key = newKey_(), display = DISPLAY_URL + '?shul=' + id, sLink = settingsLink_(id, key);
+  const sh = sheet_();
+  sh.appendRow(rowOf_({ id, name, doc: doc.getUrl(), active: 'כן', ver: 1, email, display, key, settings: JSON.stringify(defaults_(name)),
+    settingsLink: sLink, org: org || name, screens: Math.max(1, parseInt(scr, 10) || 1), nusach }));
+
+  if (email) {
+    try {
+      MailApp.sendEmail(email, 'לוח הזמנים של ' + name,
+        'שלום,\n\nלעריכת ההגדרות של המסך (מהטלפון או מהמחשב):\n' + sLink +
+        '\n\nלכתיבת הודעות למסך:\n' + doc.getUrl() + '\n\nכדאי לשמור את שני הקישורים במסך הבית של הטלפון.');
+    } catch (e) {}
+  }
+  ui.alert('בית הכנסת נוסף!\n\nקישור למסך:\n' + display + '\n\nקישור להגדרות (לגבאי):\n' + sLink + '\n\nמסמך ההודעות:\n' + doc.getUrl());
+}
+
+// יוצר מפתח לשורות בלי מפתח, ומעדכן את כל קישורי ההגדרות לכתובת העדכנית (המפתחות הקיימים נשמרים)
+function fillMissingLinks() {
+  const ui = SpreadsheetApp.getUi();
+  const sh = sheet_(), rows = sh.getDataRange().getValues();
+  let n = 0, d = 0;
+  let fixed = 0, mig = 0;
+  for (let i = 1; i < rows.length; i++) {
+    // שורה שנוספה בגרסה קודמת לפי סדר עמודות קבוע (המפתח בעמודה I) – מועברת לעמודות הנכונות לפי הכותרות
+    const old = rows[i];
+    if (C.key !== 8 && !/^[0-9a-f]{14}$/.test(String(old[C.key] || '').trim()) && /^[0-9a-f]{14}$/.test(String(old[8] || '').trim())) {
+      const vals = {}; COL_KEYS.forEach((k, j) => { vals[k] = old[j] === undefined ? '' : old[j]; });
+      const arr = rowOf_(vals), width = Math.max(arr.length, old.length);
+      while (arr.length < width) arr.push('');
+      sh.getRange(i + 1, 1, 1, width).setValues([arr]);
+      rows[i] = arr; fixed++;
+    }
+    const id = String(rows[i][C.id]).trim().toLowerCase();
+    if (!id) continue;
+    let key = String(rows[i][C.key] || '');
+    if (!key) { key = newKey_(); sh.getRange(i + 1, C.key + 1).setValue(key); n++; }
+    sh.getRange(i + 1, C.settingsLink + 1).setValue(settingsLink_(id, key));
+    sh.getRange(i + 1, C.display + 1).setValue(DISPLAY_URL + '?shul=' + id);
+    const st = parseJson_(rows[i][C.settings]);
+    if (st && migrateDaf_(st)) { sh.getRange(i + 1, C.settings + 1).setValue(JSON.stringify(st)); mig++; }
+    if (!String(rows[i][C.doc]).trim()) {   // אין מסמך הודעות – מציע ליצור
+      const name = String(rows[i][C.name] || id);
+      const ans = ui.alert('ל"' + name + '" אין מסמך הודעות.\n\nליצור עכשיו מסמך הודעות חדש?\n(אם כבר יש לכם מסמך – לחצו "לא" והדביקו את הקישור שלו בעמודה "קישור למסמך")', ui.ButtonSet.YES_NO);
+      if (ans === ui.Button.YES) {
+        const url = createDoc_(name, String(rows[i][C.email] || '').trim());
+        sh.getRange(i + 1, C.doc + 1).setValue(url); d++;
+      }
+    }
+  }
+  ui.alert('קישורי ההגדרות עודכנו.' + (fixed ? ' תוקנו ' + fixed + ' שורות שהיו בעמודות לא נכונות.' : '') + (mig ? ' ב-' + mig + ' בתי כנסת "דף יומי" הועבר ל"לימוד יומי".' : '') + (n ? ' נוצרו ' + n + ' מפתחות חדשים.' : '') + (d ? ' נוצרו ' + d + ' מסמכי הודעות.' : ''));
+}
+function createDoc_(name, email) {
+  const doc = DocumentApp.create('הודעות – ' + name);
+  const body = doc.getBody();
+  TEMPLATE().split('\n').forEach((line, i) => {
+    let p;
+    if (i === 0) { p = body.getParagraphs()[0]; p.setText(line); }
+    else p = body.appendParagraph(line);
+    p.setLeftToRight(false);
+    p.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+  });
+  doc.saveAndClose();
+  if (email) { try { DriveApp.getFileById(doc.getId()).addEditor(email); } catch (e) {} }
+  return doc.getUrl();
+}
+
+// ---------- השרת ----------
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  const id = String(p.shul || '').trim().toLowerCase();
+  if (p.page === 'settings') return settingsPage_(id, String(p.key || ''));
+  if (p.page === 'api') return json_(apiLoad_(id, String(p.key || '')));
+
+  const out = (t) => ContentService.createTextOutput(t).setMimeType(ContentService.MimeType.TEXT);
+  if (p.what === 'build') return out('גרסת שרת: ' + SERVER_BUILD);   // בדיקה מהירה בדפדפן: ...exec?what=build
+  if (p.what === 'yt') return json_(ytLatest_(String(p.url || ''), String(p.filter || ''), true));   // בדיקת "השיעור האחרון": ...exec?what=yt&url=...&filter=...
+  if (!id) return out('ERR:NO_ID');
+  const what = String(p.what || '');
+  const cache = CacheService.getScriptCache();
+  if (what === 'logo') {   // הלוגו כ-data URL דרך השרת – כך הוא עובר גם במחשבים עם סינון שחוסם את googleusercontent
+    const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
+    if (!st.logoId) return out('');
+    const hitL = cache.get('logo_' + st.logoId); if (hitL !== null) return out(hitL);
+    try {
+      const b = DriveApp.getFileById(st.logoId).getBlob();
+      const d = 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes());
+      if (d.length < 95000) cache.put('logo_' + st.logoId, d, 21600);
+      return out(d);
+    } catch (e) { return out(''); }
+  }
+  if (what !== 'version' && what !== 'zoom') {   // אישור מסך (לא נדרש לבדיקת גרסה ולתוכנת הזום במחשב)
+    const dev = String(p.dev || '').replace(/[^a-z0-9]/gi, '').slice(0, 32);
+    const err = checkDevice_(id, dev, String(p.code || '').replace(/\D/g, '').slice(0, 6), cache);
+    if (err) return out(err);
+  }
+  const hit = cache.get(what + 'shul_' + id);
+  if (hit !== null) return out(hit);
+
+  const f = findRow_(id);
+  if (!f) return out('ERR:NOT_FOUND');
+  const row = f.row;
+  const ver = String(row[C.ver] || 1).replace(/\D/g, '') || '1';
+  if (what === 'version') { cache.put('versionshul_' + id, ver, 60); return out(ver); }
+  if (what === 'zoom') {   // לוח השיעורים בזום – נקרא ע"י zoom-helper.ps1 במחשב של בית הכנסת
+    const z = String(row[C.active]).trim() === 'לא' ? '' : zoomLines_(parseJson_(row[C.settings]) || {}, String(row[C.name] || id));
+    cache.put('zoomshul_' + id, z, 60); return out(z);
+  }
+
+  const active = String(row[C.active]).trim();
+  let text;
+  if (active === 'לא' || active.toLowerCase() === 'false') {
+    text = 'ERR:INACTIVE';
+  } else {
+    text = '';
+    const m = String(row[C.doc]).match(/[-\w]{25,}/);
+    if (m) {
+      const file = DriveApp.getFileById(m[0]);
+      text = file.getMimeType() === MimeType.GOOGLE_DOCS
+        ? DocumentApp.openById(m[0]).getBody().getText()
+        : file.getBlob().getDataAsString('UTF-8');
+    }
+    const s = parseJson_(row[C.settings]);
+    if (s) nusachDefault_(s, row);
+    if (s) {   // הגדרות מהטופס גוברות על שורות ! במסמך (חוץ מטבלת נץ)
+      text = text.split(/\r?\n/).filter(l => !/^\s*!/.test(l) || /טבלת נץ/.test(l)).join('\n') + '\n' + settingsLines_(s);
+    }
+    text += '\n! גרסת מערכת: ' + ver + '\n! גרסת שרת: ' + SERVER_BUILD;
+  }
+  cache.put('shul_' + id, text, 60);
+  return out(text);
+}
+// בודק אם המסך מאושר. מסכים חדשים מאושרים אוטומטית עד המכסה ("מספר מסכים"), מעבר לזה – ממתינים לאישור ידני
+function checkDevice_(id, dev, code, cache) {
+  if (!dev) return 'ERR:DEVICE:0000';
+  const ck = 'dev_' + id + '_' + dev;
+  if (cache.get(ck) === '1') return null;
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const f = findRow_(id);
+    if (!f) return 'ERR:NOT_FOUND';
+    const dv = devSheet_(), rows = dv.getDataRange().getValues(), now = new Date();
+    let approved = 0;
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][D.shul]).toLowerCase() !== id) continue;
+      if (String(rows[i][D.dev]) === dev) {
+        dv.getRange(i + 1, D.last + 1).setValue(now);
+        const st = String(rows[i][D.status]).trim();
+        if (st === 'מאושר') { cache.put(ck, '1', 600); return null; }
+        return 'ERR:DEVICE:' + rows[i][D.code];
+      }
+      if (String(rows[i][D.status]).trim() === 'מאושר') approved++;
+    }
+    const quota = Math.max(1, parseInt(f.row[C.screens], 10) || 1);
+    const ok = approved < quota;
+    dv.appendRow([dev, code || '----', id, ok ? 'מאושר' : 'ממתין', now, now, '']);
+    if (ok) { cache.put(ck, '1', 600); return null; }
+    return 'ERR:DEVICE:' + (code || '----');
+  } finally { lock.releaseLock(); }
+}
+// ---------- API לאפליקציית ההגדרות ----------
+function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+function apiLoad_(id, key) {
+  const f = id ? findRow_(id) : null;
+  if (!f || !key || String(f.row[C.key]) !== key) return { ok: false, error: 'הקישור אינו תקין. יש לפנות למנהל המערכת.' };
+  const s = Object.assign(defaults_(f.row[C.name]), parseJson_(f.row[C.settings]) || {});
+  migrateDaf_(s); nusachDefault_(s, f.row);
+  return { ok: true, s, doc: String(f.row[C.doc] || ''), name: String(f.row[C.name] || '') };
+}
+// שמירה מהאפליקציה: גוף הבקשה = {"shul","key","action":"save"|"close","s":{...}}
+function doPost(e) {
+  try {
+    const b = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    const id = String(b.shul || '').toLowerCase();
+    if (b.action === 'close') { closeScreen(id, b.key); return json_({ ok: true }); }
+    if (b.action === 'logo') return json_(saveLogo_(id, b.key, String(b.data || '')));
+    saveSettings(id, b.key, b.s || {});
+    return json_({ ok: true });
+  } catch (err) { return json_({ ok: false, error: String(err && err.message || err) }); }
+}
+// סגירת התוכנה במסך: פקודה שתקפה ל-5 דקות
+function closeScreen(id, key) {
+  id = String(id || '').toLowerCase();
+  const f = findRow_(id);
+  if (!f || String(f.row[C.key]) !== String(key)) throw new Error('אין הרשאה');
+  const s = parseJson_(f.row[C.settings]) || defaults_(f.row[C.name]);
+  s.closeAt = Date.now();
+  f.sh.getRange(f.r, C.settings + 1).setValue(JSON.stringify(s));
+  CacheService.getScriptCache().remove('shul_' + id);
+}
+const HEB_MONTHS = ['תשרי', 'חשון', 'כסלו', 'טבת', 'שבט', 'אדר', 'אדר א', 'אדר ב', 'ניסן', 'אייר', 'סיון', 'תמוז', 'אב', 'אלול'];
+function hebDay_(n) { const o = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'], t = ['', 'י', 'כ', 'ל']; n = +n; return n === 15 ? 'טו' : n === 16 ? 'טז' : t[Math.floor(n / 10)] + o[n % 10]; }
+const TIME_RE = /^\d{1,2}:\d{2}$/;
+function parseJson_(v) { try { return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+
+const ZOOM_DAYS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];   // ש = שבת / מוצאי שבת
+// שידור חי: זום (תוכנת העזר במחשב מצטרפת), יוטיוב (המסך עצמו מציג), אתר אחר (תוכנת העזר פותחת)
+const LIVE_RE = { zoom: /^https:\/\/[^\s|]+$/i, youtube: /^https:\/\/([\w-]+\.)*(youtube\.com|youtu\.be)\/\S+$/i, web: /^https:\/\/[^\s|]+$/i };
+const liveType_ = s => LIVE_RE[s.liveType] ? s.liveType : 'zoom';
+// יוטיוב – "השיעור האחרון": מקבל קישור לערוץ (youtube.com/@name או /channel/UC...) או לרשימת השמעה (list=...),
+// וקורא את רשימת הסרטונים (RSS) של יוטיוב. מחזיר קישור לסרטון האחרון שעלה (אפשר לסנן לפי מילה בכותרת). נשמר במטמון 10 דקות
+function ytLatest_(link, filter, debug) {
+  const cache = CacheService.getScriptCache(), ck = 'yt_' + Utilities.base64EncodeWebSafe(link + '|' + (filter || '')).slice(0, 200);
+  if (!debug) { const hit = cache.get(ck); if (hit !== null) return hit; }
+  const info = { link, filter: filter || '', channel: '', feed: '', titles: [], chosen: '', error: '' };
+  let m;
+  if (!/^https:\/\/(www\.|m\.)?youtube\.com\//i.test(link)) info.error = 'הקישור צריך להיות לערוץ או לרשימת השמעה ב-youtube.com';
+  else if ((m = link.match(/[?&]list=([\w-]+)/))) info.feed = 'playlist_id=' + m[1];
+  else if ((m = link.match(/\/channel\/(UC[\w-]{22})/))) info.feed = 'channel_id=' + m[1];
+  else if (/youtube\.com\/(@|c\/|user\/)/.test(link)) {   // כתובת עם שם ערוץ – מוצאים את מזהה הערוץ מהדף
+    const page = link.split('?')[0];
+    const ck2 = 'ytch_' + Utilities.base64EncodeWebSafe(page).slice(0, 200);
+    let ch = debug ? null : cache.get(ck2);
+    if (!ch) {
+      try {
+        const html = UrlFetchApp.fetch(page, { muteHttpExceptions: true, headers: { 'Accept-Language': 'en' } }).getContentText();
+        ch = ((html.match(/"(?:channelId|externalId|browseId)":"(UC[\w-]{22})"/) || html.match(/channel\/(UC[\w-]{22})/)) || [])[1] || '';
+        if (!ch) info.error = 'לא נמצא מזהה ערוץ בדף';
+      } catch (e) { ch = ''; info.error = String(e); }
+      if (ch) cache.put(ck2, ch, 21600);
+    }
+    info.channel = ch || '';
+    if (ch) info.feed = 'channel_id=' + ch;
+  } else info.error = 'הקישור אינו לערוץ או לרשימת השמעה';
+  if (info.feed) {
+    try {
+      const xml = UrlFetchApp.fetch('https://www.youtube.com/feeds/videos.xml?' + info.feed, { muteHttpExceptions: true }).getContentText();
+      const tag = (e, t) => ((e.match(new RegExp('<' + t + '[^>]*>([\\s\\S]*?)</' + t + '>')) || [])[1] || '')
+        .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+      const all = (xml.match(/<entry>[\s\S]*?<\/entry>/g) || []).map(e => ({ id: tag(e, 'yt:videoId'), title: tag(e, 'title'), at: tag(e, 'published') }));
+      all.sort((a, b) => b.at.localeCompare(a.at));
+      info.titles = all.map(x => x.at.slice(0, 16) + ' ' + x.title);
+      const norm = t => String(t).replace(/[֑-ׇ"'״׳`.,:;!?()\[\]\-–|]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+      const words = norm(filter || '').split(' ').filter(Boolean);   // כל המילים צריכות להופיע בשם (בכל סדר)
+      const pick = all.find(x => x.id && words.every(w => norm(x.title).indexOf(w) >= 0));
+      if (pick) info.chosen = 'https://www.youtube.com/watch?v=' + pick.id;
+      else if (!all.length) info.error = 'רשימת הסרטונים ריקה או לא נטענה';
+      else info.error = 'אף סרטון לא מתאים לסינון';
+    } catch (e) { info.error = String(e); }
+  }
+  if (debug) return info;
+  cache.put(ck, info.chosen, info.chosen ? 600 : 120);
+  return info.chosen;
+}
+// קישור זום מקוצר / מפנה (למשל https://zoom.mdydaf.com) – עוקבים אחרי ההפניות עד לקישור האמיתי zoom.us/j/...
+function resolveZoom_(link) {
+  if (/zoom\.(us|com)\/(j|w|wc\/join)\/\d+/i.test(link)) return link;
+  const cache = CacheService.getScriptCache(), ck = 'zr_' + Utilities.base64EncodeWebSafe(link).slice(0, 200);
+  const hit = cache.get(ck); if (hit !== null) return hit || link;
+  let url = link, out = '';
+  try {
+    for (let i = 0; i < 6 && !out; i++) {
+      const r = UrlFetchApp.fetch(url, { followRedirects: false, muteHttpExceptions: true });
+      const h = r.getAllHeaders(), loc = h.Location || h.location;
+      const found = s => (String(s || '').match(/https:\/\/[\w.-]*zoom\.(?:us|com)\/(?:j|w)\/\d+[^\s"'<>]*/i) || [])[0];
+      if (loc) { if (found(loc)) out = found(loc); else url = /^https?:/i.test(loc) ? loc : url.replace(/^(https?:\/\/[^/]+).*$/, '$1') + loc; }
+      else { out = found(r.getContentText()) || ''; break; }
+    }
+  } catch (e) {}
+  out = out.replace(/&amp;/g, '&');
+  cache.put(ck, out, out ? 21600 : 300);
+  return out || link;
+}
+// כל שיעור עם קישור, סוג וכותרת משלו. שיעור ישן בלי קישור משלו – מקבל את הקישור / הסוג / הכותרת הכלליים
+function liveSessions_(s) {
+  return (s.zoom || []).map(z => {
+    const type = LIVE_RE[z.type] ? z.type : liveType_(s), link = String(z.link || s.zoomLink || '').trim();
+    const ds = Array.isArray(z.ds) ? z.ds.filter(d => +d >= 0 && +d <= 6).map(Number) : (+z.d >= 0 ? [+z.d] : []);
+    return { ds, t: z.t, e: TIME_RE.test(z.e) ? z.e : '', type, link, latest: !!z.latest, filter: String(z.filter || ''),
+      title: String(z.title !== undefined && z.title !== '' ? z.title : (s.zoomTitle || '')).replace(/[|\r\n]/g, ' ') };
+  }).filter(z => z.ds.length && TIME_RE.test(z.t) && LIVE_RE[z.type].test(z.link));
+}
+function zoomLines_(s, shulName) {   // שורה לכל שיעור ויום: zoom|יום(0-6)|התחלה|סיום|קישור|שם במפגש|סוג|OBS
+  const name = String(s.zoomName || s.name || shulName).replace(/[|\r\n]/g, ' ');
+  const L = [];
+  liveSessions_(s).forEach(z => { const link = z.type === 'zoom' ? resolveZoom_(z.link) : z.link;
+    z.ds.forEach(d => L.push(['zoom', d, z.t, z.e, link, name, z.type, s.liveObs === false ? 0 : 1].join('|'))); });
+  return L.join('\n');
+}
+const SLOT_NAMES = { daf: 'דף יומי', msgs: 'הודעות', zmanim: 'זמני היום', prayers: 'זמני תפילות', learn: 'לימוד יומי', tefila: 'היום בתפילה' };
+const LEARN_KEYS = ['daf', 'yyomi', 'myomi', 'dr1', 'dr3', 'dsm', 'nyomi', 'dty', 'dps', 'dksa', 'ahsy', 'dcc', 'dshl', 'dw', 'dpa'];
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// נוסח מעמודת "נוסח" בגיליון: אשכנז / ספרד / עדות המזרח. אם ההגדרה עוד לא נקבעה באפליקציה – ממנה ברירת המחדל
+const nusachOf_ = v => /אשכנז/.test(v) ? 'ashk' : /ספרד|עדות|ספרדי|מזרח/.test(v) ? 'seph' : '';
+function nusachDefault_(s, row) {
+  if (s.nusach === undefined) {
+    const n = nusachOf_(String(row[C.nusach] || ''));
+    s.nusach = n;
+    if (s.haftara === undefined) s.haftara = !!n;   // בלי נוסח בגיליון – ההפטרה כבויה עד שבית הכנסת יבחר
+  }
+  return s;
+}
+// "דף יומי" כמשבצת נפרדת הוחלף ב"לימוד יומי" (שבו מסומן הדף היומי). מחזיר true אם היה צריך לשנות
+function migrateDaf_(s) {
+  if (!s || !['slotR', 'slotL', 'slotB'].some(k => (s[k] || []).includes('daf'))) return false;
+  ['slotR', 'slotL', 'slotB'].forEach(k => { s[k] = (s[k] || []).map(x => x === 'daf' ? 'learn' : x).filter((x, i, a) => a.indexOf(x) === i); });
+  s.learn = s.learn || [];
+  if (!s.learn.includes('daf')) s.learn.unshift('daf');
+  return true;
+}
+function settingsLines_(s) {
+  migrateDaf_(s);
+  const L = [], slot = a => (a && a.length) ? a.map(x => SLOT_NAMES[x]).filter(Boolean).join(', ') : 'ריק';
+  if (s.name) L.push('! שם: ' + s.name);
+  if (s.city === 'ירושלים' || (!s.lat && !s.lon)) L.push('! מזהה מיקום: 281184');
+  else { L.push('! קואורדינטות: ' + s.lat + ', ' + s.lon); L.push('! אזור זמן: ' + (s.tz || 'Asia/Jerusalem')); }
+  L.push('! ישראל: ' + (s.israel === false ? 'לא' : 'כן'));
+  if (s.candle) L.push('! הדלקת נרות: ' + s.candle);
+  if (s.havdalah) L.push('! צאת שבת: ' + s.havdalah);
+  L.push('! שקיעה לפי גובה: ' + (s.useElev ? 'כן' : 'לא'));
+  if (s.useElev && s.elev) L.push('! גובה: ' + s.elev);
+  if (s.netzChai) L.push('! טבלת נץ: חי רמת שלמה');
+  L.push('! משבצת ימין: ' + slot(s.slotR));
+  L.push('! משבצת שמאל: ' + slot(s.slotL));
+  L.push('! משבצת תחתונה: ' + slot(s.slotB));
+  L.push('! החלפה כל: ' + (s.rotate || 30));
+  [['rotR', 'ימין'], ['rotL', 'שמאל'], ['rotB', 'תחתונה']].forEach(([k, n]) => { if (s[k]) L.push('! החלפה ' + n + ': ' + s[k]); });
+  L.push('! גודל שעון: ' + (s.clock || 100));
+  L.push('! גודל שורה תחתונה: ' + (s.bottom || 90));
+  if (s.gdate === 'short') L.push('! תאריך לועזי: קצר');
+  if (s.header && s.header !== 'none') L.push('! כותרת עליונה: ' + ({ name: 'שם', logo: 'לוגו', both: 'שם ולוגו' })[s.header]);
+  if (s.logoUrl) L.push('! לוגו: ' + s.logoUrl);
+  if ((s.learn || []).length) L.push('! לימוד יומי: ' + s.learn.join(', '));
+  L.push('! תחנון: ' + (s.tachanun === false ? 'לא' : 'כן'));
+  L.push('! תזכורת נוסח: ' + (s.remind === 0 ? 'תמיד' : (s.remind || 30)));
+  if (s.omerB) L.push('! ספירת העומר: בעומר');
+  if (s.haftara && s.nusach) L.push('! הפטרה: ' + (s.nusach === 'seph' ? 'ספרד' : 'אשכנז') + (s.haftFrom === 'day' ? ', רק בשבת' : ''));
+  if (s.mazalTitle) L.push('! כותרת ברכה: ' + s.mazalTitle);
+  (s.mazal || []).forEach(z => { if (z.text && DATE_RE.test(z.from)) L.push('! מזל טוב ' + z.from + ' ' + (DATE_RE.test(z.to) ? z.to : z.from) + (z.title ? ' [' + z.title + ']' : '') + ': ' + z.text); });
+  if (s.screenOff) L.push('מסך כבוי');
+  if (s.nightOff && /^\d{1,2}:\d{2}$/.test(s.nightFrom) && /^\d{1,2}:\d{2}$/.test(s.nightTo)) L.push('מסך כבוי ' + s.nightFrom + '-' + s.nightTo);
+  (s.offDates || []).forEach(o => {   // כיבוי בתאריך עברי מסוים, למשל: מסך כבוי יב חשון 16:00-21:00
+    if (!o.d || !o.m) return;
+    const t = o.from && o.to ? ' ' + o.from + '-' + o.to : o.from ? ' מ-' + o.from : o.to ? ' עד ' + o.to : '';
+    L.push('מסך כבוי ' + hebDay_(o.d) + ' ' + o.m + t);
+  });
+  if (s.closeAt && Date.now() - s.closeAt < 5 * 60 * 1000) L.push('סגור מסך');
+  // שיעורים: ! שיעור חי: אבג 17:00-18:00 | youtube | כותרת | קישור   (המסך מציג הודעה לפני, ויוטיוב – בעצמו)
+  liveSessions_(s).forEach(z => {
+    const link = (z.type === 'youtube' && z.latest) ? (ytLatest_(z.link, z.filter) || z.link) : z.link;   // "השיעור האחרון" – הסרטון האחרון שעלה
+    L.push('! שיעור חי: ' + z.ds.map(d => ZOOM_DAYS[d]).join('') + ' ' + z.t + (z.e ? '-' + z.e : '') + ' | ' + z.type + ' | ' + z.title + ' | ' + link);
+  });
+  (s.prayers || []).forEach(p => {
+    if (!p.label || !p.value) return;
+    L.push('! תפילה ' + (p.q ? '[' + p.q + '] ' : '') + String(p.label).replace(/[:\[\]]/g, '') + ': ' + p.value);
+  });
+  return L.join('\n');
+}
+
+// ---------- טופס ההגדרות ----------
+function settingsPage_(id, key) {
+  const f = id ? findRow_(id) : null;
+  if (!f || !key || String(f.row[C.key]) !== key) {
+    return HtmlService.createHtmlOutput('<div dir="rtl" style="font:20px Arial;padding:30px">הקישור אינו תקין. יש לפנות למנהל המערכת.</div>');
+  }
+  const s = Object.assign(defaults_(f.row[C.name]), parseJson_(f.row[C.settings]) || {});
+  const html = FORM_HTML().replace('__DATA__', JSON.stringify({ id, key, s, doc: String(f.row[C.doc] || '') }).replace(/</g, '\\u003c'));
+  return HtmlService.createHtmlOutput(html).setTitle('הגדרות – ' + (s.name || id))
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+// לוגו מהאפליקציה: נשמר כקובץ בתיקייה "לוגואים" בדרייב (צפייה לכל מי שיש קישור) – data = data:image/...;base64,...  או ריק למחיקה
+function saveLogo_(id, key, data) {
+  const f = findRow_(id);
+  if (!f || String(f.row[C.key]) !== String(key)) throw new Error('אין הרשאה');
+  const s = parseJson_(f.row[C.settings]) || defaults_(f.row[C.name]);
+  if (s.logoId) { try { DriveApp.getFileById(s.logoId).setTrashed(true); } catch (e) {} }
+  s.logoId = ''; s.logoUrl = '';
+  const m = data.match(/^data:(image\/(png|jpeg|webp|gif));base64,(.+)$/);
+  if (m) {
+    const bytes = Utilities.base64Decode(m[3]);
+    if (bytes.length > 1500000) throw new Error('הקובץ גדול מדי');
+    const it = DriveApp.getFoldersByName('לוגואים');
+    const folder = it.hasNext() ? it.next() : DriveApp.createFolder('לוגואים');
+    const file = folder.createFile(Utilities.newBlob(bytes, m[1], 'logo-' + id + '.' + (m[2] === 'jpeg' ? 'jpg' : m[2])));
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    s.logoId = file.getId(); s.logoUrl = 'https://lh3.googleusercontent.com/d/' + file.getId();
+  }
+  f.sh.getRange(f.r, C.settings + 1).setValue(JSON.stringify(s));
+  CacheService.getScriptCache().remove('shul_' + id);
+  return { ok: true, url: s.logoUrl };
+}
+
+function saveSettings(id, key, s) {
+  id = String(id || '').toLowerCase();
+  const f = findRow_(id);
+  if (!f || String(f.row[C.key]) !== String(key)) throw new Error('אין הרשאה');
+  const clean = {
+    name: String(s.name || '').slice(0, 80), city: String(s.city || ''), lat: String(s.lat || '').slice(0, 12), lon: String(s.lon || '').slice(0, 12),
+    tz: String(s.tz || 'Asia/Jerusalem'), israel: !!s.israel, candle: +s.candle || '', havdalah: +s.havdalah || '',
+    useElev: !!s.useElev, elev: +s.elev || '', rotate: +s.rotate || 30, rotR: +s.rotR || '', rotL: +s.rotL || '', rotB: +s.rotB || '', clock: +s.clock || 100, bottom: Math.min(100, Math.max(60, +s.bottom || 90)),
+    slotR: (s.slotR || []).filter(x => SLOT_NAMES[x]), slotL: (s.slotL || []).filter(x => SLOT_NAMES[x]), slotB: (s.slotB || []).filter(x => SLOT_NAMES[x]),
+    closeAt: (parseJson_(f.row[C.settings]) || {}).closeAt || '',
+    logoId: (parseJson_(f.row[C.settings]) || {}).logoId || '', logoUrl: (parseJson_(f.row[C.settings]) || {}).logoUrl || '',
+    header: ['none', 'name', 'logo', 'both'].includes(s.header) ? s.header : 'none', gdate: s.gdate === 'short' ? 'short' : 'long',
+    netzChai: !!s.netzChai, screenOff: !!s.screenOff, nightOff: !!s.nightOff,
+    nightFrom: /^\d{1,2}:\d{2}$/.test(s.nightFrom) ? s.nightFrom : '', nightTo: /^\d{1,2}:\d{2}$/.test(s.nightTo) ? s.nightTo : '',
+    offDates: (s.offDates || []).slice(0, 30).filter(o => +o.d >= 1 && +o.d <= 30 && HEB_MONTHS.includes(o.m))
+      .map(o => ({ d: +o.d, m: o.m, from: TIME_RE.test(o.from) ? o.from : '', to: TIME_RE.test(o.to) ? o.to : '' })),
+    zoomTitle: String(s.zoomTitle || '').replace(/[\r\n]/g, ' ').slice(0, 80), zoomName: String(s.zoomName || '').replace(/[|\r\n]/g, ' ').slice(0, 60),
+    liveType: liveType_(s), liveObs: s.liveObs !== false,
+    haftara: !!s.haftara, haftFrom: s.haftFrom === 'day' ? 'day' : 'erev', nusach: ['ashk', 'seph'].includes(s.nusach) ? s.nusach : '',
+    mazalTitle: String(s.mazalTitle || '').replace(/[\r\n]/g, ' ').trim().slice(0, 40),
+    learn: (s.learn || []).filter(k => LEARN_KEYS.includes(k)), tachanun: s.tachanun !== false, remind: [0, 14, 30].includes(+s.remind) && s.remind !== '' && s.remind !== undefined ? +s.remind : 30, omerB: !!s.omerB,
+    mazal: (s.mazal || []).slice(0, 40).filter(z => String(z.text || '').trim() && DATE_RE.test(z.from))
+      .map(z => ({ title: String(z.title || '').replace(/[\r\n\[\]:]+/g, ' ').trim().slice(0, 40), text: String(z.text).replace(/[\r\n]+/g, ' ').trim().slice(0, 150), from: z.from, to: DATE_RE.test(z.to) && z.to >= z.from ? z.to : z.from })),
+    zoomLink: LIVE_RE[liveType_(s)].test(String(s.zoomLink || '').trim()) ? String(s.zoomLink).trim().slice(0, 300) : '',
+    zoom: (s.zoom || []).slice(0, 30).map(z => ({
+      ds: (Array.isArray(z.ds) ? z.ds : [z.d]).map(Number).filter(d => d >= 0 && d <= 6).filter((d, i, a) => a.indexOf(d) === i),
+      t: TIME_RE.test(z.t) ? z.t : '', e: TIME_RE.test(z.e) ? z.e : '',
+      type: LIVE_RE[z.type] ? z.type : liveType_(s),
+      link: String(z.link || '').trim().slice(0, 300), latest: !!z.latest, filter: String(z.filter || '').replace(/[|\r\n]/g, ' ').trim().slice(0, 60),
+      title: String(z.title || '').replace(/[|\r\n]/g, ' ').slice(0, 80) })).filter(z => z.ds.length && z.t),
+    prayers: (s.prayers || []).slice(0, 30).map(p => ({ q: ['', 'חול', 'א-ה', 'שישי', 'שבת'].includes(p.q) ? p.q : '', label: String(p.label || '').slice(0, 30), value: String(p.value || '').slice(0, 120) }))
+  };
+  f.sh.getRange(f.r, C.settings + 1).setValue(JSON.stringify(clean));
+  if (clean.name) f.sh.getRange(f.r, C.name + 1).setValue(clean.name);
+  CacheService.getScriptCache().removeAll(['shul_' + id, 'zoomshul_' + id]);
+  return 'ok';
+}
+
+function FORM_HTML() {
+  return String.raw`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+<style>
+:root{--bg:#0f1f3d;--card:#16294d;--gold:#e2b857;--gold2:#f7de9a;--text:#f5f1e6;--muted:#aebbd2;--line:rgba(226,184,87,.3)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;font-size:17px;padding:14px 14px 90px}
+h1{font-size:22px;color:var(--gold2);margin:4px 0 14px}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.sec h2{font-size:18px;color:var(--gold);margin:0 0 10px}
+label.f{display:block;margin:10px 0 4px;color:var(--muted);font-size:15px}
+input[type=text],input[type=number],select{width:100%;font-size:17px;padding:10px;border-radius:9px;border:1px solid var(--line);background:#0b1730;color:var(--text)}
+.row2{display:flex;gap:8px}.row2>*{flex:1}
+.chk{display:flex;flex-wrap:wrap;gap:8px}
+.chk label{display:flex;align-items:center;gap:6px;background:#0b1730;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:16px}
+.chk input{width:20px;height:20px}
+.hint{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.4}
+.pr{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#0b1730}
+.pr .row2{margin-bottom:6px}
+.del{background:none;border:0;color:#ff9e8a;font-size:15px;padding:4px 0}
+.add{width:100%;padding:11px;border-radius:9px;border:1px dashed var(--gold);background:none;color:var(--gold2);font-size:16px}
+.save{position:fixed;bottom:0;left:0;right:0;padding:12px 14px;background:rgba(11,23,48,.96);border-top:1px solid var(--line)}
+.save button{width:100%;padding:14px;font-size:19px;font-weight:bold;border-radius:11px;border:0;background:var(--gold);color:#0b1730}
+.msg{text-align:center;margin-top:6px;min-height:1.2em;font-size:15px}
+a{color:var(--gold2)}
+.hide{display:none}
+</style></head><body>
+<h1>הגדרות המסך</h1>
+
+<div class="sec"><h2>בית הכנסת</h2>
+  <label class="f">שם בית הכנסת</label><input type="text" id="name">
+  <div class="hint" id="docLink"></div>
+</div>
+
+<div class="sec"><h2>מיקום וזמנים</h2>
+  <label class="f">עיר</label><select id="city"></select>
+  <div id="other" class="hide">
+    <div class="row2"><div><label class="f">קו רוחב</label><input type="text" id="lat" inputmode="decimal" placeholder="31.77"></div>
+    <div><label class="f">קו אורך</label><input type="text" id="lon" inputmode="decimal" placeholder="35.21"></div></div>
+    <div class="hint">את הקואורדינטות מוצאים בגוגל מפות: לחיצה ארוכה על המקום – המספרים מופיעים למעלה.</div>
+    <label class="f">אזור זמן</label><select id="tz"></select>
+    <label class="f">לוח חגים</label><select id="israel"><option value="1">ארץ ישראל</option><option value="0">חוץ לארץ</option></select>
+  </div>
+  <label class="f">הדלקת נרות – דקות לפני השקיעה</label>
+  <select id="candle"><option>18</option><option>20</option><option>22</option><option>24</option><option>30</option><option>40</option></select>
+  <label class="f">צאת שבת</label>
+  <select id="havdalah"><option value="">לפי צאת הכוכבים</option><option value="30">30 דקות אחרי השקיעה</option><option value="35">35 דקות</option><option value="40">40 דקות</option><option value="45">45 דקות</option><option value="50">50 דקות</option><option value="72">72 דקות</option></select>
+  <label class="f">שקיעה</label>
+  <select id="useElev"><option value="0">במישור</option><option value="1">לפי גובה המקום</option></select>
+  <div id="elevBox" class="hide"><label class="f">גובה במטרים (לא חובה)</label><input type="number" id="elev" placeholder="800"></div>
+</div>
+
+<div class="sec"><h2>מבנה המסך</h2>
+  <div class="hint">אפשר לסמן כמה תכנים במשבצת – הם יתחלפו לסירוגין. בלי סימון – המשבצת ריקה.</div>
+  <label class="f">משבצת ימין</label><div class="chk" id="slotR"></div>
+  <label class="f">משבצת שמאל</label><div class="chk" id="slotL"></div>
+  <label class="f">משבצת תחתונה</label><div class="chk" id="slotB"></div>
+  <div class="row2">
+    <div><label class="f">החלפה כל</label><select id="rotate"><option value="10">10 שניות</option><option value="20">20 שניות</option><option value="30">30 שניות</option><option value="60">דקה</option><option value="120">2 דקות</option></select></div>
+    <div><label class="f">גודל שעון</label><select id="clock"><option value="100">רגיל</option><option value="90">90%</option><option value="80">80%</option><option value="70">70%</option></select></div>
+  </div>
+</div>
+
+<div class="sec"><h2>זמני תפילות</h2>
+  <div class="hint">שעה קבועה (6:30) או יחסית, למשל: <b>15 דקות לפני השקיעה</b>, <b>שקיעה+20</b>, <b>הדלקת נרות+10</b>. כמה מניינים – עם פסיק: 6:15, 7:30</div>
+  <div id="prayers" style="margin-top:10px"></div>
+  <button class="add" type="button" onclick="addPrayer()">+ הוספת תפילה</button>
+</div>
+
+<div class="save"><button id="saveBtn" type="button" onclick="save()">שמירה</button><div class="msg" id="msg"></div></div>
+
+<script>
+const D = __DATA__, S = D.s;
+const CITIES = [
+ ['ירושלים',31.778,35.235,40],['בני ברק',32.0807,34.8338,20],['תל אביב',32.0853,34.7818,20],['פתח תקווה',32.0871,34.8875,20],
+ ['רמת גן',32.0684,34.8248,20],['חיפה',32.7940,34.9896,30],['בית שמש',31.7470,34.9881,20],['מודיעין עילית',31.9320,35.0430,20],
+ ['מודיעין',31.8980,35.0104,20],['ביתר עילית',31.6967,35.1150,20],['אלעד',32.0522,34.9511,20],['אשדוד',31.8014,34.6435,20],
+ ['נתניה',32.3215,34.8532,20],['רחובות',31.8928,34.8113,20],['ראשון לציון',31.9730,34.7925,20],['חולון',32.0158,34.7874,20],
+ ['בת ים',32.0171,34.7454,20],['הרצליה',32.1663,34.8433,20],['כפר סבא',32.1750,34.9070,20],['רעננה',32.1840,34.8710,20],
+ ['חדרה',32.4340,34.9190,20],['צפת',32.9646,35.4960,20],['טבריה',32.7959,35.5310,20],['כרמיאל',32.9190,35.2950,20],
+ ['נהריה',33.0050,35.0980,20],['עפולה',32.6075,35.2900,20],['באר שבע',31.2518,34.7913,20],['אשקלון',31.6688,34.5743,20],
+ ['קרית גת',31.6100,34.7642,20],['אילת',29.5577,34.9519,20],['מעלה אדומים',31.7770,35.2980,20],['גבעת זאב',31.8600,35.1700,20],
+ ['קרית ארבע',31.5300,35.1150,20],['אריאל',32.1060,35.1730,20],['אחר / חוץ לארץ',null,null,18]];
+const TZS = ['Asia/Jerusalem','Europe/London','Europe/Paris','Europe/Antwerp','America/New_York','America/Chicago','America/Los_Angeles','America/Toronto','America/Sao_Paulo','America/Argentina/Buenos_Aires','America/Mexico_City','Australia/Sydney','Africa/Johannesburg','Europe/Moscow','Asia/Kiev'];
+const SLOTS = [['daf','דף יומי'],['msgs','הודעות'],['zmanim','זמני היום'],['prayers','זמני תפילות']];
+const $ = id => document.getElementById(id);
+const opt = (v,t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; return o; };
+
+CITIES.forEach(c => $('city').appendChild(opt(c[0], c[0])));
+TZS.forEach(t => $('tz').appendChild(opt(t, t)));
+['slotR','slotL','slotB'].forEach(k => {
+  $(k).innerHTML = SLOTS.map(([v,t]) => '<label><input type="checkbox" value="'+v+'"'+((S[k]||[]).includes(v)?' checked':'')+'> '+t+'</label>').join('');
+});
+$('name').value = S.name || '';
+if (D.doc) $('docLink').innerHTML = 'את ההודעות כותבים ב<a href="'+D.doc+'" target="_blank">מסמך ההודעות</a>.';
+const known = CITIES.some(c => c[0] === S.city && c[1] !== null);
+$('city').value = known ? S.city : 'אחר / חוץ לארץ';
+$('lat').value = S.lat || ''; $('lon').value = S.lon || ''; $('tz').value = S.tz || 'Asia/Jerusalem';
+$('israel').value = S.israel === false ? '0' : '1';
+$('candle').value = String(S.candle || 20); $('havdalah').value = String(S.havdalah || '');
+$('useElev').value = S.useElev ? '1' : '0'; $('elev').value = S.elev || '';
+$('rotate').value = String(S.rotate || 30); $('clock').value = String(S.clock || 100);
+function refresh(){ $('other').classList.toggle('hide', $('city').value !== 'אחר / חוץ לארץ'); $('elevBox').classList.toggle('hide', $('useElev').value !== '1' || $('city').value === 'ירושלים'); }
+$('city').onchange = () => { const c = CITIES.find(x => x[0] === $('city').value); if (c && c[1] !== null) $('candle').value = String(c[3]); refresh(); };
+$('useElev').onchange = refresh; refresh();
+
+function addPrayer(p){
+  p = p || {q:'', label:'', value:''};
+  const d = document.createElement('div'); d.className = 'pr';
+  d.innerHTML = '<div class="row2"><select class="q"><option value="">כל יום</option><option value="חול">חול (א׳–ו׳)</option><option value="שישי">יום שישי</option><option value="שבת">שבת</option></select>'
+    + '<input type="text" class="label" placeholder="שם התפילה (שחרית)"></div>'
+    + '<input type="text" class="value" dir="auto" placeholder="6:30, 7:15  או  15 דקות לפני השקיעה">'
+    + '<button type="button" class="del">מחיקה</button>';
+  d.querySelector('.q').value = p.q || ''; d.querySelector('.label').value = p.label || ''; d.querySelector('.value').value = p.value || '';
+  d.querySelector('.del').onclick = () => d.remove();
+  $('prayers').appendChild(d);
+}
+(S.prayers || []).forEach(addPrayer);
+
+function collect(){
+  const c = CITIES.find(x => x[0] === $('city').value) || [];
+  const other = c[1] === null || c[1] === undefined;
+  return {
+    name: $('name').value.trim(), city: $('city').value,
+    lat: other ? $('lat').value.trim() : String(c[1]), lon: other ? $('lon').value.trim() : String(c[2]),
+    tz: other ? $('tz').value : 'Asia/Jerusalem', israel: other ? $('israel').value === '1' : true,
+    candle: +$('candle').value, havdalah: $('havdalah').value ? +$('havdalah').value : '',
+    useElev: $('useElev').value === '1', elev: $('elev').value ? +$('elev').value : '',
+    slotR: [...document.querySelectorAll('#slotR input:checked')].map(x => x.value),
+    slotL: [...document.querySelectorAll('#slotL input:checked')].map(x => x.value),
+    slotB: [...document.querySelectorAll('#slotB input:checked')].map(x => x.value),
+    rotate: +$('rotate').value, clock: +$('clock').value,
+    prayers: [...document.querySelectorAll('.pr')].map(d => ({ q: d.querySelector('.q').value, label: d.querySelector('.label').value.trim(), value: d.querySelector('.value').value.trim() })).filter(p => p.label && p.value)
+  };
+}
+function save(){
+  const s = collect();
+  if (s.city === 'אחר / חוץ לארץ' && (!s.lat || !s.lon)) { $('msg').textContent = 'יש למלא קו רוחב וקו אורך'; return; }
+  $('saveBtn').disabled = true; $('msg').textContent = 'שומר...';
+  google.script.run
+    .withSuccessHandler(() => { $('saveBtn').disabled = false; $('msg').textContent = 'נשמר ✓ המסך יתעדכן תוך כ-2 דקות'; })
+    .withFailureHandler(e => { $('saveBtn').disabled = false; $('msg').textContent = 'שגיאה בשמירה: ' + (e && e.message || e); })
+    .saveSettings(D.id, D.key, s);
+}
+</script></body></html>`;
+}
+
+// ---------- תבנית למסמך ההודעות ----------
+function TEMPLATE() {
+  return [
+    '# ================= הוראות לכתיבת הודעות =================',
+    '# (שורות שמתחילות ב-# הן הערות – לא מוצגות במסך)',
+    '# כותבים שורת תאריך עברי, ומתחתיה את ההודעה. לדוגמה:',
+    '#   יג,יד        ← בי"ג ובי"ד',
+    '#   טו-יח        ← מט"ו עד י"ח',
+    '#   כ כסלו       ← רק בכ\' כסלו',
+    '#   יג 18:00-21:00  |  יג מ-18:00  |  יג עד 12:00  |  18:00-21:00 (כל יום)',
+    '# הודעה בלי שורת תאריך – מוצגת כל יום.',
+    '# כשיש שעה – התאריך הוא של היום עצמו, כולל הערב שאחריו.',
+    '# כשהודעות מופיעות בשתי משבצות: [ימין] או [שמאל] בשורת התאריך, למשל: יג [ימין]',
+    '# כיבוי המסך: שורה "מסך כבוי" (אפשר עם שעות: מסך כבוי 23:00-06:00).',
+    '# סגירת התוכנה: שורה "סגור מסך" (אחר כך למחוק אותה).',
+    '# השינויים מופיעים במסך תוך כ-2 דקות. את שאר ההגדרות משנים בטופס ההגדרות.',
+    '# =========================================================',
+    ''
+  ].join('\n');
+}
