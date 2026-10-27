@@ -389,6 +389,7 @@ const LIVE_TXT = {
   youtube: ['קישור לשידור ביוטיוב', 'https://www.youtube.com/live/...', 'השידור מוצג במסך עצמו – גם בטאבלט. מדביקים קישור לשידור (או לסרטון), או קישור לערוץ מהצורה youtube.com/channel/UC... כדי להציג תמיד את השידור החי של הערוץ.'],
   web: ['כתובת האתר', 'https://...', 'האתר נפתח במסך מלא במחשב של בית הכנסת. צריך שבמחשב תותקן תוכנת העזר.']
 };
+const LATEST_TXT = ['קישור לערוץ או לרשימת השמעה', 'https://www.youtube.com/@...', 'מדביקים את הקישור לערוץ (youtube.com/@שם הערוץ) או לרשימת ההשמעה של השיעורים. בזמן השיעור יוצג הסרטון האחרון שעלה. אם הערוץ מעלה גם דברים אחרים – כדאי למלא מילה שמופיעה בשם של כל שיעור.'];
 function syncLive(){ $('zoomOnly').hidden = !S.zoom.some(z => z.type !== 'youtube'); }
 // ---------- לימוד יומי ----------
 const LEARN = [['daf','הדף היומי'],['yyomi','ירושלמי יומי'],['myomi','משנה יומית'],['dr1','רמב״ם – פרק ליום'],['dr3','רמב״ם – 3 פרקים'],['dsm','ספר המצוות'],
@@ -434,12 +435,23 @@ function zoomCard(z){
   const d = document.createElement('div'); d.className = 'pr';
   d.innerHTML = `<div><label class="cap">כותרת (מופיעה במסך)</label><input type="text" class="field ztl" placeholder="הדף היומי עם הרב..."></div>
     <div><label class="cap">איפה השיעור</label><div class="seg zty" data-vals="zoom,youtube,web" data-labels="זום,יוטיוב,אתר אחר"></div></div>
+    <div class="zyt" hidden>
+      <div class="row"><div class="lbl"><b>השיעור האחרון שעלה</b><small>בכל פעם – הסרטון החדש ביותר בערוץ או ברשימת ההשמעה</small></div><label class="sw"><input type="checkbox" class="zlt"><span></span></label></div>
+    </div>
     <div><label class="cap zlc">קישור</label><input type="url" class="field zl" dir="ltr"><p class="hint zh" style="margin-top:4px"></p></div>
+    <div class="zflt" hidden><label class="cap">רק סרטונים שבשם שלהם מופיע (לא חובה)</label><input type="text" class="field zf" placeholder="למשל: הדף היומי"></div>
     <div><label class="cap">ימים</label><div class="seg zds"></div></div>
     <div class="two"><div><label class="cap">מהשעה</label><input class="field zt" type="time" dir="ltr"></div><div><label class="cap">עד השעה</label><input class="field ze" type="time" dir="ltr"></div></div>
     <button type="button" class="del">מחיקה</button>`;
   const q = c => d.querySelector(c);
-  const syncType = () => { const x = LIVE_TXT[z.type]; q('.zlc').textContent = x[0]; q('.zl').placeholder = x[1]; q('.zh').textContent = x[2]; syncLive(); };
+  const syncType = () => {
+    const yt = z.type === 'youtube', latest = yt && z.latest, x = latest ? LATEST_TXT : LIVE_TXT[z.type];
+    q('.zlc').textContent = x[0]; q('.zl').placeholder = x[1]; q('.zh').textContent = x[2];
+    q('.zyt').hidden = !yt; q('.zflt').hidden = !latest; syncLive();
+  };
+  q('.zlt').checked = !!z.latest; q('.zf').value = z.filter || '';
+  q('.zlt').addEventListener('change', e => { z.latest = e.target.checked; syncType(); changed(); });
+  q('.zf').addEventListener('input', e => { z.filter = e.target.value; changed(); });
   q('.ztl').value = z.title || ''; q('.zl').value = z.link || ''; q('.zt').value = z.t || ''; q('.ze').value = z.e || '';
   q('.ztl').addEventListener('input', e => { z.title = e.target.value; changed(); });
   q('.zl').addEventListener('input', e => { z.link = e.target.value.trim(); changed(); });
