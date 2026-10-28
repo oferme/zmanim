@@ -76,6 +76,18 @@ label.cap{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
 .slotpick .head small{color:var(--muted)}
 input[type=range]{width:100%;accent-color:var(--gold)}
 /* תפילות */
+.pr .sum{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;color:var(--text);font:inherit;text-align:right;padding:2px 0;cursor:pointer}
+.pr .sum b{flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr .sum small{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.pr .sum i{font-style:normal;color:var(--gold);transition:transform .2s;flex:none}
+.pr.open .sum i{transform:rotate(-90deg)}
+.pr.col:not(.open)>:not(.sum){display:none}
+.pr.col:not(.open){padding:10px 12px}
+.now{display:flex;flex-direction:column;gap:6px}
+.now .r{display:flex;gap:10px;align-items:baseline;border-bottom:1px solid var(--line);padding:6px 0}
+.now .r:last-child{border:0}
+.now .r span{color:var(--muted);font-size:14px;flex:none;width:96px}
+.now .r b{font-weight:600;min-width:0;overflow-wrap:anywhere}
 .pr{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
 .pr .top{display:flex;gap:10px}
 .pr .top .field{flex:1}
@@ -257,6 +269,11 @@ nav .pill{padding:3px 12px;border-radius:999px;transition:background .2s}
 
   <section class="tab" id="t-ctrl">
     <div class="card">
+      <h2>מה מוצג עכשיו במסך</h2>
+      <div class="now" id="nowBox"></div>
+      <p class="hint" style="margin-top:8px">לפי ההגדרות השמורות. שינוי מגיע למסך תוך כ־2 דקות.</p>
+    </div>
+    <div class="card">
       <h2>כיבוי המסך</h2>
       <div class="row"><div class="lbl"><b>מסך כבוי עכשיו</b><small>המסך יהיה שחור עד שמכבים את המתג</small></div><label class="sw"><input type="checkbox" id="screenOff"><span></span></label></div>
       <div class="row"><div class="lbl"><b>כיבוי קבוע כל לילה</b><small>בין השעות שנבחרות</small></div><label class="sw"><input type="checkbox" id="nightOff"><span></span></label></div>
@@ -361,6 +378,28 @@ function preview(){
 }
 
 // ---------- תפילות ----------
+// פריט מקופל: שורת סיכום אחת, ולחיצה פותחת את כל השדות. פריטים קיימים נפתחים סגורים, פריט חדש – פתוח
+let BOUND = false;
+function collapsible(d, sumFn){
+  d.classList.add('col'); if (BOUND) d.classList.add('open');
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'sum';
+  b.innerHTML = '<i>‹</i><b></b><small></small>';
+  const upd = () => { const [t, x] = sumFn(); b.querySelector('b').textContent = t || 'חדש'; b.querySelector('small').textContent = x || ''; };
+  b.addEventListener('click', () => d.classList.toggle('open'));
+  d.prepend(b); upd();
+  ['input','change','click'].forEach(ev => d.addEventListener(ev, e => { if (!b.contains(e.target)) setTimeout(upd, 0); }));
+  return d;
+}
+const DAYQ = {'': 'כל יום', 'א-ה': 'א׳–ה׳', 'שישי': 'שישי', 'שבת': 'שבת', 'חול': 'חול'};
+const ltr = t => '\u2066' + t + '\u2069';   // טווחי שעות/תאריכים – משמאל לימין, כדי שלא יתהפכו בעברית
+const fmtD = iso => iso ? iso.split('-').reverse().slice(0, 2).map(Number).join('.') : '';
+const DAYS_L = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','שבת'];
+function daysTxt(ds){
+  ds = (ds || []).slice().sort();
+  if (ds.length === 7) return 'כל יום';
+  if (ds.join() === '0,1,2,3,4') return 'א׳–ה׳';
+  return ds.map(d => DAYS_L[d]).join(' ');
+}
 function prayerCard(p){
   const d = document.createElement('div'); d.className = 'pr';
   d.innerHTML = `<div class="top"><input class="field label" placeholder="שם (שחרית)" aria-label="שם התפילה"></div>
@@ -372,7 +411,7 @@ function prayerCard(p){
   d.querySelector('.label').addEventListener('input', e => { p.label = e.target.value; changed(); });
   d.querySelector('.value').addEventListener('input', e => { p.value = e.target.value; changed(); });
   d.querySelector('.del').addEventListener('click', () => { S.prayers = S.prayers.filter(x => x !== p); d.remove(); changed(); });
-  return d;
+  return collapsible(d, () => [p.label, [p.value, DAYQ[p.q || '']].filter(Boolean).join(' · ')]);
 }
 // ---------- כיבוי בתאריכים ----------
 const HEB_MONTHS = ['תשרי','חשון','כסלו','טבת','שבט','אדר','אדר א','אדר ב','ניסן','אייר','סיון','תמוז','אב','אלול'];
@@ -390,7 +429,7 @@ function offCard(o){
   d.querySelector('.of').addEventListener('change', e => { o.from = e.target.value; changed(); });
   d.querySelector('.ot').addEventListener('change', e => { o.to = e.target.value; changed(); });
   d.querySelector('.del').addEventListener('click', () => { S.offDates = S.offDates.filter(x => x !== o); d.remove(); changed(); });
-  return d;
+  return collapsible(d, () => [hebNum(+o.d) + ' ' + o.m, o.from && o.to ? ltr(o.from + '–' + o.to) : o.from ? 'מ־' + o.from : o.to ? 'עד ' + o.to : 'כל היום']);
 }
 // ---------- שיעורי זום ----------
 const LIVE_RE = { zoom: /^https:\/\/\S+$/i, youtube: /^https:\/\/([\w-]+\.)*(youtube\.com|youtu\.be)\/\S+$/i, web: /^https:\/\/\S+$/i };
@@ -434,7 +473,7 @@ function mazalCard(z){
   d.querySelector('.mf').addEventListener('change', e => { z.from = e.target.value; if(!z.to || z.to < z.from){ z.to = z.from; d.querySelector('.mto').value = z.to; } changed(); });
   d.querySelector('.mto').addEventListener('change', e => { z.to = e.target.value; changed(); });
   d.querySelector('.del').addEventListener('click', () => { S.mazal = S.mazal.filter(x => x !== z); d.remove(); changed(); });
-  return d;
+  return collapsible(d, () => [(z.title ? z.title + ' – ' : '') + (z.text || ''), z.from === z.to ? fmtD(z.from) : ltr(fmtD(z.from) + '–' + fmtD(z.to))]);
 }
 $('addMazal').addEventListener('click', () => {
   const t = new Date(), iso = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,10);
@@ -476,7 +515,7 @@ function zoomCard(z){
   q('.ze').addEventListener('change', e => { z.e = e.target.value; changed(); });
   q('.del').addEventListener('click', () => { S.zoom = S.zoom.filter(x => x !== z); d.remove(); syncLive(); changed(); });
   syncType();
-  return d;
+  return collapsible(d, () => [z.title || 'שיעור', [({zoom:'זום', youtube:'יוטיוב', web:'אתר'})[z.type], daysTxt(z.ds), z.t].filter(Boolean).join(' · ')]);
 }
 $('addZoom').addEventListener('click', () => {
   const z = {title:'', type:'zoom', link:'', ds:[4], t:'21:00', e:'22:00'}; S.zoom.push(z); const c = zoomCard(z); $('zoomList').appendChild(c); c.querySelector('.ztl').focus(); changed();
@@ -502,7 +541,31 @@ function valid(){
   if (S.city === OTHER && (!/^-?\d+(\.\d+)?$/.test(String(S.lat).trim()) || !/^-?\d+(\.\d+)?$/.test(String(S.lon).trim()))) return 'חסרים קו רוחב וקו אורך';
   return '';
 }
+// סיכום "מה מוצג עכשיו" – מתעדכן בכל שינוי
+function nowCard(){
+  const box = $('nowBox'); if (!box || !S) return;
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const SN = {msgs:'הודעות', zmanim:'זמני היום', prayers:'זמני תפילות', learn:'לימוד יומי', tefila:'היום בתפילה', daf:'לימוד יומי'};
+  const slot = (k, rk) => { const a = S[k] || []; return a.length ? a.map(x => SN[x] || x).join(' ⇄ ') + (a.length > 1 ? ` (כל ${(S[rk] || S.rotate || 30) >= 60 ? (S[rk] || S.rotate) / 60 + ' דק׳' : (S[rk] || S.rotate || 30) + ' שנ׳'})` : '') : 'ריק'; };
+  const LN = Object.fromEntries(LEARN);
+  const mz = (S.mazal || []).filter(z => z.text && z.from <= today && today <= (z.to || z.from));
+  const rows = [
+    ['ימין', slot('slotR', 'rotR')], ['שמאל', slot('slotL', 'rotL')], ['למטה', slot('slotB', 'rotB')],
+    ['לימוד יומי', (S.learn || []).map(k => LN[k]).filter(Boolean).join(', ') || 'לא נבחר'],
+    ['הודעות היום', [mz.length ? (mz.length === 1 ? 'ברכה אחת' : mz.length + ' ברכות') : '', S.haftara && S.nusach ? 'הפטרה (' + (S.nusach === 'seph' ? 'ספרד' : 'אשכנז') + ')' : ''].filter(Boolean).join(' + ') || 'רק ממסמך ההודעות'],
+  ];
+  // השיעור הבא
+  const now = new Date(), cur = now.getDay() * 1440 + now.getHours() * 60 + now.getMinutes();
+  let best = null;
+  (S.zoom || []).forEach(z => (z.ds || []).forEach(d => { if (!z.t) return; const [h, m] = z.t.split(':').map(Number);
+    let at = d * 1440 + h * 60 + m - cur; if (at < 0) at += 7 * 1440; if (!best || at < best.at) best = {at, z, d}; }));
+  rows.push(['השיעור הבא', best ? `${best.z.title || 'שיעור'} – ${DAYS_L[best.d]} ${best.z.t} (${({zoom:'זום', youtube:'יוטיוב', web:'אתר'})[best.z.type] || ''})` : 'אין שיעורים']);
+  rows.push(['מצב המסך', S.screenOff ? 'כבוי עכשיו' : S.nightOff ? 'דולק · כבוי בלילה ' + ltr((S.nightFrom || '') + '–' + (S.nightTo || '')) : 'דולק']);
+  box.innerHTML = rows.map(([a, b]) => `<div class="r"><span>${a}</span><b></b></div>`).join('');
+  box.querySelectorAll('.r b').forEach((el, i) => el.textContent = rows[i][1]);
+}
 function changed(){
+  try { nowCard(); } catch (e) {}
   clearTimeout(timer);
   const v = valid(); if (v){ status(v, 'err'); return; }
   status('שומר…', 'saving');
@@ -644,7 +707,7 @@ async function load(){
     const r = await fetch(`${API}?page=api&shul=${encodeURIComponent(SHUL)}&key=${encodeURIComponent(KEY)}&t=${Date.now()}`, {cache:'no-store'});
     const j = await r.json();
     if (!j.ok) return fail(j.error || 'הקישור אינו תקין.');
-    S = j.s; DOC = j.doc; bind(); status('מעודכן', 'saved');
+    S = j.s; DOC = j.doc; bind(); BOUND = true; nowCard(); status('מעודכן', 'saved');
   } catch(e){ fail('אין חיבור לאינטרנט. נסו שוב בעוד רגע.'); }
 }
 load();
