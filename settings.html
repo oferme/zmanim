@@ -113,6 +113,19 @@ nav button.on .pill{background:rgba(226,184,87,.18)}
 nav .pill{padding:3px 12px;border-radius:999px;transition:background .2s}
 .install{background:linear-gradient(160deg,#1d3a70,#12244a);border:1px solid var(--gold)}
 .install .x{float:left;border:0;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer}
+.hallrow{display:flex;align-items:center;gap:10px}
+.hallrow span{flex:none;min-width:56px;font-weight:700;direction:ltr;text-align:right}
+.hallrow select{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips .chip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 8px 6px 12px;font-weight:600}
+.chips .chip button{border:0;background:none;color:var(--danger);font-size:18px;line-height:1;cursor:pointer;padding:0 2px}
+.scrseg{margin-top:2px}
+.scrseg button{padding:5px 11px !important;font-size:13px !important}
+.imgprev{display:flex;align-items:center;justify-content:center;min-height:110px;border:1px dashed var(--line);border-radius:12px;padding:6px;color:var(--muted);font-size:14px;overflow:hidden}
+.imgprev img{max-width:100%;max-height:180px;border-radius:8px}
+textarea.field{min-height:90px;resize:vertical;font:inherit;line-height:1.5}
+.addrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.addrow .add{padding:11px 8px}
 .err-screen{flex:1;display:grid;place-items:center;text-align:center;padding:30px;color:var(--muted);font-size:18px;line-height:1.7}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -167,6 +180,16 @@ nav .pill{padding:3px 12px;border-radius:999px;transition:background .2s}
   <!-- לשונית: מבנה המסך -->
   <section class="tab" id="t-layout">
     <div class="card">
+      <h2>עיצוב המסך</h2>
+      <div id="scrBox" hidden>
+        <label class="cap" style="margin-top:0">איזה מסך עורכים</label>
+        <div class="seg" id="scrSel" data-vals="1,2" data-labels="מסך ראשי,מסך 2"></div>
+      </div>
+      <label class="cap" id="themeCap">עיצוב</label>
+      <div class="seg" id="theme" data-vals="dark,light,picture" data-labels="כהה,בהיר,מסך תמונה"></div>
+      <p class="hint" id="themeHint" style="margin-top:8px"></p>
+    </div>
+    <div class="card" id="classicCard">
       <h2>תצוגה מקדימה</h2>
       <div class="preview" id="pv">
         <div class="ps" id="pvR"></div><div class="pc" id="pvC">10:30</div><div class="ps" id="pvL"></div>
@@ -180,6 +203,7 @@ nav .pill{padding:3px 12px;border-radius:999px;transition:background .2s}
       <h2>לימוד יומי</h2>
       <p class="hint" style="margin-bottom:10px">מסמנים מה להציג, ובוחרים "לימוד יומי" באחת המשבצות למעלה.</p>
       <div class="seg" id="learn"></div>
+      <div id="learnScrBox" hidden style="margin-top:12px;display:flex;flex-direction:column;gap:10px"></div>
     </div>
     <div class="card">
       <h2>היום בתפילה</h2>
@@ -212,12 +236,48 @@ nav .pill{padding:3px 12px;border-radius:999px;transition:background .2s}
     </div>
   </section>
 
+  <!-- לשונית: מסך תמונה -->
+  <section class="tab" id="t-pic">
+    <div class="card">
+      <h2>מסך תמונה</h2>
+      <p class="hint">מסך בהיר עם מסגרת, למסדרון או לכניסה – אנשים עומדים קרוב, ולכן הכתב קטן ויש מקום לתמונה גדולה באמצע.</p>
+      <label class="cap" style="margin-top:12px">מסגרת</label>
+      <div class="seg" id="picFrame" data-vals="gold,vintage,ornate" data-labels="זהב,וינטאג׳,וינטאג׳ עם עיטורים"></div>
+    </div>
+    <div class="card">
+      <h2>קוביות בצדדים</h2>
+      <p class="hint" style="margin-bottom:6px">עד 3 בכל צד, לפי סדר הבחירה (הראשונה למעלה).</p>
+      <div class="slotpick"><div class="head"><b>צד ימין</b></div><div class="seg" id="picR"></div></div>
+      <div class="slotpick"><div class="head"><b>צד שמאל</b></div><div class="seg" id="picL"></div></div>
+      <p class="hint" style="margin-top:10px">ברכות ושמחות מופיעות בפס מתחת לתמונה המרכזית.</p>
+    </div>
+    <div class="card">
+      <h2>התמונה המרכזית</h2>
+      <p class="hint" style="margin-bottom:10px">לכל פריט בוחרים באילו ימים הוא מוצג (ואפשר גם מתאריך עד תאריך). כשכמה פריטים מוצגים באותו יום – הם מתחלפים. בלי פריט להיום – מוצג שעון גדול.</p>
+      <div id="centerList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px"></div>
+      <div class="addrow">
+        <button class="add" type="button" data-add="shabbat">+ זמני השבת</button>
+        <button class="add" type="button" data-add="chag">+ זמני החג</button>
+        <button class="add" type="button" data-add="poster">+ מודעה</button>
+        <button class="add" type="button" data-add="image">+ תמונה</button>
+      </div>
+      <label class="cap" style="margin-top:14px">החלפה בין הפריטים כל</label>
+      <div class="seg" id="picRot" data-vals="10,15,20,30,60" data-labels="10 שנ׳,15 שנ׳,20 שנ׳,30 שנ׳,דקה"></div>
+    </div>
+  </section>
+
   <!-- לשונית: תפילות -->
   <section class="tab" id="t-pray">
     <div class="card">
       <h2>זמני תפילות</h2>
       <p class="hint">שעה קבועה (<b>6:30</b>) או יחסית: <b>15 דקות לפני השקיעה</b>, <b>שקיעה+20</b>, <b>הדלקת נרות+10</b>. כמה מניינים – עם פסיק: <b>6:15, 7:30</b>. כדי שיופיעו במסך, בוחרים "תפילות" באחת המשבצות.</p>
       <p class="hint" style="margin-top:8px"><b>ימים:</b> תפילה של "שישי" או "שבת" מחליפה באותו יום את התפילה עם אותו שם של "כל יום". ביום שישי מופיע גם הערב, ולכן <b>קבלת שבת</b> וערבית של ליל שבת נכנסות תחת "שישי".</p>
+    </div>
+    <div class="card">
+      <h2>מקומות התפילה</h2>
+      <p class="hint" style="margin-bottom:10px">כשמניין מתקיים במקום אחר (בית המדרש, היכל עליון...) – מוסיפים כאן את המקום, ובכל תפילה בוחרים אותו ליד השעה. בלי בחירה = ההיכל הרגיל, ושום דבר לא מוצג. כדאי שם קצר.</p>
+      <div class="chips" id="hallList" style="margin-bottom:10px"></div>
+      <div class="two"><input class="field" id="hallNew" placeholder="למשל: בית המדרש" maxlength="24"><button class="add" type="button" id="hallAdd" style="flex:0 0 90px;padding:10px">הוספה</button></div>
     </div>
     <div id="prayers" style="display:flex;flex-direction:column;gap:10px"></div>
     <button class="add" type="button" id="addPrayer">+ הוספת תפילה</button>
@@ -229,6 +289,7 @@ nav .pill{padding:3px 12px;border-radius:999px;transition:background .2s}
     <div class="card">
       <h2>מסמך ההודעות</h2>
       <p class="hint" style="margin-bottom:12px">את ההודעות למסך כותבים במסמך ההודעות של בית הכנסת.</p>
+      <p class="hint" id="msgScrHint" hidden style="margin-bottom:12px">הודעה שצריכה להופיע רק באחד המסכים: כותבים מעליה שורה <b>[מסך 2]</b> או <b>[מסך ראשי]</b> (אפשר גם יחד עם תאריך, למשל: <b>יג [מסך 2]</b>). בלי סימון – בשני המסכים.</p>
       <a class="big gold" id="docBtn" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">פתיחת מסמך ההודעות</a>
     </div>
     <div class="card">
@@ -303,6 +364,7 @@ nav .pill{padding:3px 12px;border-radius:999px;transition:background .2s}
 <nav id="nav">
   <button type="button" class="on" data-tab="t-loc"><span class="pill"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>מיקום</button>
   <button type="button" data-tab="t-layout"><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>מסך</button>
+  <button type="button" data-tab="t-pic" id="navPic" hidden><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5"/><rect x="6.5" y="7.5" width="11" height="9"/></svg></span>תמונה</button>
   <button type="button" data-tab="t-pray"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>תפילות</button>
   <button type="button" data-tab="t-msg"><span class="pill"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></span>הודעות</button>
   <button type="button" data-tab="t-les"><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg></span>שיעורים</button>
@@ -334,7 +396,17 @@ const OTHER = 'אחר / חוץ לארץ';
 const TZS = ['Asia/Jerusalem','Europe/London','Europe/Paris','Europe/Antwerp','America/New_York','America/Chicago','America/Los_Angeles','America/Toronto','America/Sao_Paulo','America/Argentina/Buenos_Aires','America/Mexico_City','Australia/Sydney','Africa/Johannesburg','Europe/Moscow','Europe/Kiev'];
 const SLOTS = [['msgs','הודעות'],['zmanim','זמני היום'],['prayers','תפילות'],['learn','לימוד יומי'],['tefila','היום בתפילה']];
 const SLOT_NAME = Object.assign({daf:'לימוד יומי'}, Object.fromEntries(SLOTS));
-let S = null, DOC = '';
+let S = null, DOC = '', SCREENS = 1, EDIT = 1;
+// בחירת מסך לפריט (כשיש לבית הכנסת 2 מסכים): '' = בשניהם, '1' = רק הראשי, '2' = רק מסך 2
+function scrSeg(obj){
+  const w = document.createElement('div');
+  if (SCREENS < 2) return w;
+  w.innerHTML = '<label class="cap">באיזה מסך</label><div class="seg scrseg" data-vals=",1,2" data-labels="בשני המסכים,רק במסך הראשי,רק במסך 2"></div>';
+  segment(w.querySelector('.seg'), obj.scr || '', v => { obj.scr = v; changed(); });
+  return w;
+}
+const SCR_TXT = {'': '', '1': 'מסך ראשי', '2': 'מסך 2'};
+const segSet = (el, v) => el.querySelectorAll('button').forEach(b => { const on = b.dataset.v === String(v ?? ''); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
 
 // ---------- ניווט ----------
 document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
@@ -390,6 +462,7 @@ function collapsible(d, sumFn){
   ['input','change','click'].forEach(ev => d.addEventListener(ev, e => { if (!b.contains(e.target)) setTimeout(upd, 0); }));
   return d;
 }
+let HALL_DRAW = [];
 const DAYQ = {'': 'כל יום', 'א-ה': 'א׳–ה׳', 'שישי': 'שישי', 'שבת': 'שבת', 'חול': 'חול'};
 const ltr = t => '\u2066' + t + '\u2069';   // טווחי שעות/תאריכים – משמאל לימין, כדי שלא יתהפכו בעברית
 const fmtD = iso => iso ? iso.split('-').reverse().slice(0, 2).map(Number).join('.') : '';
@@ -404,14 +477,36 @@ function prayerCard(p){
   const d = document.createElement('div'); d.className = 'pr';
   d.innerHTML = `<div class="top"><input class="field label" placeholder="שם (שחרית)" aria-label="שם התפילה"></div>
     <input class="field value" dir="auto" placeholder="6:30, 7:15  או  15 דקות לפני השקיעה" aria-label="זמנים">
+    <div class="halls" style="display:flex;flex-direction:column;gap:8px"></div>
     <div class="seg days" data-vals=",א-ה,שישי,שבת" data-labels="כל יום,א׳–ה׳,שישי,שבת"></div>
     <button type="button" class="del">מחיקה</button>`;
   d.querySelector('.label').value = p.label || ''; d.querySelector('.value').value = p.value || '';
+  p.halls = Array.isArray(p.halls) ? p.halls : [];
+  // מקום לכל שעה (רק כשהוגדרו מקומות)
+  const hb = d.querySelector('.halls');
+  const drawHalls = () => {
+    const toks = String(p.value || '').split(',').map(x => x.trim());
+    if (!(S.halls || []).length || !toks.some(Boolean)) { hb.innerHTML = ''; hb.hidden = true; return; }
+    hb.hidden = false;
+    hb.innerHTML = '<label class="cap" style="margin:0">מקום</label>' + toks.map((t, i) => t ? `<div class="hallrow"><span></span><select class="field" data-i="${i}"></select></div>` : '').join('');
+    hb.querySelectorAll('.hallrow').forEach(r => {
+      const sel = r.querySelector('select'), i = +sel.dataset.i;
+      r.querySelector('span').textContent = toks[i];
+      const opts = ['', ...S.halls]; if (p.halls[i] && !opts.includes(p.halls[i])) opts.push(p.halls[i]);
+      opts.forEach(h => sel.add(new Option(h || 'ההיכל הרגיל', h)));
+      sel.value = p.halls[i] || '';
+      sel.addEventListener('change', () => { while (p.halls.length < toks.length) p.halls.push(''); p.halls[i] = sel.value; changed(); });
+    });
+  };
+  drawHalls(); HALL_DRAW.push(drawHalls);
   segment(d.querySelector('.days'), p.q || '', v => { p.q = v; changed(); });
+  d.querySelector('.days').after(scrSeg(p));
   d.querySelector('.label').addEventListener('input', e => { p.label = e.target.value; changed(); });
-  d.querySelector('.value').addEventListener('input', e => { p.value = e.target.value; changed(); });
+  let ht = null;
+  d.querySelector('.value').addEventListener('input', e => { p.value = e.target.value; changed(); clearTimeout(ht); ht = setTimeout(drawHalls, 600); });
   d.querySelector('.del').addEventListener('click', () => { S.prayers = S.prayers.filter(x => x !== p); d.remove(); changed(); });
-  return collapsible(d, () => [p.label, [p.value, DAYQ[p.q || '']].filter(Boolean).join(' · ')]);
+  const withHalls = () => String(p.value || '').split(',').map((t, i) => t.trim() + (p.halls[i] ? ' (' + p.halls[i] + ')' : '')).join(', ');
+  return collapsible(d, () => [p.label, [withHalls(), DAYQ[p.q || ''], SCR_TXT[p.scr || '']].filter(Boolean).join(' · ')]);
 }
 // ---------- כיבוי בתאריכים ----------
 const HEB_MONTHS = ['תשרי','חשון','כסלו','טבת','שבט','אדר','אדר א','אדר ב','ניסן','אייר','סיון','תמוז','אב','אלול'];
@@ -452,8 +547,100 @@ function learnPicker(){
     const b = e.target.closest('button'); if(!b) return;
     const v = b.dataset.v;
     S.learn = S.learn.includes(v) ? S.learn.filter(x => x !== v) : LEARN.map(x => x[0]).filter(x => x === v || S.learn.includes(x));
-    paint(); changed();
+    paint(); learnScr(); changed();
   });
+}
+// לימוד שמוצג רק באחד המסכים
+function learnScr(){
+  const box = $('learnScrBox'); if (!box) return;
+  box.hidden = SCREENS < 2 || !S.learn.length;
+  if (box.hidden) return;
+  S.learnScr = S.learnScr || {};
+  const LN = Object.fromEntries(LEARN);
+  box.innerHTML = '<label class="cap" style="margin:0">באיזה מסך כל לימוד מוצג</label>' + S.learn.map(k => `<div><b style="font-weight:600;font-size:14px">${LN[k]}</b><div class="seg scrseg" data-k="${k}" data-vals=",1,2" data-labels="בשני המסכים,רק ראשי,רק מסך 2" style="margin-top:4px"></div></div>`).join('');
+  box.querySelectorAll('.seg').forEach(el => segment(el, S.learnScr[el.dataset.k] || '', v => { if (v) S.learnScr[el.dataset.k] = v; else delete S.learnScr[el.dataset.k]; changed(); }));
+}
+// ---------- מקומות התפילה ----------
+function hallChips(){
+  S.halls = S.halls || [];
+  $('hallList').innerHTML = S.halls.length ? S.halls.map((h, i) => `<span class="chip"><span></span><button type="button" data-i="${i}" aria-label="מחיקה">×</button></span>`).join('') : '<span class="hint">עדיין לא הוגדרו מקומות</span>';
+  $('hallList').querySelectorAll('.chip').forEach((c, i) => c.querySelector('span').textContent = S.halls[i]);
+}
+function addHall(){
+  const v = $('hallNew').value.replace(/[(),|]/g, ' ').trim().slice(0, 24);
+  if (!v || S.halls.includes(v) || S.halls.length >= 10) return;
+  S.halls.push(v); $('hallNew').value = ''; hallChips(); HALL_DRAW.forEach(f => f()); changed();
+}
+// ---------- מסך תמונה ----------
+const PICBOX = [['zmanim','זמני היום'],['prayers','תפילות היום'],['learn','לימוד יומי'],['tefila','היום בתפילה'],['msgs','הודעות']];
+const CNAME = {shabbat:'זמני השבת', chag:'זמני החג', poster:'מודעה', image:'תמונה'};
+function picPicker(id, k){
+  const el = $(id);
+  const paint = () => { el.innerHTML = PICBOX.map(([v, t]) => { const i = S.pic[k].indexOf(v); return `<button type="button" data-v="${v}" class="${i >= 0 ? 'on' : ''}" aria-pressed="${i >= 0}">${i >= 0 ? (i + 1) + ' · ' : ''}${t}</button>`; }).join(''); };
+  paint();
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const v = b.dataset.v, a = S.pic[k];
+    if (a.includes(v)) S.pic[k] = a.filter(x => x !== v); else if (a.length < 3) S.pic[k] = [...a, v]; else { status('עד 3 קוביות בכל צד', 'err'); return; }
+    paint(); changed(); });
+}
+async function imgData(id){
+  const r = await fetch(`${API}?shul=${encodeURIComponent(SHUL)}&what=img&id=${encodeURIComponent(id)}`, {cache:'no-store'});
+  const d = (await r.text()).trim(); return /^data:image\//.test(d) ? d : '';
+}
+function centerCard(c){
+  const d = document.createElement('div'); d.className = 'pr';
+  const f = (cls, cap, ph, ta) => `<div><label class="cap">${cap}</label>${ta ? `<textarea class="field ${cls}" placeholder="${ph}"></textarea>` : `<input type="text" class="field ${cls}" placeholder="${ph}">`}</div>`;
+  let body = '';
+  if (c.type === 'shabbat') body = '<p class="hint">הזמנים נכנסים לבד: הדלקת נרות, צאת השבת, סוף זמן ק״ש, והתפילות שמוגדרות ל"שישי" ול"שבת" בלשונית תפילות.</p>' + f('ctl', 'כותרת (לא חובה)', 'זמני השבת · פרשת השבוע') + f('cnt', 'שורה בתחתית (לא חובה)', 'קידוש לכל הקהל אחרי התפילה');
+  else if (c.type === 'chag') body = '<p class="hint">מוצג רק כשיש חג בימים הקרובים (מ-4 ימים לפני ועד צאת החג), עם זמני הדלקת הנרות וצאת החג.</p>' + f('ctl', 'כותרת (לא חובה)', 'זמני החג · שם החג') + f('cnt', 'שורה בתחתית (לא חובה)', '');
+  else if (c.type === 'poster') body = f('ckk', 'שורה עליונה קטנה', 'למשל: הרצאה לנשים') + f('ctl', 'כותרת', 'הרב לוי – שלום בית') + f('ctx', 'טקסט', 'יום שלישי בשעה 20:00\nבעזרת נשים', true) + f('cnt', 'שורה בתחתית (לא חובה)', 'הכניסה חופשית');
+  else body = `<div class="imgprev">אין תמונה</div><label class="add" style="text-align:center;cursor:pointer;display:block">העלאת תמונה<input type="file" class="cfile" accept="image/*" hidden></label>
+    <div><label class="cap">התאמה למסגרת</label><div class="seg cfit" data-vals="contain,cover" data-labels="כל התמונה,מילוי המסגרת"></div></div><p class="hint">מומלץ תמונה לרוחב (פוסטר של אירוע, תמונה של בית הכנסת).</p>`;
+  d.innerHTML = body + `<div><label class="cap">ימים</label><div class="seg cds"></div></div>
+    <div class="two"><div><label class="cap">מתאריך (לא חובה)</label><input class="field cf" type="date" dir="ltr"></div><div><label class="cap">עד תאריך</label><input class="field ct" type="date" dir="ltr"></div></div>
+    <button type="button" class="del">מחיקה</button>`;
+  const q = x => d.querySelector(x);
+  [['.ckk','kicker'],['.ctl','title'],['.ctx','text'],['.cnt','note']].forEach(([cl, k]) => { const el = q(cl); if (!el) return; el.value = c[k] || ''; el.addEventListener('input', () => { c[k] = el.value; changed(); }); });
+  c.ds = Array.isArray(c.ds) ? c.ds : [0,1,2,3,4,5,6];
+  const ds = q('.cds');
+  ds.innerHTML = ZDAYS.map(([v, t]) => `<button type="button" data-v="${v}">${v === '6' ? 'שבת' : t}</button>`).join('');
+  const paint = () => ds.querySelectorAll('button').forEach(b => { const on = c.ds.includes(+b.dataset.v); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  paint();
+  ds.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const v = +b.dataset.v; c.ds = c.ds.includes(v) ? c.ds.filter(x => x !== v) : [...c.ds, v].sort(); paint(); changed(); });
+  q('.cf').value = c.from || ''; q('.ct').value = c.to || '';
+  q('.cf').addEventListener('change', e => { c.from = e.target.value; changed(); });
+  q('.ct').addEventListener('change', e => { c.to = e.target.value; changed(); });
+  if (c.type === 'image') {
+    const pv = q('.imgprev');
+    const showImg = src => { pv.innerHTML = src ? `<img src="${src}" alt="">` : 'אין תמונה'; };
+    if (c._prev) showImg(c._prev); else if (c.img) { pv.textContent = 'טוען…'; imgData(c.img).then(showImg).catch(() => showImg('')); }
+    segment(q('.cfit'), c.fit || 'contain', v => { c.fit = v; changed(); });
+    q('.cfile').addEventListener('change', async e => {
+      const file = e.target.files[0]; if (!file) return;
+      status('מעלה תמונה…', 'saving');
+      try {
+        const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = URL.createObjectURL(file); });
+        const k = Math.min(1, 1600 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+        const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height);
+        const data = cv.toDataURL('image/jpeg', 0.85);
+        const j = await post({shul:SHUL, key:KEY, action:'img', data});
+        c.img = j.id; c._prev = data; showImg(data); changed();
+      } catch (err) { status('התמונה לא נשמרה', 'err'); }
+      e.target.value = '';
+    });
+  }
+  q('.del').addEventListener('click', () => { S.pic.center = S.pic.center.filter(x => x !== c); d.remove(); changed(); });
+  return collapsible(d, () => [CNAME[c.type] + (c.title ? ' – ' + c.title : ''), [daysTxt(c.ds), c.from || c.to ? ltr(fmtD(c.from) + '–' + fmtD(c.to)) : ''].filter(Boolean).join(' · ')]);
+}
+const THEME_TXT = {dark: 'כהה', light: 'בהיר', picture: 'מסך תמונה'};
+function syncTheme(){
+  const th = EDIT === 2 ? (S.theme2 || 'picture') : (S.theme || 'dark');
+  segSet($('theme'), th);
+  $('themeCap').textContent = SCREENS > 1 ? (EDIT === 2 ? 'עיצוב מסך 2' : 'עיצוב המסך הראשי') : 'עיצוב';
+  $('classicCard').hidden = th === 'picture';
+  $('themeHint').innerHTML = th === 'picture' ? 'את הקוביות ואת התמונה המרכזית מגדירים בלשונית <b>תמונה</b> שלמטה.'
+    : (SCREENS > 1 && (S.theme || 'dark') !== 'picture' && (S.theme2 || 'picture') !== 'picture') ? 'שני המסכים בעיצוב רגיל – המשבצות למטה משותפות לשניהם.' : '';
+  $('navPic').hidden = !((S.theme === 'picture') || (SCREENS > 1 && (S.theme2 || 'picture') === 'picture'));
 }
 // ---------- מזל טוב ----------
 const MAZAL_TITLES = ['בשעה טובה','בשעה טובה ומוצלחת','ברכות ואיחולים','שמחות בקהילה','ברכת מזל טוב'];
@@ -473,7 +660,8 @@ function mazalCard(z){
   d.querySelector('.mf').addEventListener('change', e => { z.from = e.target.value; if(!z.to || z.to < z.from){ z.to = z.from; d.querySelector('.mto').value = z.to; } changed(); });
   d.querySelector('.mto').addEventListener('change', e => { z.to = e.target.value; changed(); });
   d.querySelector('.del').addEventListener('click', () => { S.mazal = S.mazal.filter(x => x !== z); d.remove(); changed(); });
-  return collapsible(d, () => [(z.title ? z.title + ' – ' : '') + (z.text || ''), z.from === z.to ? fmtD(z.from) : ltr(fmtD(z.from) + '–' + fmtD(z.to))]);
+  d.querySelector('.del').before(scrSeg(z));
+  return collapsible(d, () => [(z.title ? z.title + ' – ' : '') + (z.text || ''), [z.from === z.to ? fmtD(z.from) : ltr(fmtD(z.from) + '–' + fmtD(z.to)), SCR_TXT[z.scr || '']].filter(Boolean).join(' · ')]);
 }
 $('addMazal').addEventListener('click', () => {
   const t = new Date(), iso = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,10);
@@ -550,6 +738,7 @@ function nowCard(){
   const LN = Object.fromEntries(LEARN);
   const mz = (S.mazal || []).filter(z => z.text && z.from <= today && today <= (z.to || z.from));
   const rows = [
+    ['עיצוב', THEME_TXT[S.theme || 'dark'] + (SCREENS > 1 ? ' · מסך 2: ' + THEME_TXT[S.theme2 || 'picture'] : '')],
     ['ימין', slot('slotR', 'rotR')], ['שמאל', slot('slotL', 'rotL')], ['למטה', slot('slotB', 'rotB')],
     ['לימוד יומי', (S.learn || []).map(k => LN[k]).filter(Boolean).join(', ') || 'לא נבחר'],
     ['הודעות היום', [mz.length ? (mz.length === 1 ? 'ברכה אחת' : mz.length + ' ברכות') : '', S.haftara && S.nusach ? 'הפטרה (' + (S.nusach === 'seph' ? 'ספרד' : 'אשכנז') + ')' : ''].filter(Boolean).join(' + ') || 'רק ממסמך ההודעות'],
@@ -577,6 +766,7 @@ async function post(body){
 }
 async function save(){
   const s = Object.assign({}, S, {prayers: S.prayers.filter(p => (p.label||'').trim() && (p.value||'').trim())});
+  if (S.pic) s.pic = Object.assign({}, S.pic, {center: (S.pic.center || []).map(c => { const x = Object.assign({}, c); delete x._prev; return x; })});
   try { await post({shul:SHUL, key:KEY, action:'save', s}); status('נשמר ✓', 'saved'); }
   catch(e){ status('לא נשמר – בדקו חיבור', 'err'); }
 }
@@ -649,7 +839,29 @@ function bind(){
   preview();
 
   S.learn = S.learn || [];
-  learnPicker();
+  learnPicker(); learnScr();
+  // עיצוב ומסכים
+  $('scrBox').hidden = SCREENS < 2; $('msgScrHint').hidden = SCREENS < 2;
+  if (SCREENS > 1) segment($('scrSel'), '1', v => { EDIT = +v; syncTheme(); });
+  segment($('theme'), S.theme || 'dark', v => { if (EDIT === 2) S.theme2 = v; else S.theme = v; syncTheme(); changed(); });
+  syncTheme();
+  // מסך תמונה
+  S.pic = S.pic || {}; S.pic.R = S.pic.R || ['zmanim','learn']; S.pic.L = S.pic.L || ['prayers','msgs']; S.pic.center = S.pic.center || [];
+  segment($('picFrame'), S.pic.frame || 'gold', v => { S.pic.frame = v; changed(); });
+  picPicker('picR', 'R'); picPicker('picL', 'L');
+  segment($('picRot'), String(S.pic.rot || 20), v => { S.pic.rot = +v; changed(); });
+  S.pic.center.forEach(c => $('centerList').appendChild(centerCard(c)));
+  document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+    const t = b.dataset.add, c = {type: t, ds: t === 'shabbat' ? [3,4,5,6] : [0,1,2,3,4,5,6]};
+    S.pic.center.push(c); const el = centerCard(c); $('centerList').appendChild(el); changed();
+  }));
+  // מקומות התפילה
+  S.halls = S.halls || []; hallChips();
+  $('hallAdd').addEventListener('click', addHall);
+  $('hallNew').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addHall(); } });
+  $('hallList').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; const h = S.halls[+b.dataset.i];
+    S.halls = S.halls.filter((x, i) => i !== +b.dataset.i); (S.prayers || []).forEach(p => { p.halls = (p.halls || []).map(x => x === h ? '' : x); });
+    hallChips(); HALL_DRAW.forEach(f => f()); changed(); });
   $('tachanun').checked = S.tachanun !== false;
   $('tachanun').addEventListener('change', e => { S.tachanun = e.target.checked; changed(); });
   segment($('remind'), String(S.remind ?? 30), v => { S.remind = +v; changed(); });
@@ -707,7 +919,7 @@ async function load(){
     const r = await fetch(`${API}?page=api&shul=${encodeURIComponent(SHUL)}&key=${encodeURIComponent(KEY)}&t=${Date.now()}`, {cache:'no-store'});
     const j = await r.json();
     if (!j.ok) return fail(j.error || 'הקישור אינו תקין.');
-    S = j.s; DOC = j.doc; bind(); BOUND = true; nowCard(); status('מעודכן', 'saved');
+    S = j.s; DOC = j.doc; SCREENS = +j.screens || 1; bind(); BOUND = true; nowCard(); status('מעודכן', 'saved');
   } catch(e){ fail('אין חיבור לאינטרנט. נסו שוב בעוד רגע.'); }
 }
 load();

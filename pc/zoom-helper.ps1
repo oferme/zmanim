@@ -13,6 +13,7 @@ if (-not $mutex.WaitOne(0)) { exit }          # already running
 
 $shul = ''
 if ($Page -match 'shul=([A-Za-z0-9-]+)') { $shul = $matches[1].ToLower() }
+if ($Page -match 'screen=2') { exit }          # second screen (hallway) - shiurim only on the main screen
 if (-not $shul -or -not $Api) { exit }
 $kioskDir = Join-Path $env:LOCALAPPDATA 'ZmanimKiosk'
 $logFile  = Join-Path $env:LOCALAPPDATA 'ZmanimKiosk-zoom.log'

@@ -128,11 +128,11 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 17;
+const SERVER_BUILD = 18;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
-    rotate: 30, clock: 100, bottom: 90, tachanun: true, remind: 30, prayers: [] };
+    rotate: 30, clock: 100, bottom: 90, tachanun: true, remind: 30, prayers: [], theme: 'dark', theme2: 'picture' };
 }
 
 // ---------- הוספת בית כנסת ----------
@@ -235,7 +235,17 @@ function doGet(e) {
   if (p.what === 'yt') return json_(ytLatest_(String(p.url || ''), String(p.filter || ''), true));   // בדיקת "השיעור האחרון": ...exec?what=yt&url=...&filter=...
   if (!id) return out('ERR:NO_ID');
   const what = String(p.what || '');
+  const scr = String(p.screen || '') === '2' ? 2 : 1;   // מסך שני של אותו היכל: ...&screen=2
   const cache = CacheService.getScriptCache();
+  if (what === 'img') {   // תמונה למרכז מסך התמונה – רק תמונה ששייכת להגדרות של בית הכנסת הזה
+    const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
+    const fid = String(p.id || '');
+    if (!fid || !picImages_(st).includes(fid)) return out('');
+    try {
+      const b = DriveApp.getFileById(fid).getBlob();
+      return out('data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()));
+    } catch (e) { return out(''); }
+  }
   if (what === 'logo') {   // הלוגו כ-data URL דרך השרת – כך הוא עובר גם במחשבים עם סינון שחוסם את googleusercontent
     const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
     if (!st.logoId) return out('');
@@ -252,7 +262,8 @@ function doGet(e) {
     const err = checkDevice_(id, dev, String(p.code || '').replace(/\D/g, '').slice(0, 6), cache);
     if (err) return out(err);
   }
-  const hit = cache.get(what + 'shul_' + id);
+  const ck = what + 'shul_' + id + (scr === 2 ? '_2' : '');
+  const hit = cache.get(ck);
   if (hit !== null) return out(hit);
 
   const f = findRow_(id);
@@ -261,8 +272,9 @@ function doGet(e) {
   const ver = String(row[C.ver] || 1).replace(/\D/g, '') || '1';
   if (what === 'version') { cache.put('versionshul_' + id, ver, 60); return out(ver); }
   if (what === 'zoom') {   // לוח השיעורים בזום – נקרא ע"י zoom-helper.ps1 במחשב של בית הכנסת
-    const z = String(row[C.active]).trim() === 'לא' ? '' : zoomLines_(parseJson_(row[C.settings]) || {}, String(row[C.name] || id));
-    cache.put('zoomshul_' + id, z, 60); return out(z);
+    // שיעורים בזום / באתר – רק במסך הראשי (מחשב של מסך 2 לא מצטרף)
+    const z = String(row[C.active]).trim() === 'לא' || scr === 2 ? '' : zoomLines_(parseJson_(row[C.settings]) || {}, String(row[C.name] || id));
+    cache.put(ck, z, 60); return out(z);
   }
 
   const active = String(row[C.active]).trim();
@@ -281,11 +293,11 @@ function doGet(e) {
     const s = parseJson_(row[C.settings]);
     if (s) nusachDefault_(s, row);
     if (s) {   // הגדרות מהטופס גוברות על שורות ! במסמך (חוץ מטבלת נץ)
-      text = text.split(/\r?\n/).filter(l => !/^\s*!/.test(l) || /טבלת נץ/.test(l)).join('\n') + '\n' + settingsLines_(s);
+      text = text.split(/\r?\n/).filter(l => !/^\s*!/.test(l) || /טבלת נץ/.test(l)).join('\n') + '\n' + settingsLines_(s, scr);
     }
     text += '\n! גרסת מערכת: ' + ver + '\n! גרסת שרת: ' + SERVER_BUILD;
   }
-  cache.put('shul_' + id, text, 60);
+  cache.put(ck, text, 60);
   return out(text);
 }
 // בודק אם המסך מאושר. מסכים חדשים מאושרים אוטומטית עד המכסה ("מספר מסכים"), מעבר לזה – ממתינים לאישור ידני
@@ -322,8 +334,8 @@ function apiLoad_(id, key) {
   const f = id ? findRow_(id) : null;
   if (!f || !key || String(f.row[C.key]) !== key) return { ok: false, error: 'הקישור אינו תקין. יש לפנות למנהל המערכת.' };
   const s = Object.assign(defaults_(f.row[C.name]), parseJson_(f.row[C.settings]) || {});
-  migrateDaf_(s); nusachDefault_(s, f.row);
-  return { ok: true, s, doc: String(f.row[C.doc] || ''), name: String(f.row[C.name] || '') };
+  migrateDaf_(s); nusachDefault_(s, f.row); s.pic = cleanPic_(s.pic);
+  return { ok: true, s, doc: String(f.row[C.doc] || ''), name: String(f.row[C.name] || ''), screens: Math.max(1, parseInt(f.row[C.screens], 10) || 1) };
 }
 // שמירה מהאפליקציה: גוף הבקשה = {"shul","key","action":"save"|"close","s":{...}}
 function doPost(e) {
@@ -332,6 +344,7 @@ function doPost(e) {
     const id = String(b.shul || '').toLowerCase();
     if (b.action === 'close') { closeScreen(id, b.key); return json_({ ok: true }); }
     if (b.action === 'logo') return json_(saveLogo_(id, b.key, String(b.data || '')));
+    if (b.action === 'img') return json_(saveImage_(id, b.key, String(b.data || '')));
     saveSettings(id, b.key, b.s || {});
     return json_({ ok: true });
   } catch (err) { return json_({ ok: false, error: String(err && err.message || err) }); }
@@ -344,7 +357,7 @@ function closeScreen(id, key) {
   const s = parseJson_(f.row[C.settings]) || defaults_(f.row[C.name]);
   s.closeAt = Date.now();
   f.sh.getRange(f.r, C.settings + 1).setValue(JSON.stringify(s));
-  CacheService.getScriptCache().remove('shul_' + id);
+  CacheService.getScriptCache().removeAll(['shul_' + id, 'shul_' + id + '_2']);
 }
 const HEB_MONTHS = ['תשרי', 'חשון', 'כסלו', 'טבת', 'שבט', 'אדר', 'אדר א', 'אדר ב', 'ניסן', 'אייר', 'סיון', 'תמוז', 'אב', 'אלול'];
 function hebDay_(n) { const o = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'], t = ['', 'י', 'כ', 'ל']; n = +n; return n === 15 ? 'טו' : n === 16 ? 'טז' : t[Math.floor(n / 10)] + o[n % 10]; }
@@ -456,9 +469,55 @@ function migrateDaf_(s) {
   if (!s.learn.includes('daf')) s.learn.unshift('daf');
   return true;
 }
-function settingsLines_(s) {
+// פריט שמוצג במסך מסוים: '' = בכל המסכים, '1' = רק המסך הראשי, '2' = רק מסך 2
+const onScr_ = (x, scr) => !x || !x.scr || +x.scr === scr;
+const THEMES = { dark: 'כהה', light: 'בהיר', picture: 'תמונה' };
+const PIC_BOX = ['zmanim', 'prayers', 'learn', 'tefila', 'msgs'];
+const PIC_TYPES = ['shabbat', 'chag', 'poster', 'image'];
+const FRAMES = ['gold', 'vintage', 'ornate'];
+// מזהי התמונות (בדרייב) שבמרכז מסך התמונה
+function picImages_(s) { return ((s && s.pic && s.pic.center) || []).filter(c => c.type === 'image' && c.img).map(c => String(c.img)); }
+// תמונה מהאפליקציה למרכז מסך התמונה: נשמרת בתיקייה "תמונות למסך" בדרייב. מחזיר את המזהה שלה
+function saveImage_(id, key, data) {
+  const f = findRow_(id);
+  if (!f || String(f.row[C.key]) !== String(key)) throw new Error('אין הרשאה');
+  const m = data.match(/^data:(image\/(png|jpeg|webp));base64,(.+)$/);
+  if (!m) throw new Error('קובץ לא תקין');
+  const bytes = Utilities.base64Decode(m[3]);
+  if (bytes.length > 2500000) throw new Error('הקובץ גדול מדי');
+  const it = DriveApp.getFoldersByName('תמונות למסך');
+  const folder = it.hasNext() ? it.next() : DriveApp.createFolder('תמונות למסך');
+  const file = folder.createFile(Utilities.newBlob(bytes, m[1], 'img-' + id + '-' + Date.now() + '.' + (m[2] === 'jpeg' ? 'jpg' : m[2])));
+  return { ok: true, id: file.getId() };
+}
+function cleanPic_(p) {
+  p = p || {};
+  const box = a => (Array.isArray(a) ? a : []).filter(x => PIC_BOX.includes(x)).filter((x, i, a2) => a2.indexOf(x) === i).slice(0, 3);
+  const txt = (v, n) => String(v || '').replace(/\r/g, '').slice(0, n);
+  return {
+    frame: FRAMES.includes(p.frame) ? p.frame : 'gold',
+    R: box(p.R || ['zmanim', 'learn']), L: box(p.L || ['prayers', 'msgs']),
+    rot: [10, 15, 20, 30, 60].includes(+p.rot) ? +p.rot : 20,
+    center: (Array.isArray(p.center) ? p.center : [{ type: 'shabbat', ds: [3, 4, 5, 6] }, { type: 'chag' }]).slice(0, 12).filter(c => c && PIC_TYPES.includes(c.type)).map(c => ({
+      type: c.type, ds: (Array.isArray(c.ds) ? c.ds : [0, 1, 2, 3, 4, 5, 6]).map(Number).filter(d => d >= 0 && d <= 6).filter((d, i, a) => a.indexOf(d) === i),
+      from: DATE_RE.test(c.from) ? c.from : '', to: DATE_RE.test(c.to) ? c.to : '',
+      kicker: txt(c.kicker, 40), title: txt(c.title, 80), text: txt(c.text, 600), note: txt(c.note, 160),
+      img: c.type === 'image' ? String(c.img || '').replace(/[^\w-]/g, '').slice(0, 80) : '', fit: c.fit === 'cover' ? 'cover' : 'contain'
+    }))
+  };
+}
+function settingsLines_(s, scr) {
   migrateDaf_(s);
+  scr = scr === 2 ? 2 : 1;
   const L = [], slot = a => (a && a.length) ? a.map(x => SLOT_NAMES[x]).filter(Boolean).join(', ') : 'ריק';
+  const theme = (scr === 2 ? s.theme2 : s.theme) || (scr === 2 ? 'picture' : 'dark');
+  L.push('! עיצוב: ' + (THEMES[theme] || 'כהה'));
+  if (scr === 2) L.push('! מסך: 2');
+  if (theme === 'picture') {   // מסך תמונה: מסגרת, קוביות בצדדים ותוכן המרכז (JSON בשורה אחת)
+    const pic = cleanPic_(s.pic);
+    pic.center = pic.center.filter(c => c.type !== 'image' || c.img);
+    L.push('! תמונה: ' + JSON.stringify(pic));
+  }
   if (s.name) L.push('! שם: ' + s.name);
   if (s.city === 'ירושלים' || (!s.lat && !s.lon)) L.push('! מזהה מיקום: 281184');
   else { L.push('! קואורדינטות: ' + s.lat + ', ' + s.lon); L.push('! אזור זמן: ' + (s.tz || 'Asia/Jerusalem')); }
@@ -478,13 +537,15 @@ function settingsLines_(s) {
   if (s.gdate === 'short') L.push('! תאריך לועזי: קצר');
   if (s.header && s.header !== 'none') L.push('! כותרת עליונה: ' + ({ name: 'שם', logo: 'לוגו', both: 'שם ולוגו' })[s.header]);
   if (s.logoUrl) L.push('! לוגו: ' + s.logoUrl);
-  if ((s.learn || []).length) L.push('! לימוד יומי: ' + s.learn.join(', '));
+  const learnScr = s.learnScr || {};
+  const learn = (s.learn || []).filter(k => !learnScr[k] || +learnScr[k] === scr);
+  if (learn.length) L.push('! לימוד יומי: ' + learn.join(', '));
   L.push('! תחנון: ' + (s.tachanun === false ? 'לא' : 'כן'));
   L.push('! תזכורת נוסח: ' + (s.remind === 0 ? 'תמיד' : (s.remind || 30)));
   if (s.omerB) L.push('! ספירת העומר: בעומר');
   if (s.haftara && s.nusach) L.push('! הפטרה: ' + (s.nusach === 'seph' ? 'ספרד' : 'אשכנז') + (s.haftFrom === 'day' ? ', רק בשבת' : ''));
   if (s.mazalTitle) L.push('! כותרת ברכה: ' + s.mazalTitle);
-  (s.mazal || []).forEach(z => { if (z.text && DATE_RE.test(z.from)) L.push('! מזל טוב ' + z.from + ' ' + (DATE_RE.test(z.to) ? z.to : z.from) + (z.title ? ' [' + z.title + ']' : '') + ': ' + z.text); });
+  (s.mazal || []).filter(z => onScr_(z, scr)).forEach(z => { if (z.text && DATE_RE.test(z.from)) L.push('! מזל טוב ' + z.from + ' ' + (DATE_RE.test(z.to) ? z.to : z.from) + (z.title ? ' [' + z.title + ']' : '') + ': ' + z.text); });
   if (s.screenOff) L.push('מסך כבוי');
   if (s.nightOff && /^\d{1,2}:\d{2}$/.test(s.nightFrom) && /^\d{1,2}:\d{2}$/.test(s.nightTo)) L.push('מסך כבוי ' + s.nightFrom + '-' + s.nightTo);
   (s.offDates || []).forEach(o => {   // כיבוי בתאריך עברי מסוים, למשל: מסך כבוי יב חשון 16:00-21:00
@@ -494,13 +555,16 @@ function settingsLines_(s) {
   });
   if (s.closeAt && Date.now() - s.closeAt < 5 * 60 * 1000) L.push('סגור מסך');
   // שיעורים: ! שיעור חי: אבג 17:00-18:00 | youtube | כותרת | קישור   (המסך מציג הודעה לפני, ויוטיוב – בעצמו)
-  liveSessions_(s).forEach(z => {
+  if (scr === 1) liveSessions_(s).forEach(z => {   // שיעורים – רק במסך הראשי
     const link = (z.type === 'youtube' && z.latest) ? (ytLatest_(z.link, z.filter) || z.link) : z.link;   // "השיעור האחרון" – הסרטון האחרון שעלה
     L.push('! שיעור חי: ' + z.ds.map(d => ZOOM_DAYS[d]).join('') + ' ' + z.t + (z.e ? '-' + z.e : '') + ' | ' + z.type + ' | ' + z.title + ' | ' + link);
   });
-  (s.prayers || []).forEach(p => {
+  // תפילה: כל זמן יכול לקבל מקום (היכל) – נכתב בסוגריים אחרי הזמן: 7:15 (בית המדרש)
+  (s.prayers || []).filter(p => onScr_(p, scr)).forEach(p => {
     if (!p.label || !p.value) return;
-    L.push('! תפילה ' + (p.q ? '[' + p.q + '] ' : '') + String(p.label).replace(/[:\[\]]/g, '') + ': ' + p.value);
+    const halls = Array.isArray(p.halls) ? p.halls : [];
+    const value = String(p.value).split(',').map((x, i) => x.trim() + (halls[i] ? ' (' + String(halls[i]).replace(/[(),|]/g, ' ').trim() + ')' : '')).join(', ');
+    L.push('! תפילה ' + (p.q ? '[' + p.q + '] ' : '') + String(p.label).replace(/[:\[\]]/g, '') + ': ' + value);
   });
   return L.join('\n');
 }
@@ -535,10 +599,11 @@ function saveLogo_(id, key, data) {
     s.logoId = file.getId(); s.logoUrl = 'https://lh3.googleusercontent.com/d/' + file.getId();
   }
   f.sh.getRange(f.r, C.settings + 1).setValue(JSON.stringify(s));
-  CacheService.getScriptCache().remove('shul_' + id);
+  CacheService.getScriptCache().removeAll(['shul_' + id, 'shul_' + id + '_2']);
   return { ok: true, url: s.logoUrl };
 }
 
+const scr_ = v => ['1', '2'].includes(String(v)) ? String(v) : '';
 function saveSettings(id, key, s) {
   id = String(id || '').toLowerCase();
   const f = findRow_(id);
@@ -561,7 +626,7 @@ function saveSettings(id, key, s) {
     mazalTitle: String(s.mazalTitle || '').replace(/[\r\n]/g, ' ').trim().slice(0, 40),
     learn: (s.learn || []).filter(k => LEARN_KEYS.includes(k)), tachanun: s.tachanun !== false, remind: [0, 14, 30].includes(+s.remind) && s.remind !== '' && s.remind !== undefined ? +s.remind : 30, omerB: !!s.omerB,
     mazal: (s.mazal || []).slice(0, 40).filter(z => String(z.text || '').trim() && DATE_RE.test(z.from))
-      .map(z => ({ title: String(z.title || '').replace(/[\r\n\[\]:]+/g, ' ').trim().slice(0, 40), text: String(z.text).replace(/[\r\n]+/g, ' ').trim().slice(0, 150), from: z.from, to: DATE_RE.test(z.to) && z.to >= z.from ? z.to : z.from })),
+      .map(z => ({ scr: scr_(z.scr), title: String(z.title || '').replace(/[\r\n\[\]:]+/g, ' ').trim().slice(0, 40), text: String(z.text).replace(/[\r\n]+/g, ' ').trim().slice(0, 150), from: z.from, to: DATE_RE.test(z.to) && z.to >= z.from ? z.to : z.from })),
     zoomLink: LIVE_RE[liveType_(s)].test(String(s.zoomLink || '').trim()) ? String(s.zoomLink).trim().slice(0, 300) : '',
     zoom: (s.zoom || []).slice(0, 30).map(z => ({
       ds: (Array.isArray(z.ds) ? z.ds : [z.d]).map(Number).filter(d => d >= 0 && d <= 6).filter((d, i, a) => a.indexOf(d) === i),
@@ -569,11 +634,18 @@ function saveSettings(id, key, s) {
       type: LIVE_RE[z.type] ? z.type : liveType_(s),
       link: String(z.link || '').trim().slice(0, 300), latest: !!z.latest, filter: String(z.filter || '').replace(/[|\r\n]/g, ' ').trim().slice(0, 60),
       title: String(z.title || '').replace(/[|\r\n]/g, ' ').slice(0, 80) })).filter(z => z.ds.length && z.t),
-    prayers: (s.prayers || []).slice(0, 30).map(p => ({ q: ['', 'חול', 'א-ה', 'שישי', 'שבת'].includes(p.q) ? p.q : '', label: String(p.label || '').slice(0, 30), value: String(p.value || '').slice(0, 120) }))
+    prayers: (s.prayers || []).slice(0, 30).map(p => ({ q: ['', 'חול', 'א-ה', 'שישי', 'שבת'].includes(p.q) ? p.q : '', label: String(p.label || '').slice(0, 30), value: String(p.value || '').slice(0, 120),
+      halls: (Array.isArray(p.halls) ? p.halls : []).slice(0, 10).map(h => String(h || '').replace(/[(),|\r\n]/g, ' ').trim().slice(0, 24)), scr: scr_(p.scr) })),
+    theme: THEMES[s.theme] ? s.theme : 'dark', theme2: THEMES[s.theme2] ? s.theme2 : 'picture', pic: cleanPic_(s.pic),
+    halls: (Array.isArray(s.halls) ? s.halls : []).map(h => String(h || '').replace(/[(),|\r\n]/g, ' ').trim().slice(0, 24)).filter(Boolean).slice(0, 10),
+    learnScr: Object.fromEntries(Object.entries(s.learnScr || {}).filter(([k, v]) => LEARN_KEYS.includes(k) && ['1', '2'].includes(String(v))).map(([k, v]) => [k, String(v)]))
   };
   f.sh.getRange(f.r, C.settings + 1).setValue(JSON.stringify(clean));
   if (clean.name) f.sh.getRange(f.r, C.name + 1).setValue(clean.name);
-  CacheService.getScriptCache().removeAll(['shul_' + id, 'zoomshul_' + id]);
+  // תמונות שהוסרו מהמסך – נמחקות מהדרייב
+  const was = picImages_(parseJson_(f.row[C.settings]) || {}), now = picImages_(clean);
+  was.filter(x => !now.includes(x)).forEach(x => { try { DriveApp.getFileById(x).setTrashed(true); } catch (e) {} });
+  CacheService.getScriptCache().removeAll(['shul_' + id, 'shul_' + id + '_2', 'zoomshul_' + id]);
   return 'ok';
 }
 
@@ -735,6 +807,7 @@ function TEMPLATE() {
     '# הודעה בלי שורת תאריך – מוצגת כל יום.',
     '# כשיש שעה – התאריך הוא של היום עצמו, כולל הערב שאחריו.',
     '# כשהודעות מופיעות בשתי משבצות: [ימין] או [שמאל] בשורת התאריך, למשל: יג [ימין]',
+    '# כשיש שני מסכים: [מסך 2] או [מסך ראשי] בשורת התאריך – ההודעה רק במסך הזה, למשל: יג [מסך 2]',
     '# כיבוי המסך: שורה "מסך כבוי" (אפשר עם שעות: מסך כבוי 23:00-06:00).',
     '# סגירת התוכנה: שורה "סגור מסך" (אחר כך למחוק אותה).',
     '# השינויים מופיעים במסך תוך כ-2 דקות. את שאר ההגדרות משנים בטופס ההגדרות.',

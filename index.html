@@ -12,7 +12,8 @@
 // מפנה כל בית כנסת לגרסה שהוגדרה לו בגיליון הניהול (עמודה "גרסה")
 const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec';
 const shul = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
-const go = v => location.replace('v' + (v || 1) + '/?shul=' + encodeURIComponent(shul));
+const scr = (new URLSearchParams(location.search).get('screen') || '') === '2' ? '&screen=2' : '';   // מסך 2 של אותו היכל
+const go = v => location.replace('v' + (v || 1) + '/?shul=' + encodeURIComponent(shul) + scr);
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(!shul){ document.getElementById('m').textContent = 'לא הוגדר בית כנסת. יש להוסיף לכתובת: ?shul=מזהה'; }
 else fetch(API + '?shul=' + encodeURIComponent(shul) + '&what=version&t=' + Date.now(), {cache:'no-store'})
