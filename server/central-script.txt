@@ -47,6 +47,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('לוח זמנים')
     .addItem('הוספת בית כנסת חדש', 'addShul')
     .addItem('יצירת / עדכון קישורי הגדרות', 'fillMissingLinks')
+    .addItem('הוספת הסבר "שני מסכים" למסמכי ההודעות', 'addScreenNotes')
     .addItem('התקנה ראשונית', 'setup')
     .addSeparator()
     .addItem('גיבוי עכשיו', 'backupNow')
@@ -945,6 +946,32 @@ function save(){
 </script></body></html>`;
 }
 
+// ---------- הסבר על שני מסכים במסמך ההודעות ----------
+const SCREEN_NOTE = [
+  '# שני מסכים: הודעה שתופיע רק באחד המסכים – כותבים מעליה שורה [מסך 2] או [מסך ראשי]. לדוגמה:',
+  '#   [מסך 2]         ← ההודעה שמתחת – רק במסך 2 (למשל מסך התמונה במסדרון)',
+  '#   יג [מסך ראשי]   ← רק בי"ג, ורק במסך הראשי.   הודעה בלי סימון – בשני המסכים.'
+];
+// מוסיף את ההסבר למסמך קיים (אחרי שורות ההוראות שבראש המסמך), אם הוא עוד לא שם. מחזיר true אם נוסף
+function addScreenNote_(docUrl) {
+  const m = String(docUrl || '').match(/[-\w]{25,}/); if (!m) return false;
+  let doc; try { doc = DocumentApp.openById(m[0]); } catch (e) { return false; }
+  const body = doc.getBody();
+  if (body.getText().indexOf('[מסך 2]') >= 0) return false;
+  const paras = body.getParagraphs();
+  let at = 0;   // אחרי הוראות ה-# שבראש המסמך (לפני שורת ה-=== שסוגרת אותן, אם יש)
+  for (let i = 0; i < paras.length; i++) { const t = paras[i].getText(); if (!/^\s*#/.test(t)) break; at = /^#\s*=+\s*$/.test(t) && i > 0 ? i : i + 1; }
+  SCREEN_NOTE.forEach((line, k) => { const p = body.insertParagraph(at + k, line); p.setLeftToRight(false); p.setAlignment(DocumentApp.HorizontalAlignment.RIGHT); });
+  doc.saveAndClose();
+  return true;
+}
+function addScreenNotes() {
+  const sh = sheet_(), rows = sh.getDataRange().getValues();
+  let n = 0;
+  for (let i = 1; i < rows.length; i++) if ((parseInt(rows[i][C.screens], 10) || 1) >= 2 && addScreenNote_(rows[i][C.doc])) n++;
+  SpreadsheetApp.getUi().alert(n ? 'ההסבר על שני מסכים נוסף ל-' + n + ' מסמכי הודעות.' : 'לא היה צורך להוסיף – בכל המסמכים של בתי כנסת עם 2 מסכים ההסבר כבר קיים.');
+}
+
 // ---------- תבנית למסמך ההודעות ----------
 function TEMPLATE() {
   return [
@@ -958,7 +985,7 @@ function TEMPLATE() {
     '# הודעה בלי שורת תאריך – מוצגת כל יום.',
     '# כשיש שעה – התאריך הוא של היום עצמו, כולל הערב שאחריו.',
     '# כשהודעות מופיעות בשתי משבצות: [ימין] או [שמאל] בשורת התאריך, למשל: יג [ימין]',
-    '# כשיש שני מסכים: [מסך 2] או [מסך ראשי] בשורת התאריך – ההודעה רק במסך הזה, למשל: יג [מסך 2]',
+    SCREEN_NOTE[0], SCREEN_NOTE[1], SCREEN_NOTE[2],
     '# כיבוי המסך: שורה "מסך כבוי" (אפשר עם שעות: מסך כבוי 23:00-06:00).',
     '# סגירת התוכנה: שורה "סגור מסך" (אחר כך למחוק אותה).',
     '# השינויים מופיעים במסך תוך כ-2 דקות. את שאר ההגדרות משנים בטופס ההגדרות.',
