@@ -108,7 +108,7 @@ function setup() {
   let dv = ss.getSheetByName(DEV_SHEET);
   if (!dv) { dv = ss.insertSheet(DEV_SHEET); dv.appendRow(DEV_HEAD); dv.setFrozenRows(1); dv.setRightToLeft(true); dv.getRange(1, 1, 1, DEV_HEAD.length).setFontWeight('bold'); }
   const rule = SpreadsheetApp.newDataValidation().requireValueInList(['מאושר', 'ממתין', 'חסום'], true).build();
-  dv.getRange(2, D.status + 1, 1000, 1).setDataValidation(rule);
+  try { dv.getRange(2, D.status + 1, 1000, 1).setDataValidation(rule); } catch (e) {}   // בגיליון שהומר ל"טבלה" עם סוגי עמודות – כבר יש רשימה נפתחת, ואי אפשר להגדיר אותה שוב
   SpreadsheetApp.getUi().alert('ההתקנה הסתיימה. עכשיו אפשר להוסיף בתי כנסת מהתפריט "לוח זמנים".');
 }
 
