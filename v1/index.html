@@ -232,7 +232,8 @@ body.th-pic .pstage{display:block}
 .ptick[hidden]{display:none}
 .ptick .tt{flex:none;display:flex;align-items:center;padding:0 calc(var(--u)*1.1);font-family:'Frank Ruhl Libre',serif;font-weight:900;color:#fff;background:var(--pg2);font-size:calc(var(--u)*1.25);white-space:nowrap}
 .ptick .tv{flex:1;overflow:hidden;position:relative}
-.ptick .tk{position:absolute;top:0;bottom:0;right:0;display:flex;align-items:center;white-space:nowrap;font-size:calc(var(--u)*1.3);font-weight:600;color:var(--ink);will-change:transform}
+.ptick .tk{position:absolute;top:0;bottom:0;right:0;display:flex;align-items:center;white-space:nowrap;font-size:calc(var(--u)*1.3);font-weight:600;color:var(--ink);will-change:transform;backface-visibility:hidden}
+.vp .in{will-change:transform;backface-visibility:hidden}
 .ptick .tk b{color:var(--pg2);font-family:'Frank Ruhl Libre',serif;font-weight:900;margin-left:.5em}
 .ptick .tk i{font-style:normal;color:var(--pg);margin:0 1.2em}
 .ptick .tk small{color:var(--pm);font-size:.75em}
@@ -1100,23 +1101,17 @@ let tickRaf = null, tickX = null, tickLast = 0;
 function renderTicker(){
   const box = $('pTick'), on = !!(CFG.hal && HAL && HAL.items && HAL.items.length);
   box.hidden = !on;
-  if(!on){ cancelAnimationFrame(tickRaf); tickRaf = null; return; }
+  if(!on){ const k0 = $('pTickK'); if(k0._anim){ k0._anim.cancel(); k0._anim = null; k0._sig = ''; } return; }
   const html = HAL.items.map(x => `${x.label ? `<b>${esc(x.label)}</b>` : ''}${esc(x.text)}`).join('<i>✦</i>') + (HAL.source ? `<i>✦</i><small>${esc(HAL.source)}</small>` : '') + '<i>✦</i>';
   $('pTickT').textContent = HAL.title;
   const k = $('pTickK');
-  if(k._h !== html){ k._h = html; k.innerHTML = html; tickX = null; }
-  if(!tickRaf){
-    tickLast = performance.now();
-    const step = now => {
-      const vw = k.parentElement.clientWidth, w = k.scrollWidth, u = Math.min(innerWidth, innerHeight * 1.7778) / 100;
-      const sp = u * ({slow: 3.5, normal: 5, fast: 7.5})[(CFG.hal && CFG.hal.speed) || 'normal'];
-      if(tickX === null) tickX = -vw;                          // מתחיל משמאל ונע ימינה (כמו פס חדשות בעברית)
-      tickX += sp * Math.min(0.1, (now - tickLast) / 1000); tickLast = now;
-      if(tickX > w) tickX = -vw;
-      k.style.transform = `translateX(${tickX}px)`;
-      tickRaf = requestAnimationFrame(step);
-    };
-    tickRaf = requestAnimationFrame(step);
+  if(k._h !== html){ k._h = html; k.innerHTML = html; }
+  // אנימציה של הדפדפן – חלקה גם כשהקוד עסוק (בסטרימר חלש). נבנית מחדש כשהטקסט או הרוחב משתנים
+  const vw = k.parentElement.clientWidth, w = k.scrollWidth, u = Math.min(innerWidth, innerHeight * 1.7778) / 100;
+  const sp = u * ({slow: 3.5, normal: 5, fast: 7.5})[(CFG.hal && CFG.hal.speed) || 'normal'], sig = [html.length, vw, w, sp.toFixed(1)].join('|');
+  if(k._sig !== sig){
+    k._sig = sig; if(k._anim) k._anim.cancel();
+    k._anim = k.animate([{transform: `translate3d(${-vw}px,0,0)`}, {transform: `translate3d(${w}px,0,0)`}], {duration: (w + vw) / sp * 1000, iterations: Infinity, easing: 'linear'});
   }
 }
 
@@ -1253,12 +1248,12 @@ function renderPic(){
     $(id).classList.toggle('n3', boxes.length >= 3);
     for(let i = 0; i < 3; i++){
       const b = boxes[i], el = kids[i];
-      el.className = b && (i === boxes.length - 1) ? 'grow' : '';
+      const cn = b && (i === boxes.length - 1) ? 'grow' : ''; if(el.className !== cn) el.className = cn;
       setSlot(el, b ? `<div class="pbox${i === 0 && (pic.frame || 'gold') === 'gold' ? ' pc' : ''}"><h3>${PIC_TITLE[b[0]]}</h3><div class="vp"><div class="in">${b[1]}</div></div></div>` : '', !!b);
     }
   }
-  const px = $('pX'), was = px.className;
-  px.className = 'pwide' + (!wide.length ? ' none' : wide.length > 1 ? ' two' : '');
+  const px = $('pX'), was = px.className, pcn = 'pwide' + (!wide.length ? ' none' : wide.length > 1 ? ' two' : '');
+  if(was !== pcn) px.className = pcn;
   let chg = was !== px.className;
   [0, 1].forEach(i => { const w = wide[i], el = px.children[i], h0 = el._html;
     setSlot(el, w ? `<div class="pbox"><h3>${PIC_TITLE[w[0]]}</h3><div class="vp"><div class="in"><div class="g g-${w[0]}">${w[1]}</div></div></div></div>` : '', !!w);
@@ -1313,10 +1308,11 @@ function renderSlots(){
 function setSlot(el, html, scroll){
   if(el._html === html){   // אותו תוכן – אבל אם בינתיים הוא גדל (גופנים נטענו וכו') ועכשיו לא נכנס, מתחילים לגלול
     if(scroll && !el._scrolling) startScroll(el);
+    else if(el._anim && Date.now() - el._chk > 5000){ el._chk = Date.now(); if(el._cyc() + '|' + el._vp.clientHeight !== el._meas) runScroll(el); }   // הגודל השתנה – מודדים מחדש
     fitStack(el, false);
     return;
   }
-  el._html = html; el._scrolling = false; cancelAnimationFrame(el._raf);
+  el._html = html; el._scrolling = false; cancelAnimationFrame(el._raf); if(el._anim){ el._anim.cancel(); el._anim = null; }
   el.innerHTML = html;
   if(scroll) startScroll(el);
   fitStack(el, true);
@@ -1343,6 +1339,8 @@ function startScroll(el){
   const kids = inner.children;
   const cycleNow = () => (kids[n + 1] && kids[0]) ? kids[n + 1].offsetTop - kids[0].offsetTop : inner.scrollHeight / 2;   // נמדד כל פעם מחדש – גם אם הגופן נטען באמצע
   const speed = () => vp.clientHeight / 9;
+  // אנימציה של הדפדפן (רצה בנפרד מהקוד, ולכן חלקה גם בסטרימר חלש): 4 שניות עצירה, ואז גלילה של סיבוב אחד
+  if(inner.animate){ el._cyc = cycleNow; el._vp = vp; el._in = inner; runScroll(el); return; }
   let off = 0, last = performance.now(), pause = last + 4000;
   const step = now => {
     const dt = (now - last) / 1000; last = now;
@@ -1351,6 +1349,15 @@ function startScroll(el){
     el._raf = requestAnimationFrame(step);
   };
   el._raf = requestAnimationFrame(step);
+}
+function runScroll(el){
+  const cycle = el._cyc(), h = el._vp.clientHeight, speed = h / 9;
+  if(el._anim) el._anim.cancel();
+  if(cycle <= 0 || speed <= 0) return;
+  const hold = 4000, move = cycle / speed * 1000, tot = hold + move;
+  el._anim = el._in.animate([{transform: 'translate3d(0,0,0)'}, {transform: 'translate3d(0,0,0)', offset: hold / tot}, {transform: `translate3d(0,${-cycle}px,0)`}],
+                            {duration: tot, iterations: Infinity, easing: 'linear'});
+  el._meas = cycle + '|' + h; el._chk = Date.now();
 }
 function notice(txt){ $('blackNote').textContent = ''; $('notice').textContent = txt; $('notice').classList.toggle('on', !!txt); }
 let booted = false, lastCfg = '', lastLearn = '';
