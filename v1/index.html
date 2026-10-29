@@ -208,8 +208,12 @@ body.th-pic .pstage{display:block}
 .pmz{text-align:center;padding:calc(var(--u)*.6) calc(var(--u)*1);background:rgba(255,255,255,.72);border:1px solid var(--pl);outline:1px solid rgba(168,118,28,.18);outline-offset:calc(var(--u)*.25)}
 .pmz:empty{display:none}
 /* קובייה שעברה מהצד לפס הרחב שמתחת לתמונה (כשאין ברכות): התוכן בכמה טורים */
-.pwide{display:flex;flex:none;max-height:calc(var(--u)*12);min-height:0}
-.pwide:empty{display:none}
+.pwide{display:flex;flex:none;gap:calc(var(--u)*1);max-height:calc(var(--u)*12);min-height:0}
+.pwide>div{display:flex;flex:1 1 0;min-width:0;min-height:0}
+.pwide>div:empty{display:none}
+.pwide.none{display:none}
+.pwide.two .g{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pwide.two .g.g-msgs{grid-template-columns:1fr}
 .pwide .g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:calc(var(--u)*2.2)}
 .pwide .g.g-msgs{grid-template-columns:repeat(2,minmax(0,1fr))}
 .pwide .g>.prow:last-child,.pwide .g>.plr:last-child,.pwide .g>.pmsg:last-child{border-bottom:1px dotted rgba(168,118,28,.35)}
@@ -310,7 +314,7 @@ body.th-pic.fr-v{background:#2a1d0e}
     </header>
     <div class="pmain">
       <div class="pcol" id="pR"><div></div><div></div><div></div></div>
-      <div class="pcen"><div class="ppic"><div class="in" id="pCenter"></div></div><div class="pmz" id="pMz"></div><div class="pwide" id="pX"></div></div>
+      <div class="pcen"><div class="ppic"><div class="in" id="pCenter"></div></div><div class="pmz" id="pMz"></div><div class="pwide" id="pX"><div></div><div></div></div></div>
       <div class="pcol" id="pL"><div></div><div></div><div></div></div>
     </div>
     <div class="ptick" id="pTick" hidden><div class="tt" id="pTickT"></div><div class="tv"><div class="tk" id="pTickK"></div></div></div>
@@ -1241,8 +1245,8 @@ function renderPic(){
   const cols = {};
   for(const k of ['R','L']) cols[k] = (pic[k] || []).filter(x => PIC_TITLE[x]).map(tp => [tp, picBox(tp)]).filter(x => x[1]);
   // אין ברכות, ובאחד הצדדים 3 קוביות – הקובייה התחתונה עוברת לפס הרחב שמתחת לתמונה
-  const from = mh ? null : cols.R.length >= 3 ? 'R' : cols.L.length >= 3 ? 'L' : null;
-  const wide = from ? cols[from].pop() : null;
+  // בשני הצדדים 3 קוביות – שתי הקוביות התחתונות עוברות, זו ליד זו (הימנית מימין)
+  const wide = mh ? [] : ['R','L'].filter(k => cols[k].length >= 3).map(k => cols[k].pop());
   for(const [k, id] of [['R','pR'], ['L','pL']]){
     const boxes = cols[k], kids = $(id).children;
     $(id).classList.toggle('n3', boxes.length >= 3);
@@ -1252,8 +1256,13 @@ function renderPic(){
       setSlot(el, b ? `<div class="pbox${i === 0 && (pic.frame || 'gold') === 'gold' ? ' pc' : ''}"><h3>${PIC_TITLE[b[0]]}</h3><div class="vp"><div class="in">${b[1]}</div></div></div>` : '', !!b);
     }
   }
-  const px = $('pX'), wh = wide ? `<div class="pbox"><h3>${PIC_TITLE[wide[0]]}</h3><div class="vp"><div class="in"><div class="g g-${wide[0]}">${wide[1]}</div></div></div></div>` : '';
-  const wasW = px._html; setSlot(px, wh, !!wide); if(wasW !== px._html) fitCenter(cel);
+  const px = $('pX'), was = px.className;
+  px.className = 'pwide' + (!wide.length ? ' none' : wide.length > 1 ? ' two' : '');
+  let chg = was !== px.className;
+  [0, 1].forEach(i => { const w = wide[i], el = px.children[i], h0 = el._html;
+    setSlot(el, w ? `<div class="pbox"><h3>${PIC_TITLE[w[0]]}</h3><div class="vp"><div class="in"><div class="g g-${w[0]}">${w[1]}</div></div></div></div>` : '', !!w);
+    if(h0 !== el._html) chg = true; });
+  if(chg) fitCenter(cel);
   const c = picCenter();
   if(cel._h !== c.html){ cel._h = c.html; cel.className = 'in ' + (c.cls || ''); cel.innerHTML = c.html; fitCenter(cel); }
   const tWas = $('pTick').hidden; renderTicker(); if(tWas !== $('pTick').hidden) fitCenter(cel);
