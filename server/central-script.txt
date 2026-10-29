@@ -505,7 +505,7 @@ function cleanPic_(p) {
   const box = a => (Array.isArray(a) ? a : []).filter(x => PIC_BOX.includes(x)).filter((x, i, a2) => a2.indexOf(x) === i).slice(0, 3);
   const txt = (v, n) => String(v || '').replace(/\r/g, '').slice(0, n);
   return {
-    frame: FRAMES.includes(p.frame) ? p.frame : 'gold',
+    frame: FRAMES.includes(p.frame) ? p.frame : 'gold', days: p.days !== false,
     R: box(p.R || ['zmanim', 'learn']), L: box(p.L || ['prayers', 'msgs']),
     rot: [10, 15, 20, 30, 60].includes(+p.rot) ? +p.rot : 20,
     center: (Array.isArray(p.center) ? p.center : [{ type: 'shabbat', ds: [3, 4, 5, 6] }, { type: 'chag' }]).slice(0, 12).filter(c => c && PIC_TYPES.includes(c.type)).map(c => ({

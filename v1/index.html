@@ -224,6 +224,7 @@ body.th-pic .pstage{display:block}
 .pdays .d{flex:0 0 auto;min-width:calc(var(--u)*2.2);padding:calc(var(--u)*.15) 0;font-size:calc(var(--u)*.95);border-radius:0;background:rgba(255,255,255,.6);border-color:rgba(168,118,28,.2);color:var(--pm);font-family:'Heebo',sans-serif;font-weight:600}
 .pdays .d.sh{border-color:var(--pg);color:var(--pg2);background:rgba(255,255,255,.6)}
 .pdays .d.today{background:var(--pg2);color:#fff;border-color:var(--pg2);transform:none;box-shadow:none;font-size:calc(var(--u)*.95)}
+.nodays .pdays{display:none}
 .pmev{text-align:center;font-size:calc(var(--u)*1);color:var(--pm);font-weight:600;margin-top:calc(var(--u)*-.4)}
 .pmev:empty{display:none}
 .pmev b{color:var(--pg2)}
@@ -651,7 +652,7 @@ function applyTheme(){
   document.body.classList.toggle('th-light', th === 'light');
   document.body.classList.toggle('th-pic', th === 'picture');
   document.body.classList.toggle('fr-v', th === 'picture' && fr !== 'gold');
-  $('pstage').className = 'pstage f-' + fr;
+  $('pstage').className = 'pstage f-' + fr + (CFG.pic && CFG.pic.days === false ? ' nodays' : '');
   headerMid();
 }
 function render(){

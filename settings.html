@@ -244,6 +244,7 @@ textarea.field{min-height:90px;resize:vertical;font:inherit;line-height:1.5}
       <p class="hint">מסך בהיר עם מסגרת, למסדרון או לכניסה – אנשים עומדים קרוב, ולכן הכתב קטן ויש מקום לתמונה גדולה באמצע.</p>
       <label class="cap" style="margin-top:12px">מסגרת</label>
       <div class="seg" id="picFrame" data-vals="gold,vintage,ornate" data-labels="זהב,וינטאג׳,וינטאג׳ עם עיטורים"></div>
+      <div class="row" style="margin-top:12px"><div class="lbl"><b>ימי החודש בתחתית המסך</b><small>כבוי = יותר גובה לקוביות שבצדדים</small></div><label class="sw"><input type="checkbox" id="picDays"><span></span></label></div>
     </div>
     <div class="card">
       <h2>קוביות בצדדים</h2>
@@ -921,6 +922,7 @@ function bind(){
   // מסך תמונה
   S.pic = S.pic || {}; S.pic.R = S.pic.R || ['zmanim','learn']; S.pic.L = S.pic.L || ['prayers','msgs']; S.pic.center = S.pic.center || [];
   segment($('picFrame'), S.pic.frame || 'gold', v => { S.pic.frame = v; changed(); });
+  $('picDays').checked = S.pic.days !== false; $('picDays').addEventListener('change', e => { S.pic.days = e.target.checked; changed(); });
   picPicker('picR', 'R'); picPicker('picL', 'L');
   segment($('picRot'), String(S.pic.rot || 20), v => { S.pic.rot = +v; changed(); });
   halBind();
