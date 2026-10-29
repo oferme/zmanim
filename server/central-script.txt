@@ -14,10 +14,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPW
 const SHEET = 'בתי כנסת';
 // כל שורה = "היכל" אחד: הגדרות, הודעות וקישור משלו. כמה היכלות של אותו בית כנסת – אותו שם בעמודה "ארגון".
 // עמודות: מזהה | שם | קישור למסמך | פעיל | גרסה | מייל גבאי | קישור למסך | הערות | מפתח | הגדרות | קישור להגדרות | ארגון | מספר מסכים
-const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח'];
+const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2'];
 // מיקום כל עמודה נקבע לפי הכותרת שלה בשורה 1 (כך שאפשר להזיז / להוסיף עמודות בגיליון בלי לשבור את המערכת)
-const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach'];
-let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13 };
+const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2'];
+let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14 };
 function mapCols_(sh) {
   const last = Math.max(sh.getLastColumn(), 1);
   const h = sh.getRange(1, 1, 1, last).getValues()[0].map(x => String(x).replace(/\s+/g, ' ').trim());
@@ -160,8 +160,9 @@ function addShul() {
 
   const key = newKey_(), display = DISPLAY_URL + '?shul=' + id, sLink = settingsLink_(id, key);
   const sh = sheet_();
+  const nScr = Math.max(1, parseInt(scr, 10) || 1);
   sh.appendRow(rowOf_({ id, name, doc: doc.getUrl(), active: 'כן', ver: 1, email, display, key, settings: JSON.stringify(defaults_(name)),
-    settingsLink: sLink, org: org || name, screens: Math.max(1, parseInt(scr, 10) || 1), nusach }));
+    settingsLink: sLink, org: org || name, screens: nScr, nusach, display2: nScr >= 2 ? display + '&screen=2' : '' }));
 
   if (email) {
     try {
@@ -195,6 +196,8 @@ function fillMissingLinks() {
     if (!key) { key = newKey_(); sh.getRange(i + 1, C.key + 1).setValue(key); n++; }
     sh.getRange(i + 1, C.settingsLink + 1).setValue(settingsLink_(id, key));
     sh.getRange(i + 1, C.display + 1).setValue(DISPLAY_URL + '?shul=' + id);
+    // קישור למסך 2 – רק כשמספר המסכים 2 ומעלה
+    sh.getRange(i + 1, C.display2 + 1).setValue((parseInt(rows[i][C.screens], 10) || 1) >= 2 ? DISPLAY_URL + '?shul=' + id + '&screen=2' : '');
     const st = parseJson_(rows[i][C.settings]);
     if (st && migrateDaf_(st)) { sh.getRange(i + 1, C.settings + 1).setValue(JSON.stringify(st)); mig++; }
     if (!String(rows[i][C.doc]).trim()) {   // אין מסמך הודעות – מציע ליצור
