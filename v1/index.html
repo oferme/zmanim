@@ -212,6 +212,15 @@ body.th-pic .pstage{display:block}
 .pmev{text-align:center;font-size:calc(var(--u)*1);color:var(--pm);font-weight:600;margin-top:calc(var(--u)*-.4)}
 .pmev:empty{display:none}
 .pmev b{color:var(--pg2)}
+.ptick{display:flex;align-items:stretch;height:calc(var(--u)*2.7);flex:none;background:rgba(255,255,255,.72);border:1px solid var(--pl);outline:1px solid rgba(168,118,28,.18);outline-offset:calc(var(--u)*.2)}
+.ptick[hidden]{display:none}
+.ptick .tt{flex:none;display:flex;align-items:center;padding:0 calc(var(--u)*1.1);font-family:'Frank Ruhl Libre',serif;font-weight:900;color:#fff;background:var(--pg2);font-size:calc(var(--u)*1.25);white-space:nowrap}
+.ptick .tv{flex:1;overflow:hidden;position:relative}
+.ptick .tk{position:absolute;top:0;bottom:0;right:0;display:flex;align-items:center;white-space:nowrap;font-size:calc(var(--u)*1.3);font-weight:600;color:var(--ink);will-change:transform}
+.ptick .tk b{color:var(--pg2);font-family:'Frank Ruhl Libre',serif;font-weight:900;margin-left:.5em}
+.ptick .tk i{font-style:normal;color:var(--pg);margin:0 1.2em}
+.ptick .tk small{color:var(--pm);font-size:.75em}
+.f-vintage .ptick,.f-ornate .ptick{background:rgba(255,250,236,.6);border:3px double var(--pl);outline:none}
 .pc::before,.pc::after{content:"";position:absolute;width:calc(var(--u)*.9);height:calc(var(--u)*.9);border:2px solid var(--pg)}
 .pc::before{top:calc(var(--u)*-.3);right:calc(var(--u)*-.3);border-left:0;border-bottom:0}
 .pc::after{bottom:calc(var(--u)*-.3);left:calc(var(--u)*-.3);border-right:0;border-top:0}
@@ -293,6 +302,7 @@ body.th-pic.fr-v{background:#2a1d0e}
       <div class="pcen"><div class="ppic"><div class="in" id="pCenter"></div></div><div class="pmz" id="pMz"></div></div>
       <div class="pcol" id="pL"><div></div><div></div><div></div></div>
     </div>
+    <div class="ptick" id="pTick" hidden><div class="tt" id="pTickT"></div><div class="tv"><div class="tk" id="pTickK"></div></div></div>
     <div class="days pdays" id="pDays"></div>
     <div class="pmev" id="pMev"></div>
   </div>
@@ -329,7 +339,7 @@ const DEVICE = (() => {
   let h = 0; for(const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9000;
   return {id, code: String(1000 + h)};
 })();
-const NEED_SERVER = 18;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
+const NEED_SERVER = 19;   // גרסת השרת (SERVER_BUILD ב-central-script) שהמסך הזה צריך
 const MY_VER = (location.pathname.match(/\/v(\d+)\//) || [])[1] || null;   // הגרסה של הקובץ הזה (לפי התיקייה)
 let TZ = 'Asia/Jerusalem';
 // הגדרות בית הכנסת – נקראות משורות שמתחילות ב-! במסמך של בית הכנסת
@@ -345,7 +355,8 @@ function parseSettings(text){
     const m = line.match(/^\s*!\s*([^:=]+?)\s*[:=]\s*(.*?)\s*$/); if(!m) continue;
     const k = m[1].replace(/\s+/g,' '), v = m[2];
     if(/^עיצוב/.test(k)) c.theme = /בהיר/.test(v) ? 'light' : /תמונה/.test(v) ? 'picture' : 'dark';
-    else if(/^תמונה$/.test(k)){ try{ c.pic = JSON.parse(v); }catch(e){} }   // מסך תמונה: מסגרת, קוביות ותוכן המרכז
+    else if(/^תמונה$/.test(k)){ try{ c.pic = JSON.parse(v); }catch(e){} }
+    else if(/^פס הלכות/.test(k)) c.hal = {speed: /איטי/.test(v) ? 'slow' : /מהיר/.test(v) ? 'fast' : 'normal'};   // פס הלכות נע (מסך תמונה)   // מסך תמונה: מסגרת, קוביות ותוכן המרכז
     else if(/לימוד יומי/.test(k)) c.learn = v.split(/[,\s]+/).filter(x => LEARN_DEF[x]);
     else if(/^תחנון/.test(k)) c.tachanun = !/^(לא|no|0)/i.test(v);
     else if(/תזכורת נוסח/.test(k)) c.remind = /תמיד|כל/.test(v) ? 0 : +((v.match(/\d+/)||[30])[0]);
@@ -1049,6 +1060,50 @@ function content(type, where, msgs){
   return null;
 }
 // ===================== מסך תמונה =====================
+// ---- פס הלכות נע (מסך תמונה): הטקסט מגיע מספריא דרך השרת ----
+let HAL = null;
+async function loadHal(){
+  if(!CFG.hal || CFG.theme !== 'picture'){ HAL = null; return; }
+  const day = nowParts().date, k = 'hal_' + SHUL + '_' + day;
+  if(HAL && HAL.day === day && Date.now() - HAL.at < 30 * 60000) return;
+  if(loadHal.busy) return; loadHal.busy = true;
+  try{ await loadHal2(day, k); } finally { loadHal.busy = false; }
+  renderSlots();
+}
+async function loadHal2(day, k){
+  try{ const c = JSON.parse(localStorage.getItem(k)); if(c && Date.now() - c.at < 30 * 60000){ HAL = c; return; } if(c) HAL = c; }catch(e){}
+  try{
+    const r = await fetch(`${API}?shul=${encodeURIComponent(SHUL)}&what=hal&date=${day}&t=${Date.now()}`, {cache:'no-store'});
+    const j = await r.json();
+    if(j && j.ok && j.items && j.items.length){ HAL = {day, at: Date.now(), title: j.title || 'הלכה יומית', items: j.items, source: j.source || ''};
+      try{ localStorage.setItem(k, JSON.stringify(HAL)); }catch(e){} }
+    else if(!HAL || HAL.day !== day) HAL = {day, at: Date.now(), title: '', items: [], error: (j && j.error) || ''};
+  }catch(e){ if(!HAL || HAL.day !== day) HAL = {day, at: Date.now() - 25 * 60000, title: '', items: []}; }   // ניסיון חוזר בעוד כ-5 דקות
+}
+let tickRaf = null, tickX = null, tickLast = 0;
+function renderTicker(){
+  const box = $('pTick'), on = !!(CFG.hal && HAL && HAL.items && HAL.items.length);
+  box.hidden = !on;
+  if(!on){ cancelAnimationFrame(tickRaf); tickRaf = null; return; }
+  const html = HAL.items.map(x => `${x.label ? `<b>${esc(x.label)}</b>` : ''}${esc(x.text)}`).join('<i>✦</i>') + (HAL.source ? `<i>✦</i><small>${esc(HAL.source)}</small>` : '') + '<i>✦</i>';
+  $('pTickT').textContent = HAL.title;
+  const k = $('pTickK');
+  if(k._h !== html){ k._h = html; k.innerHTML = html; tickX = null; }
+  if(!tickRaf){
+    tickLast = performance.now();
+    const step = now => {
+      const vw = k.parentElement.clientWidth, w = k.scrollWidth, u = Math.min(innerWidth, innerHeight * 1.7778) / 100;
+      const sp = u * ({slow: 3.5, normal: 5, fast: 7.5})[(CFG.hal && CFG.hal.speed) || 'normal'];
+      if(tickX === null) tickX = -vw;                          // מתחיל משמאל ונע ימינה (כמו פס חדשות בעברית)
+      tickX += sp * Math.min(0.1, (now - tickLast) / 1000); tickLast = now;
+      if(tickX > w) tickX = -vw;
+      k.style.transform = `translateX(${tickX}px)`;
+      tickRaf = requestAnimationFrame(step);
+    };
+    tickRaf = requestAnimationFrame(step);
+  }
+}
+
 function picHeader(){
   if(CFG.theme !== 'picture') return;
   $('pDow').textContent = $('dow').textContent + (PARASHA ? ' · ' + PARASHA : '');
@@ -1183,6 +1238,8 @@ function renderPic(){
   const groups = {}; mz.forEach(x => { const t = x.title || CFG.mazalTitle || 'בשעה טובה'; (groups[t] = groups[t] || []).push(x.text); });
   const mh = Object.entries(groups).map(([t, a]) => `<div class="k">${esc(t)}</div><div class="v">${a.map(esc).join(' · ')}</div>`).join('');
   if($('pMz')._h !== mh){ $('pMz')._h = mh; $('pMz').innerHTML = mh; fitCenter(el); }
+  const tWas = $('pTick').hidden; renderTicker(); if(tWas !== $('pTick').hidden) fitCenter(el);
+  if(CFG.hal && (!HAL || HAL.day !== nowParts().date || Date.now() - HAL.at > 30 * 60000)) loadHal();
 }
 function netzWindow(){   // שעה לפני הנץ עד שעה אחרי
   const nm = toMin(BASE.netz); if(nm === null || nm === undefined) return false;

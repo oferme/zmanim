@@ -23,6 +23,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none !important}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px}
 body{display:flex;flex-direction:column;overscroll-behavior:none}
 button,input,select{font-family:inherit;font-size:16px;color:inherit}
@@ -263,6 +264,36 @@ textarea.field{min-height:90px;resize:vertical;font:inherit;line-height:1.5}
       </div>
       <label class="cap" style="margin-top:14px">החלפה בין הפריטים כל</label>
       <div class="seg" id="picRot" data-vals="10,15,20,30,60" data-labels="10 שנ׳,15 שנ׳,20 שנ׳,30 שנ׳,דקה"></div>
+    </div>
+    <div class="card">
+      <h2>פס הלכות נע</h2>
+      <div class="row"><div class="lbl"><b>להציג פס הלכות</b><small>שורה שזזה לאט בתחתית מסך התמונה</small></div><label class="sw"><input type="checkbox" id="halOn"><span></span></label></div>
+      <div id="halBox" hidden>
+        <label class="cap">מאיפה הטקסט</label>
+        <div class="seg" id="halSrc" data-vals="book,hebcal,text" data-labels="ספר בקצב קבוע,לוח יומי מוכן,טקסט שאני כותב"></div>
+        <div id="halBook" style="margin-top:4px">
+          <label class="cap" for="halBookSel">ספר</label><select class="field" id="halBookSel"></select>
+          <label class="cap">כמה הלכות (סעיפים) ביום</label>
+          <div class="seg" id="halPer" data-vals="1,2,3,4,5" data-labels="1,2,3,4,5"></div>
+          <label class="cap">מאיפה מתחילים</label>
+          <div class="seg" id="halStart" data-vals="begin,siman,link" data-labels="מתחילת הספר,מסימן מסוים,מקישור בספריא"></div>
+          <div class="two" id="halSim" hidden><div><label class="cap">סימן</label><input class="field" type="number" id="halSiman" min="1" dir="ltr"></div><div><label class="cap">סעיף</label><input class="field" type="number" id="halSeif" min="1" dir="ltr"></div></div>
+          <div id="halLink" hidden><label class="cap">קישור מספריא</label><input class="field" type="url" id="halLinkIn" dir="ltr" placeholder="https://www.sefaria.org/..."><p class="hint" style="margin-top:4px">פותחים את הספר באתר ספריא, מגיעים להלכה שממנה רוצים להתחיל, ומעתיקים את הכתובת.</p></div>
+          <label class="cap" for="halDate">תאריך ההתחלה (ביום הזה מוצגת נקודת ההתחלה, ומשם מתקדמים כל יום)</label>
+          <input class="field" type="date" id="halDate" dir="ltr">
+        </div>
+        <div id="halHeb" hidden>
+          <label class="cap">לוח</label>
+          <div class="seg" id="halKey" data-vals="dksa,ahsy,dcc,dshl" data-labels="קיצור שולחן ערוך,ערוך השולחן,חפץ חיים,שמירת הלשון"></div>
+          <p class="hint" style="margin-top:6px">הלימוד היומי המקובל לפי לוח Hebcal – כמו בלימוד היומי.</p>
+        </div>
+        <div id="halTxt" hidden><label class="cap" for="halText">הטקסט (שורה ריקה בין הלכה להלכה)</label><textarea class="field" id="halText" placeholder="מדביקים כאן את ההלכות של השבוע"></textarea></div>
+        <label class="cap">מהירות</label>
+        <div class="seg" id="halSpeed" data-vals="slow,normal,fast" data-labels="איטי,רגיל,מהיר"></div>
+        <button class="big ghost" type="button" id="halTest" style="margin-top:12px">בדיקה – מה יוצג היום</button>
+        <div class="now" id="halPrev" style="margin-top:8px"></div>
+        <p class="hint" style="margin-top:6px">הטקסט מגיע מספריא, רק ממהדורה שמותרת לשימוש מסחרי (נחלת הכלל / CC-BY), ובסוף הפס מופיע המקור. אחרי שינוי – לחכות כ־2 דקות ואז לבדוק.</p>
+      </div>
     </div>
   </section>
 
@@ -642,6 +673,48 @@ function syncTheme(){
     : (SCREENS > 1 && (S.theme || 'dark') !== 'picture' && (S.theme2 || 'picture') !== 'picture') ? 'שני המסכים בעיצוב רגיל – המשבצות למטה משותפות לשניהם.' : '';
   $('navPic').hidden = !((S.theme === 'picture') || (SCREENS > 1 && (S.theme2 || 'picture') === 'picture'));
 }
+// ---------- פס הלכות ----------
+const HAL_BOOKS = [['Mishnah Berurah','משנה ברורה',1],['Shulchan Arukh, Orach Chayim','שולחן ערוך אורח חיים',1],['Kitzur Shulchan Arukh','קיצור שולחן ערוך',1],
+  ['Kaf HaChayim on Shulchan Arukh, Orach Chayim','כף החיים',1],['Ben Ish Hai','בן איש חי',0],['Chayyei Adam','חיי אדם',0],['Arukh HaShulchan','ערוך השולחן',0],
+  ['Chafetz Chaim','חפץ חיים',0],['Shemirat HaLashon','שמירת הלשון',0],['Shulchan Arukh HaRav','שולחן ערוך הרב',0]];
+function halBind(){
+  const h = S.hal = Object.assign({on:false, src:'book', key:'dksa', book:'Mishnah Berurah', per:2, start:'begin', siman:1, seif:1, link:'', date:'', text:'', speed:'normal'}, S.hal || {});
+  if (!h.date) { const t = new Date(); h.date = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+  HAL_BOOKS.forEach(([v, t]) => $('halBookSel').add(new Option(t, v)));
+  const sync = () => {
+    $('halBox').hidden = !h.on;
+    $('halBook').hidden = h.src !== 'book'; $('halHeb').hidden = h.src !== 'hebcal'; $('halTxt').hidden = h.src !== 'text';
+    const simple = (HAL_BOOKS.find(b => b[0] === h.book) || [])[2];
+    $('halStart').querySelector('[data-v="siman"]').hidden = !simple;
+    if (!simple && h.start === 'siman') { h.start = 'begin'; segSet($('halStart'), 'begin'); }
+    $('halSim').hidden = h.start !== 'siman'; $('halLink').hidden = h.start !== 'link';
+  };
+  $('halOn').checked = h.on; $('halOn').addEventListener('change', e => { h.on = e.target.checked; sync(); changed(); });
+  segment($('halSrc'), h.src, v => { h.src = v; sync(); changed(); });
+  $('halBookSel').value = h.book; $('halBookSel').addEventListener('change', e => { h.book = e.target.value; sync(); changed(); });
+  segment($('halPer'), String(h.per), v => { h.per = +v; changed(); });
+  segment($('halStart'), h.start, v => { h.start = v; sync(); changed(); });
+  $('halSiman').value = h.siman; $('halSeif').value = h.seif;
+  $('halSiman').addEventListener('input', e => { h.siman = +e.target.value || 1; changed(); });
+  $('halSeif').addEventListener('input', e => { h.seif = +e.target.value || 1; changed(); });
+  $('halLinkIn').value = h.link; $('halLinkIn').addEventListener('input', e => { h.link = e.target.value.trim(); changed(); });
+  $('halDate').value = h.date; $('halDate').addEventListener('change', e => { h.date = e.target.value; changed(); });
+  segment($('halKey'), h.key, v => { h.key = v; changed(); });
+  $('halText').value = h.text; $('halText').addEventListener('input', e => { h.text = e.target.value; changed(); });
+  segment($('halSpeed'), h.speed, v => { h.speed = v; changed(); });
+  $('halTest').addEventListener('click', async () => {
+    const box = $('halPrev'); box.innerHTML = '<div class="r"><b>בודק…</b></div>';
+    try {
+      const t = new Date(), day = new Date(t.getTime() - t.getTimezoneOffset()*60000).toISOString().slice(0,10);
+      const r = await fetch(`${API}?shul=${encodeURIComponent(SHUL)}&what=hal&date=${day}&t=${Date.now()}`, {cache:'no-store'});
+      const j = await r.json();
+      const rows = j.ok ? [['ספר', j.title || ''], ...j.items.map(x => [x.label || '', x.text.length > 160 ? x.text.slice(0, 160) + '…' : x.text]), ['מקור', j.source || '']] : [['שגיאה', j.error || 'לא התקבלה תשובה']];
+      box.innerHTML = rows.map(() => '<div class="r"><span></span><b></b></div>').join('');
+      box.querySelectorAll('.r').forEach((el, i) => { el.querySelector('span').textContent = rows[i][0]; el.querySelector('b').textContent = rows[i][1]; });
+    } catch (e) { box.innerHTML = '<div class="r"><b>אין חיבור לשרת</b></div>'; }
+  });
+  sync();
+}
 // ---------- מזל טוב ----------
 const MAZAL_TITLES = ['בשעה טובה','בשעה טובה ומוצלחת','ברכות ואיחולים','שמחות בקהילה','ברכת מזל טוב'];
 function mazalCard(z){
@@ -850,6 +923,7 @@ function bind(){
   segment($('picFrame'), S.pic.frame || 'gold', v => { S.pic.frame = v; changed(); });
   picPicker('picR', 'R'); picPicker('picL', 'L');
   segment($('picRot'), String(S.pic.rot || 20), v => { S.pic.rot = +v; changed(); });
+  halBind();
   S.pic.center.forEach(c => $('centerList').appendChild(centerCard(c)));
   document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
     const t = b.dataset.add, c = {type: t, ds: t === 'shabbat' ? [3,4,5,6] : [0,1,2,3,4,5,6]};

@@ -128,7 +128,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 18;
+const SERVER_BUILD = 19;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -237,6 +237,12 @@ function doGet(e) {
   const what = String(p.what || '');
   const scr = String(p.screen || '') === '2' ? 2 : 1;   // מסך שני של אותו היכל: ...&screen=2
   const cache = CacheService.getScriptCache();
+  if (what === 'hal' || what === 'haltest') {   // פס ההלכות של היום (מספריא, דרך השרת – עובר גם בסינון)
+    if (what === 'haltest') return json_(halTest_(String(p.book || 'Mishnah Berurah')));
+    const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
+    const day = String(p.date || '').match(/^\d{4}-\d{2}-\d{2}$/) ? String(p.date) : Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
+    return json_(halToday_(id, cleanHal_(st.hal), day));
+  }
   if (what === 'img') {   // תמונה למרכז מסך התמונה – רק תמונה ששייכת להגדרות של בית הכנסת הזה
     const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
     const fid = String(p.id || '');
@@ -334,7 +340,7 @@ function apiLoad_(id, key) {
   const f = id ? findRow_(id) : null;
   if (!f || !key || String(f.row[C.key]) !== key) return { ok: false, error: 'הקישור אינו תקין. יש לפנות למנהל המערכת.' };
   const s = Object.assign(defaults_(f.row[C.name]), parseJson_(f.row[C.settings]) || {});
-  migrateDaf_(s); nusachDefault_(s, f.row); s.pic = cleanPic_(s.pic);
+  migrateDaf_(s); nusachDefault_(s, f.row); s.pic = cleanPic_(s.pic); s.hal = cleanHal_(s.hal);
   return { ok: true, s, doc: String(f.row[C.doc] || ''), name: String(f.row[C.name] || ''), screens: Math.max(1, parseInt(f.row[C.screens], 10) || 1) };
 }
 // שמירה מהאפליקציה: גוף הבקשה = {"shul","key","action":"save"|"close","s":{...}}
@@ -546,6 +552,7 @@ function settingsLines_(s, scr) {
   if (s.haftara && s.nusach) L.push('! הפטרה: ' + (s.nusach === 'seph' ? 'ספרד' : 'אשכנז') + (s.haftFrom === 'day' ? ', רק בשבת' : ''));
   if (s.mazalTitle) L.push('! כותרת ברכה: ' + s.mazalTitle);
   (s.mazal || []).filter(z => onScr_(z, scr)).forEach(z => { if (z.text && DATE_RE.test(z.from)) L.push('! מזל טוב ' + z.from + ' ' + (DATE_RE.test(z.to) ? z.to : z.from) + (z.title ? ' [' + z.title + ']' : '') + ': ' + z.text); });
+  { const h = cleanHal_(s.hal); if (h.on && onScr_(h, scr)) L.push('! פס הלכות: ' + ({ slow: 'איטי', normal: 'רגיל', fast: 'מהיר' })[h.speed]); }
   if (s.screenOff) L.push('מסך כבוי');
   if (s.nightOff && /^\d{1,2}:\d{2}$/.test(s.nightFrom) && /^\d{1,2}:\d{2}$/.test(s.nightTo)) L.push('מסך כבוי ' + s.nightFrom + '-' + s.nightTo);
   (s.offDates || []).forEach(o => {   // כיבוי בתאריך עברי מסוים, למשל: מסך כבוי יב חשון 16:00-21:00
@@ -567,6 +574,146 @@ function settingsLines_(s, scr) {
     L.push('! תפילה ' + (p.q ? '[' + p.q + '] ' : '') + String(p.label).replace(/[:\[\]]/g, '') + ': ' + value);
   });
   return L.join('\n');
+}
+
+
+// ===================== פס הלכות (ספריא) =====================
+// מקורות: hebcal = לוח יומי מוכן (קיצור שו"ע, ערוך השולחן, חפץ חיים, שמירת הלשון), book = ספר בקצב קבוע מנקודת התחלה, text = טקסט שהגבאי מדביק
+const HAL_HEBCAL = { dksa: 'קיצור שולחן ערוך', ahsy: 'ערוך השולחן', dcc: 'חפץ חיים', dshl: 'שמירת הלשון' };
+const HAL_BOOKS = {
+  'Mishnah Berurah': 'משנה ברורה', 'Shulchan Arukh, Orach Chayim': 'שולחן ערוך אורח חיים', 'Kitzur Shulchan Arukh': 'קיצור שולחן ערוך',
+  'Kaf HaChayim on Shulchan Arukh, Orach Chayim': 'כף החיים', 'Ben Ish Hai': 'בן איש חי', 'Chayyei Adam': 'חיי אדם',
+  'Arukh HaShulchan': 'ערוך השולחן', 'Chafetz Chaim': 'חפץ חיים', 'Shemirat HaLashon': 'שמירת הלשון', 'Shulchan Arukh HaRav': 'שולחן ערוך הרב'
+};
+function cleanHal_(h) {
+  h = h || {};
+  return {
+    on: !!h.on, src: ['hebcal', 'book', 'text'].includes(h.src) ? h.src : 'book',
+    key: HAL_HEBCAL[h.key] ? h.key : 'dksa', book: HAL_BOOKS[h.book] ? h.book : 'Mishnah Berurah',
+    per: Math.min(10, Math.max(1, parseInt(h.per, 10) || 2)),
+    start: ['begin', 'siman', 'link'].includes(h.start) ? h.start : 'begin',
+    siman: Math.max(1, parseInt(h.siman, 10) || 1), seif: Math.max(1, parseInt(h.seif, 10) || 1),
+    link: /^https:\/\/(www\.)?sefaria\.org(\.il)?\//i.test(String(h.link || '')) ? String(h.link).slice(0, 300) : '',
+    date: DATE_RE.test(h.date) ? h.date : '', text: String(h.text || '').replace(/\r/g, '').slice(0, 3000),
+    speed: ['slow', 'normal', 'fast'].includes(h.speed) ? h.speed : 'normal', scr: scr_(h.scr)
+  };
+}
+const SEF = 'https://www.sefaria.org/api/';
+const sefRef_ = r => encodeURIComponent(String(r).replace(/ /g, '_')).replace(/%2C/g, ',').replace(/%3A/g, ':');
+function sefGet_(path) {
+  const r = UrlFetchApp.fetch(SEF + path, { muteHttpExceptions: true, headers: { Accept: 'application/json' } });
+  if (r.getResponseCode() !== 200) throw new Error('ספריא החזירה ' + r.getResponseCode() + ' עבור ' + path.slice(0, 80));
+  return JSON.parse(r.getContentText());
+}
+// רישיון שמותר לשימוש מסחרי: נחלת הכלל / CC0 / CC-BY / CC-BY-SA (לא NC / ND / זכויות שמורות)
+const okLic_ = l => { l = String(l || ''); return /public\s*domain|cc0|cc[- ]by/i.test(l) && !/nc|nd|copyright/i.test(l.replace(/public\s*domain/i, '')); };
+// המהדורה העברית שבה משתמשים לספר (נשמרת במטמון ליום)
+function halVersion_(index) {
+  const cache = CacheService.getScriptCache(), ck = 'halv_' + Utilities.base64EncodeWebSafe(index).slice(0, 100);
+  const hit = cache.get(ck); if (hit) return JSON.parse(hit);
+  let list = [];
+  try { list = sefGet_('texts/versions/' + sefRef_(index)); } catch (e) {}
+  const he = (Array.isArray(list) ? list : []).filter(v => (v.language === 'he' || v.actualLanguage === 'he') && !/^merged$/i.test(v.versionTitle || ''));
+  const pick = he.find(v => okLic_(v.license));
+  const out = pick ? { vt: pick.versionTitle, lic: pick.license, src: pick.versionSource || '' } : { vt: '', lic: '', none: he.map(v => v.versionTitle + ' (' + (v.license || 'ללא רישיון') + ')').join('; ') };
+  cache.put(ck, JSON.stringify(out), 21600);
+  return out;
+}
+const stripHtml_ = t => String(t || '').replace(/<sup[^>]*>[\s\S]*?<\/sup>/gi, '').replace(/<i class="footnote"[^>]*>[\s\S]*?<\/i>/gi, '')
+  .replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+const flat_ = a => Array.isArray(a) ? a.reduce((x, y) => x.concat(flat_(y)), []) : (a ? [a] : []);
+// קטע (סימן) מספריא: {ref, heRef, segs:[...], next}
+function halSection_(ref, vt) {
+  const cache = CacheService.getScriptCache(), ck = 'hals_' + Utilities.base64EncodeWebSafe(vt + '|' + ref).slice(0, 200);
+  const hit = cache.get(ck); if (hit) return JSON.parse(hit);
+  const r = sefGet_('texts/' + sefRef_(ref) + '?context=0&commentary=0&pad=0' + (vt ? '&vhe=' + encodeURIComponent(vt) : ''));
+  const sec = { ref: r.sectionRef || r.ref || ref, heRef: r.heSectionRef || r.heRef || '', segs: flat_(r.he).map(stripHtml_), next: r.next || '', index: r.indexTitle || '',
+    lic: r.heLicense || '', vt: r.heVersionTitle || vt, depth: r.textDepth || 0, sections: r.sections || [] };
+  const js = JSON.stringify(sec);
+  if (js.length < 95000) cache.put(ck, js, 21600);
+  return sec;
+}
+const heb_ = n => { const o = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'], t = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'], h = ['', 'ק', 'ר', 'ש', 'ת'];
+  let s = (n >= 400 ? 'ת' : '') + h[Math.floor((n % 400) / 100)]; n %= 100; s += n === 15 ? 'טו' : n === 16 ? 'טז' : t[Math.floor(n / 10)] + o[n % 10];
+  return s.length > 1 ? s.slice(0, -1) + '״' + s.slice(-1) : s + '׳'; };
+const daysBetween_ = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 864e5);
+// ההלכות של היום: מתחילים בנקודת ההתחלה ביום ההתחלה, ומתקדמים "per" סעיפים בכל יום (ממשיכים לסימן הבא, ובסוף הספר – מההתחלה)
+function halToday_(id, h, day) {
+  if (!h.on) return { ok: false, error: 'פס ההלכות כבוי' };
+  if (h.src === 'text') return { ok: true, title: 'הלכה יומית', items: h.text.split(/\n{2,}/).map(t => ({ label: '', text: t.replace(/\n/g, ' ').trim() })).filter(x => x.text), source: '' };
+  const cache = CacheService.getScriptCache();
+  const sig = JSON.stringify([h.src, h.key, h.book, h.per, h.start, h.siman, h.seif, h.link, h.date]);
+  const ck = 'hald_' + id + '_' + day + '_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, sig)).slice(0, 12);
+  const hit = cache.get(ck); if (hit) return JSON.parse(hit);
+  let out;
+  try { out = h.src === 'hebcal' ? halHebcal_(h, day) : halBook_(id, h, day, sig); }
+  catch (e) { out = { ok: false, error: String(e && e.message || e) }; }
+  const js = JSON.stringify(out);
+  if (out.ok && js.length < 95000) cache.put(ck, js, 21600);
+  return out;
+}
+function halBook_(id, h, day, sig) {
+  const start = h.date || day;
+  const n = daysBetween_(start, day);
+  if (n < 0) return { ok: false, error: 'הלימוד מתחיל ב-' + start };
+  // נקודת ההתחלה
+  let ref = h.book;
+  if (h.start === 'siman') ref = h.book + '.' + h.siman + '.' + h.seif;
+  if (h.start === 'link' && h.link) ref = decodeURIComponent(h.link.replace(/^https:\/\/[^/]+\//, '').split(/[?#]/)[0]).replace(/_/g, ' ');
+  const props = PropertiesService.getScriptProperties(), pk = 'hal_' + id;
+  let st = parseJson_(props.getProperty(pk));
+  let ver = null;
+  if (!st || st.sig !== sig || st.day > day) {   // הגדרה חדשה – מתחילים מנקודת ההתחלה
+    const first = halSection_(ref, '');
+    ver = halVersion_(first.index || h.book);
+    if (!ver.vt) throw new Error('לא נמצאה בספריא מהדורה עברית של הספר עם רישיון לשימוש מסחרי' + (ver.none ? ': ' + ver.none : ''));
+    const sec = halSection_(first.ref, ver.vt);
+    const isSeg = first.depth && first.sections.length >= first.depth;   // הקישור / ההתחלה מצביעים על סעיף מסוים
+    st = { sig, vt: ver.vt, lic: ver.lic, index: first.index || h.book, first: sec.ref, ref: sec.ref, idx: isSeg ? Math.max(0, first.sections[first.sections.length - 1] - 1) : 0, day: start };
+  }
+  // התקדמות עד היום
+  let left = h.per * daysBetween_(st.day, day), guard = 0;
+  while (left > 0 && guard++ < 3000) {
+    const sec = halSection_(st.ref, st.vt), remain = sec.segs.length - st.idx;
+    if (left < remain) { st.idx += left; left = 0; break; }
+    left -= Math.max(0, remain); st.ref = sec.next || st.first; st.idx = 0;
+  }
+  st.day = day;
+  props.setProperty(pk, JSON.stringify(st));
+  // ההלכות של היום
+  const items = []; let r = st.ref, i = st.idx; guard = 0;
+  while (items.length < h.per && guard++ < 50) {
+    const sec = halSection_(r, st.vt);
+    if (i < sec.segs.length) { if (sec.segs[i]) items.push({ label: (sec.heRef || '') + (sec.segs.length > 1 ? ':' + heb_(i + 1) : ''), text: sec.segs[i].slice(0, 4000) }); i++; }
+    else { r = sec.next || st.first; i = 0; }
+  }
+  return { ok: true, title: HAL_BOOKS[h.book] || st.index, items, source: 'ספריא · ' + st.vt + (st.lic ? ' (' + st.lic + ')' : '') };
+}
+function halHebcal_(h, day) {
+  const r = JSON.parse(UrlFetchApp.fetch('https://www.hebcal.com/hebcal?v=1&cfg=json&start=' + day + '&end=' + day + '&' + h.key + '=on&lg=s', { muteHttpExceptions: true }).getContentText());
+  const it = (r.items || [])[0];
+  if (!it) throw new Error('לא נמצא לימוד להיום ב-Hebcal');
+  let ref = '';
+  if (/sefaria\.org/.test(it.link || '')) ref = decodeURIComponent(String(it.link).replace(/^https?:\/\/[^/]+\//, '').split(/[?#]/)[0]).replace(/_/g, ' ');
+  if (!ref) throw new Error('ל-Hebcal אין קישור לספריא עבור ' + (it.title || h.key));
+  const first = halSection_(ref, '');
+  const ver = halVersion_(first.index || ref.split(/[.,]/)[0]);
+  if (!ver.vt) throw new Error('לא נמצאה מהדורה עברית עם רישיון לשימוש מסחרי');
+  const rr = sefGet_('texts/' + sefRef_(ref) + '?context=0&commentary=0&pad=0&vhe=' + encodeURIComponent(ver.vt));
+  const segs = flat_(rr.he).map(stripHtml_).filter(Boolean);
+  return { ok: true, title: HAL_HEBCAL[h.key], items: segs.map((t, i) => ({ label: i === 0 ? (rr.heRef || '') : '', text: t.slice(0, 4000) })), source: 'ספריא · ' + ver.vt + (ver.lic ? ' (' + ver.lic + ')' : '') };
+}
+// בדיקה מהדפדפן: ...exec?what=haltest&book=Mishnah Berurah
+function halTest_(book) {
+  const out = { book, steps: [] };
+  try {
+    const first = halSection_(book, ''); out.steps.push({ first: { ref: first.ref, heRef: first.heRef, segs: first.segs.length, next: first.next, index: first.index, lic: first.lic, vt: first.vt, depth: first.depth } });
+    let list = []; try { list = sefGet_('texts/versions/' + sefRef_(first.index || book)); } catch (e) { out.steps.push({ versionsError: String(e) }); }
+    out.steps.push({ versions: (Array.isArray(list) ? list : []).map(v => [v.language, v.versionTitle, v.license].join(' | ')) });
+    const ver = halVersion_(first.index || book); out.steps.push({ chosen: ver });
+    if (ver.vt) { const s2 = halSection_(first.ref, ver.vt); out.steps.push({ withVersion: { ref: s2.ref, segs: s2.segs.length, sample: (s2.segs[0] || '').slice(0, 200) } }); }
+  } catch (e) { out.error = String(e && e.message || e); }
+  return out;
 }
 
 // ---------- טופס ההגדרות ----------
@@ -636,6 +783,7 @@ function saveSettings(id, key, s) {
       title: String(z.title || '').replace(/[|\r\n]/g, ' ').slice(0, 80) })).filter(z => z.ds.length && z.t),
     prayers: (s.prayers || []).slice(0, 30).map(p => ({ q: ['', 'חול', 'א-ה', 'שישי', 'שבת'].includes(p.q) ? p.q : '', label: String(p.label || '').slice(0, 30), value: String(p.value || '').slice(0, 120),
       halls: (Array.isArray(p.halls) ? p.halls : []).slice(0, 10).map(h => String(h || '').replace(/[(),|\r\n]/g, ' ').trim().slice(0, 24)), scr: scr_(p.scr) })),
+    hal: cleanHal_(s.hal),
     theme: THEMES[s.theme] ? s.theme : 'dark', theme2: THEMES[s.theme2] ? s.theme2 : 'picture', pic: cleanPic_(s.pic),
     halls: (Array.isArray(s.halls) ? s.halls : []).map(h => String(h || '').replace(/[(),|\r\n]/g, ' ').trim().slice(0, 24)).filter(Boolean).slice(0, 10),
     learnScr: Object.fromEntries(Object.entries(s.learnScr || {}).filter(([k, v]) => LEARN_KEYS.includes(k) && ['1', '2'].includes(String(v))).map(([k, v]) => [k, String(v)]))
