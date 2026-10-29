@@ -155,7 +155,12 @@ body.th-pic .pstage{display:block}
 .pclk .g{font-size:calc(var(--u)*1.15);color:var(--pm);font-weight:600;direction:rtl}
 .pmain{flex:1;min-height:0;display:grid;grid-template-columns:calc(var(--u)*21) minmax(0,1fr) calc(var(--u)*21);gap:calc(var(--u)*1.2)}
 .pcol{display:flex;flex-direction:column;gap:calc(var(--u)*1);min-height:0}
-.pcol>div{display:flex;min-height:0;flex:0 1 auto}
+.pcol>div{display:flex;min-height:calc(var(--u)*7.5);flex:0 1 auto}
+/* 3 קוביות בעמודה: כל קובייה שומרת על גובה מינימלי (כותרת + 2–3 שורות), והגדולות מתכווצות וגוללות */
+.pcol.n3{gap:calc(var(--u)*.7)}
+.pcol.n3>div{min-height:calc(var(--u)*8.5)}
+.pcol.n3 .pbox{padding:calc(var(--u)*.5) calc(var(--u)*1) calc(var(--u)*.5)}
+.pcol.n3 .pbox>h3{font-size:calc(var(--u)*1.2);padding-bottom:calc(var(--u)*.25);margin-bottom:calc(var(--u)*.3)}
 .pcol>div.grow{flex:1 1 auto}
 .pcol>div:empty{display:none}
 .pbox{flex:1;min-height:0;display:flex;flex-direction:column;position:relative;background:rgba(255,255,255,.72);border:1px solid var(--pl);outline:1px solid rgba(168,118,28,.18);outline-offset:calc(var(--u)*.25);
@@ -1225,6 +1230,7 @@ function renderPic(){
   for(const [k, id] of [['R','pR'], ['L','pL']]){
     const list = (pic[k] || []).filter(x => PIC_TITLE[x]), kids = $(id).children;
     const boxes = list.map(tp => [tp, picBox(tp)]).filter(x => x[1]);
+    $(id).classList.toggle('n3', boxes.length >= 3);
     for(let i = 0; i < 3; i++){
       const b = boxes[i], el = kids[i];
       el.className = b && (i === boxes.length - 1) ? 'grow' : '';
