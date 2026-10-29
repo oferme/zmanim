@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>התקנת מסך בלי מחשב</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700;900&family=Heebo:wght@400;500;700;800&display=swap">
+<style>
+/* פריסה: עמודת קריאה אחת, צעדים ממוספרים כרשימת עבודה של מתקין, טבלאות קצרות לבדיקה מהירה בשטח */
+:root{
+  --bg:#f6f4ee; --panel:#ffffff; --ink:#18223a; --muted:#5b6478; --line:#dcd6c6;
+  --navy:#132a52; --gold:#b8862a; --gold-soft:#f3e7c9; --ok:#2f7d4f; --no:#b2402f;
+  --f-display:'Frank Ruhl Libre','David Libre',Georgia,serif;
+  --f-body:'Heebo','Segoe UI',Arial,sans-serif;
+  --f-mono:ui-monospace,'Cascadia Mono',Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1730; --panel:#13234a; --ink:#f1ece0; --muted:#a9b4cc; --line:#2a3d68;
+  --navy:#f7de9a; --gold:#e2b857; --gold-soft:#2a3557; --ok:#6fcf97; --no:#ff8f7a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1730; --panel:#13234a; --ink:#f1ece0; --muted:#a9b4cc; --line:#2a3d68;
+  --navy:#f7de9a; --gold:#e2b857; --gold-soft:#2a3557; --ok:#6fcf97; --no:#ff8f7a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.65;direction:rtl;text-align:right}
+.wrap{max-width:760px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+header h1{font-family:var(--f-display);font-weight:900;font-size:clamp(30px,6vw,42px);line-height:1.15;color:var(--navy);margin:0;text-wrap:balance}
+header p{margin:8px 0 0;color:var(--muted)}
+h2{font-family:var(--f-display);font-weight:700;font-size:26px;color:var(--navy);margin:0 0 10px;text-wrap:balance}
+h3{font-size:18px;font-weight:800;margin:0 0 4px}
+section{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.buy{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.buy .panel{display:flex;flex-direction:column;gap:6px;min-width:0}
+.price{font-weight:800;font-size:22px;color:var(--gold);font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-size:13px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--gold-soft);color:var(--ink)}
+a{color:var(--gold);font-weight:700;text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+ol.steps{list-style:none;margin:0;padding:0;counter-reset:s;display:flex;flex-direction:column;gap:12px}
+ol.steps>li{counter-increment:s;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px 16px 18px;display:grid;grid-template-columns:44px 1fr;gap:12px;min-width:0}
+ol.steps>li::before{content:counter(s);font-family:var(--f-display);font-weight:900;font-size:24px;width:40px;height:40px;border-radius:50%;background:var(--navy);color:var(--bg);display:flex;align-items:center;justify-content:center}
+ol.steps>li>div{min-width:0}
+ul{margin:6px 0 0;padding-right:20px}
+li{margin:3px 0}
+.path{font-weight:700;background:var(--gold-soft);padding:1px 7px;border-radius:6px;white-space:nowrap}
+.code{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.code code{font-family:var(--f-mono);font-size:15px;direction:ltr;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;overflow-x:auto;max-width:100%;flex:1 1 260px;user-select:all}
+.code button{font-family:var(--f-body);font-weight:700;font-size:14px;border:1px solid var(--gold);background:transparent;color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+.note{border-right:4px solid var(--gold);background:var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:16px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{padding:10px 14px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+th{font-weight:800;color:var(--muted);font-size:14px;letter-spacing:.02em}
+tr:last-child td{border-bottom:0}
+.y{color:var(--ok);font-weight:800}.n{color:var(--no);font-weight:800}
+.src{font-size:14px;color:var(--muted)}
+.src ul{padding-right:18px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <p style="margin:0 0 6px;font-size:14px"><a href="../pc/">← למדריך ההתקנה במחשב</a></p>
+  <h1>התקנת מסך לוח זמנים בלי מחשב</h1>
+  <p>טלוויזיה רגילה + סטרימר Google TV + האפליקציה Fully Kiosk. זמן התקנה: כ־15 דקות לבית כנסת.</p>
+</header>
+
+<section>
+  <h2>מה קונים</h2>
+  <div class="buy">
+    <div class="panel">
+      <span class="tag">הסטרימר המומלץ</span>
+      <h3>Xiaomi TV Box S (3rd Gen)</h3>
+      <div class="price">מ־224 ₪</div>
+      <div>מערכת Google TV, זיכרון 2GB, נפח 32GB, Wi‑Fi 6. אחריות שנה של היבואן הרשמי (המילטון). קופסה קטנה שמונחת ליד הטלוויזיה.</div>
+      <div><a href="https://www.zap.co.il/model.aspx?modelid=1249357" target="_blank" rel="noopener">השוואת מחירים בזאפ</a> · <a href="https://www.payngo.co.il/354775.html" target="_blank" rel="noopener">מחסני חשמל</a> · <a href="https://www.bug.co.il/brand/xiaomi/tv/box/s/3rd/gen/" target="_blank" rel="noopener">באג</a></div>
+    </div>
+    <div class="panel">
+      <span class="tag">אפשרות: סטיק</span>
+      <h3>Xiaomi TV Stick 4K (2nd Gen)</h3>
+      <div class="price">כ־240 ₪</div>
+      <div>נכנס ישר לכניסת ה־HDMI ומוסתר מאחורי הטלוויזיה. Google TV, זיכרון 2GB, אבל נפח 8GB בלבד ומעבד חלש יותר מהקופסה. מתאים בעיקר למסך שני במסדרון.</div>
+      <div><a href="https://www.ivory.co.il/catalog.php?id=138567" target="_blank" rel="noopener">באייבורי</a> · <a href="https://www.speed4u.co.il/product/%D7%A1%D7%98%D7%A8%D7%99%D7%9E%D7%A8-%D7%A1%D7%98%D7%99%D7%A7-%D7%A9%D7%99%D7%90%D7%95%D7%9E%D7%99-4k-%D7%93%D7%95%D7%A8-2-%D7%93%D7%92%D7%9D-xiaomi-tv-stick-4k-2nd-gen/" target="_blank" rel="noopener">בספיד מחשבים</a></div>
+    </div>
+    <div class="panel">
+      <span class="tag">רשות – לא חובה</span>
+      <h3>רישיון Fully PLUS</h3>
+      <div class="price">8.90 € + מע״מ</div>
+      <div>תשלום חד־פעמי לכל מכשיר, לכל החיים. צריך אותו רק לנעילת קיוסק (שאי אפשר לצאת מהלוח עם השלט). מסך מלא ועלייה אוטומטית עובדים בחינם.</div>
+      <div><a href="https://www.fully-kiosk.com/getlicense/" target="_blank" rel="noopener">רכישה</a> · <a href="https://www.fully-kiosk.com/docs/en/legal/fully-plus-license" target="_blank" rel="noopener">פרטי הרישיון</a></div>
+    </div>
+    <div class="panel">
+      <span class="tag">מה עוד צריך</span>
+      <h3>טלוויזיה ואינטרנט</h3>
+      <div>כל טלוויזיה עם כניסת HDMI. רשת Wi‑Fi בבית הכנסת (לסטרימר אין חיבור כבל רשת). שקע חשמל ליד הטלוויזיה למטען של הסטרימר.</div>
+    </div>
+  </div>
+  <p class="src">המחירים נבדקו ב־29 באוקטובר 2026 ועשויים להשתנות: הקופסה – המחיר הנמוך בזאפ (מתוך 29 חנויות, רוב המחירים סביב 270 ₪); הסטיק – בספיד מחשבים, שם הוא אזל מהמלאי באותו יום. לפני קנייה של הסטיק כדאי לוודא שיש עליו אחריות של יבואן בישראל. אם אין סיבה להסתיר את המכשיר – עדיפה הקופסה: באותו מחיר היא חזקה יותר ועם יותר נפח.</p>
+</section>
+
+<section>
+  <h2>לפני שמגיעים לבית הכנסת</h2>
+  <div class="panel">
+    <ul>
+      <li>הכינו את <b>המזהה של בית הכנסת</b> מהגיליון (עמודה "מזהה"), למשל <span class="path">rs-bircat-mordechai</span>.</li>
+      <li>בדקו בגיליון שבעמודה <b>"מספר מסכים"</b> יש מקום למסך נוסף. אם לא – המסך יציג קוד, ותאשרו אותו בגיליון "מסכים".</li>
+      <li>מומלץ חשבון ג׳ימייל אחד של בית הכנסת (או שלכם) לכל הסטרימרים – צריך אותו לחנות Google Play.</li>
+      <li>סיסמת ה־Wi‑Fi של בית הכנסת.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>ההתקנה, צעד אחר צעד</h2>
+  <ol class="steps">
+    <li><div>
+      <h3>מחברים ומפעילים</h3>
+      מחברים את הסטרימר לכניסת HDMI בטלוויזיה ולחשמל, ובוחרים בטלוויזיה את כניסת ה־HDMI הזו (כפתור Source / Input בשלט של הטלוויזיה). מזווגים את השלט של הסטרימר לפי ההוראות שעל המסך.
+    </div></li>
+    <li><div>
+      <h3>הגדרה ראשונית של Google TV</h3>
+      שפה, רשת Wi‑Fi, והתחברות לחשבון גוגל. אפשר לדלג על האפליקציות המוצעות.
+      <ul>
+        <li>בהגדרות הסטרימר: <span class="path">הגדרות ← מערכת ← שעה ותאריך</span> – לוודא שאזור הזמן הוא <b>ירושלים</b>.</li>
+      </ul>
+    </div></li>
+    <li><div>
+      <h3>מתקינים את Fully Kiosk</h3>
+      בחנות Google Play מחפשים <b>Fully Kiosk Browser</b> – באפליקציות היא מופיעה בשם <b>"Fully Kiosk Browser &amp; Lockdown"</b> (<a href="https://play.google.com/store/apps/details?id=de.ozerov.fully" target="_blank" rel="noopener">קישור בחנות</a>). לא את Fully Video Kiosk ולא את Fully Single App Kiosk. היצרן כותב שהגרסאות החדשות שופרו במיוחד ל־Android TV – לכן תמיד מתקינים את העדכנית.
+    </div></li>
+    <li><div>
+      <h3>מגדירים את כתובת המסך</h3>
+      פותחים את Fully, ובמסך הפתיחה:
+      <ul>
+        <li><b>Start URL</b> – כתובת המסך של בית הכנסת:</li>
+      </ul>
+      <div class="code"><code id="url">https://oferme.github.io/zmanim/?shul=SHUL-ID</code><button type="button" data-copy="url">העתקה</button></div>
+      <ul>
+        <li>מחליפים את <span class="path">SHUL-ID</span> במזהה של בית הכנסת.</li>
+        <li><b>למסך השני</b> של אותו בית כנסת (למשל מסך תמונה במסדרון) – אותה כתובת עם <span class="path">&amp;screen=2</span> בסוף. אפשר להעתיק אותה מוכנה מעמודת <b>"קישור למסך 2"</b> בגיליון:</li>
+      </ul>
+      <div class="code"><code id="url2">https://oferme.github.io/zmanim/?shul=SHUL-ID&amp;screen=2</code><button type="button" data-copy="url2">העתקה</button></div>
+      <ul>
+        <li>מסמנים <b>Fullscreen Mode</b>, ומבטלים <b>Show Action Bar</b> ו־<b>Show Address Bar</b>.</li>
+        <li>לוחצים <b>Start Using Fully</b>. לוח הזמנים אמור לעלות.</li>
+      </ul>
+    </div></li>
+    <li><div>
+      <h3>אישור המסך</h3>
+      בפתיחה הראשונה המסך נרשם לבד בגיליון "מסכים". אם עוד יש מקום במכסה של בית הכנסת – הוא מאושר מיד. אם מופיע "מסך זה ממתין לאישור" עם קוד – משנים בגיליון את הסטטוס של הקוד הזה ל"מאושר", ותוך דקה המסך עולה.
+    </div></li>
+    <li><div>
+      <h3>הגדרות חשובות ב־Fully</h3>
+      את התפריט של Fully פותחים בשלט ב<b>לחיצה ארוכה על כפתור "חזור"</b>. בתוך ההגדרות (Settings):
+      <ul>
+        <li><b>Device Management ← Keep Screen On</b> – שהמסך לא ייכבה לבד.</li>
+        <li><b>Device Management ← Launch on Boot</b> – שהלוח יעלה לבד כשהסטרימר נדלק.</li>
+        <li><b>Web Content Settings ← Autoplay Videos</b> – כדי ששידור יוטיוב בזמן שיעור יתחיל לבד.</li>
+      </ul>
+      שמות ההגדרות יכולים להשתנות מעט בין גרסאות של Fully.
+    </div></li>
+    <li><div>
+      <h3>בודקים עלייה אוטומטית</h3>
+      מנתקים את הסטרימר מהחשמל, מחברים שוב, ומחכים. לוח הזמנים אמור לעלות לבד בתוך דקה–שתיים.
+      <div class="note" style="margin-top:8px"><b>אם הלוח לא עולה לבד:</b> בחלק ממכשירי Google TV ההגדרה Launch on Boot לא מספיקה. במקרה כזה מתקינים מ־Google Play את <b>Projectivy Launcher</b>, ובו: <span class="path">Settings ← Projectivy Launcher Settings ← Power ← Autostart on boot</span> ← בוחרים Fully Kiosk Browser. אחר כך מאשרים לו את הרשאת הנגישות (Accessibility) כשהוא מבקש.</div>
+    </div></li>
+  </ol>
+</section>
+
+<section>
+  <h2>רשות: נעילה ורישיון</h2>
+  <div class="panel">
+    <p style="margin:0 0 8px">אחרי צעד 7 הלוח עובד במלואו: מסך מלא, עולה לבד, ובלי סימן מים. <b>לא צריך לקנות רישיון.</b> הרישיון של Fully נותן בעיקר <b>נעילת קיוסק</b> – מי שלוחץ על "בית" או "חזור" בשלט לא יוצא מהלוח בלי קוד.</p>
+    <ul>
+      <li><b>כדאי</b> – כשהשלט נשאר ליד הטלוויזיה, או כשהמסך במקום ציבורי (מסדרון, כניסה).</li>
+      <li><b>לא צריך</b> – כשהשלט אצל הגבאי. גם אם מישהו יצא מהלוח – ניתוק מהחשמל וחיבור מחדש מחזירים אותו.</li>
+      <li>בלי רישיון אפשר להפעיל את הנעילה רק לניסיון – ואז מופיע סימן מים של Fully. כשמבטלים את Kiosk Mode הסימן נעלם.</li>
+    </ul>
+  </div>
+  <ol class="steps">
+    <li><div>
+      <h3>רוכשים רישיון</h3>
+      8.90 € + מע״מ למכשיר, תשלום אחד לכל החיים (עם החזר כספי בתוך 14 יום). הרישיון נקשר למכשיר ומופעל מיד אחרי התשלום – בלי קוד, רק צריך שהסטרימר יהיה מחובר לאינטרנט.
+      <ul>
+        <li><b>מהסטרימר:</b> הרכישה נמצאת ב<b>תפריט</b> של Fully, לא בתוך Settings: לחיצה ארוכה על "חזור" בשלט פותחת את התפריט, ושם האפשרות של רישיון PLUS (Get / Fully PLUS License).</li>
+        <li><b>מהטלפון או מהמחשב</b> (נוח יותר מהשלט): בדף <a href="https://www.fully-kiosk.com/getlicense/" target="_blank" rel="noopener">fully-kiosk.com/getlicense</a>. שם צריך את <b>מזהה המכשיר (Device ID)</b> שמופיע ב־Fully, ומשלמים באשראי, PayPal או Google Pay.</li>
+        <li>מ־10 מכשירים ומעלה יש <a href="https://www.fully-kiosk.com/volumeprice" target="_blank" rel="noopener">רישיון כמותי</a> בהנחה, לעסקים. מקבלים קוד במייל ומקלידים אותו בכל מכשיר.</li>
+      </ul>
+    </div></li>
+    <li><div>
+      <h3>נועלים במצב קיוסק</h3>
+      בהגדרות Fully: <span class="path">Kiosk Mode</span> – מפעילים, קובעים <b>קוד PIN</b> (רק לכם), ומסמנים <b>Disable Home Button</b>. היצרן ממליץ להפעיל את Fully מחדש פעם אחת אחרי זה. אם כפתור הבית עדיין יוצא מהלוח – מפעילים את Fully גם ב<span class="path">הגדרות ← נגישות</span> של הסטרימר.
+    </div></li>
+  </ol>
+</section>
+
+<section>
+  <h2>מסך שני ומסך תמונה</h2>
+  <div class="panel">
+    <p style="margin:0 0 8px">מסך תמונה הוא מסך בהיר עם מסגרת, שתלוי במסדרון או בכניסה. אנשים עומדים קרוב, ולכן הכתב קטן ויש מקום לתמונה מרכזית, לקוביות נוספות ולפס הלכות נע. בגלל שבמסך הזה אין הצטרפות לזום, סטרימר או סטיק מתאימים לו בדיוק.</p>
+    <ul>
+      <li><b>בגיליון:</b> בעמודה "מספר מסכים" של בית הכנסת כותבים 2, ובתפריט <span class="path">לוח זמנים ← יצירת / עדכון קישורי הגדרות</span> לוחצים פעם אחת. הקישור מופיע בעמודה "קישור למסך 2".</li>
+      <li><b>בסטרימר:</b> בצעד 4 שמים את הכתובת עם <span class="path">&amp;screen=2</span>.</li>
+      <li><b>באפליקציה של הגבאי:</b> בלשונית <span class="path">מסך</span> בוחרים "מסך 2" ואת העיצוב שלו (ברירת המחדל: מסך תמונה). את המסגרת, הקוביות, התמונה המרכזית ופס ההלכות מגדירים בלשונית <span class="path">תמונה</span>.</li>
+      <li>בית כנסת עם מסך אחד בלבד שתלוי במסדרון – משאירים את הכתובת הרגילה, ובאפליקציה בוחרים למסך הראשי "מסך תמונה".</li>
+    </ul>
+    <div class="note" style="margin-top:10px">פס ההלכות והחלפת התמונות זזים כל הזמן. בסטיק, שהוא חלש יותר, התנועה עלולה להיות פחות חלקה. אם זה מפריע – באפליקציה בוחרים לפס מהירות "איטי", או מחליפים לקופסה.</div>
+  </div>
+</section>
+
+<section>
+  <h2>יציאה לתחזוקה</h2>
+  <div class="panel">לחיצה ארוכה על "חזור" בשלט ← (אם נעלתם – מקלידים את קוד ה־PIN) ← ההגדרות נפתחות. משם אפשר לשנות כתובת, או לצאת מ־Fully. לסגירה רגילה מרחוק – כפתור "סגירת התוכנה" באפליקציית ההגדרות של הגבאי עובד גם כאן.</div>
+</section>
+
+<section>
+  <h2>מה עובד על סטרימר, ומה רק על מחשב</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>תכונה</th><th>סטרימר</th><th>מחשב Windows</th></tr></thead>
+    <tbody>
+      <tr><td>זמנים, הודעות, לימוד יומי, הפטרה, היום בתפילה</td><td class="y">כן</td><td class="y">כן</td></tr>
+      <tr><td>מסך בהיר, מסך תמונה ופס הלכות נע</td><td class="y">כן</td><td class="y">כן</td></tr>
+      <tr><td>שליטה מהאפליקציה של הגבאי וכיבוי מסך</td><td class="y">כן</td><td class="y">כן</td></tr>
+      <tr><td>שידור יוטיוב בזמן שיעור</td><td class="y">כן</td><td class="y">כן</td></tr>
+      <tr><td>הצטרפות אוטומטית לזום, ו־OBS עם הלוגו</td><td class="n">לא</td><td class="y">כן (רק במסך הראשי)</td></tr>
+    </tbody>
+  </table></div>
+  <p class="src">"כיבוי מסך" במערכת מחשיך את התצוגה. הטלוויזיה עצמה נשארת דולקת – לחיסכון בחשמל בלילה אפשר להשתמש בטיימר הכיבוי של הטלוויזיה.</p>
+</section>
+
+<section>
+  <h2>תקלות נפוצות</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>מה רואים</th><th>מה עושים</th></tr></thead>
+    <tbody>
+      <tr><td>"מסך זה ממתין לאישור" וקוד</td><td>לאשר את הקוד בגיליון "מסכים", או להגדיל את "מספר מסכים" של בית הכנסת.</td></tr>
+      <tr><td>המסך השני מציג את אותו עיצוב כמו הראשי</td><td>חסר <span class="path">&amp;screen=2</span> בכתובת (צעד 4), או שבאפליקציה נבחר למסך 2 אותו עיצוב.</td></tr>
+      <tr><td>"בית הכנסת לא נמצא במערכת"</td><td>המזהה בכתובת לא נכון. לבדוק אותו מול עמודת "מזהה" בגיליון.</td></tr>
+      <tr><td>"אין חיבור לאינטרנט"</td><td>לבדוק את ה־Wi‑Fi בהגדרות הסטרימר. הלוח ממשיך להציג את נתוני היום מהזיכרון.</td></tr>
+      <tr><td>שעה לא נכונה</td><td>אזור זמן בסטרימר – ירושלים (צעד 2).</td></tr>
+      <tr><td>הלוח לא עולה אחרי הפסקת חשמל</td><td>צעד 7 – Launch on Boot, ואם לא עוזר – Projectivy Launcher.</td></tr>
+      <tr><td>המסך כהה במקום בהיר</td><td>Reload. אם עדיין כהה – לכבות Dark Mode בהגדרות Fully (Web Content Settings), או "עיצוב כהה" בהגדרות הסטרימר.</td></tr>
+      <tr><td>פס ההלכות או הגלילה מרצדים</td><td>Reload (התנועה עודכנה). לכבות בטלוויזיה "החלקת תנועה" (Motion Smoothing / MEMC), או לבחור באפליקציה מהירות "איטי".</td></tr>
+      <tr><td>רואים גרסה ישנה אחרי עדכון</td><td>לחיצה ארוכה על "חזור" ← Reload, או לנתק ולחבר את הסטרימר.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer class="src">
+  מקורות:
+  <ul>
+    <li><a href="https://www.zap.co.il/model.aspx?modelid=1249357" target="_blank" rel="noopener">זאפ – Xiaomi TV Box S 3rd Gen</a></li>
+    <li><a href="https://www.payngo.co.il/354775.html" target="_blank" rel="noopener">מחסני חשמל – Xiaomi TV Box S 3rd Gen</a></li>
+    <li><a href="https://www.mi.com/global/product/xiaomi-tv-stick-4k-2nd-gen/specs/" target="_blank" rel="noopener">Xiaomi – מפרט TV Stick 4K (2nd Gen)</a></li>
+    <li><a href="https://www.speed4u.co.il/product/%D7%A1%D7%98%D7%A8%D7%99%D7%9E%D7%A8-%D7%A1%D7%98%D7%99%D7%A7-%D7%A9%D7%99%D7%90%D7%95%D7%9E%D7%99-4k-%D7%93%D7%95%D7%A8-2-%D7%93%D7%92%D7%9D-xiaomi-tv-stick-4k-2nd-gen/" target="_blank" rel="noopener">ספיד מחשבים – TV Stick 4K (2nd Gen)</a></li>
+    <li><a href="https://www.fully-kiosk.com/docs/en/legal/fully-plus-license" target="_blank" rel="noopener">Fully – רישיון PLUS (מחיר, רכישה והפעלה)</a></li>
+    <li><a href="https://www.fully-kiosk.com/docs/en/faq/tv" target="_blank" rel="noopener">Fully – שאלות נפוצות על Android TV</a></li>
+    <li><a href="https://support.trivory.com/tv/setup/androidtv" target="_blank" rel="noopener">מדריך הקמה של Fully + Projectivy על Android TV</a></li>
+  </ul>
+</footer>
+</div>
+
+<script>
+document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+  const el = document.getElementById(b.dataset.copy), txt = el.textContent;
+  const done = () => { b.textContent = 'הועתק'; setTimeout(() => b.textContent = 'העתקה', 1500); };
+  try { navigator.clipboard.writeText(txt).then(done, () => sel(el)); } catch (e) { sel(el); }
+}));
+function sel(el){ const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+</script>
+
+</body>
+</html>
