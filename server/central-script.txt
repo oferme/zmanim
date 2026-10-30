@@ -419,6 +419,12 @@ function ytLatest_(link, filter, debug) {
       else info.error = 'אף סרטון לא מתאים לסינון';
     } catch (e) { info.error = String(e); }
   }
+  // הסרטון האחרון שנמצא נשמר. אם הפעם יוטיוב לא החזיר את הרשימה, או שבין 15 הסרטונים האחרונים אין אחד שמתאים לסינון –
+  // מציגים את האחרון שנמצא, במקום הודעה "לא נמצא סרטון"
+  const pk = 'ytlast_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, link + '|' + (filter || ''))).slice(0, 22);
+  const props = PropertiesService.getScriptProperties();
+  if (info.chosen) { try { props.setProperty(pk, info.chosen); } catch (e) {} }
+  else { const last = props.getProperty(pk); if (last) { info.chosen = last; info.fallback = 'הוצג הסרטון האחרון שנמצא קודם (' + info.error + ')'; } }
   if (debug) return info;
   cache.put(ck, info.chosen, info.chosen ? 600 : 120);
   return info.chosen;
