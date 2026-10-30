@@ -404,12 +404,48 @@ function ytLatest_(link, filter, debug) {
     if (ch) info.feed = 'channel_id=' + ch;
   } else info.error = 'הקישור אינו לערוץ או לרשימת השמעה';
   if (info.feed) {
+    const unesc = t => String(t || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    let all = [];
+    info.tried = [];
+    // 1. רשימת הסרטונים (RSS) של הערוץ / רשימת ההשמעה
+    // 2. אם ריקה – רשימת ההעלאות של הערוץ (UU...)
+    // 3. אם עדיין ריקה – דף הסרטונים והשידורים של הערוץ ביוטיוב
+    const feeds = [info.feed];
+    const chId = (info.feed.match(/channel_id=(UC[\w-]{22})/) || [])[1];
+    if (chId) feeds.push('playlist_id=UU' + chId.slice(2));
+    for (const fd of feeds) {
+      if (all.length) break;
+      try {
+        const r = UrlFetchApp.fetch('https://www.youtube.com/feeds/videos.xml?' + fd, { muteHttpExceptions: true });
+        info.tried.push(fd + ' → ' + r.getResponseCode());
+        if (r.getResponseCode() !== 200) continue;
+        const xml = r.getContentText();
+        const tag = (e, t) => unesc((e.match(new RegExp('<' + t + '[^>]*>([\\s\\S]*?)</' + t + '>')) || [])[1]);
+        all = (xml.match(/<entry>[\s\S]*?<\/entry>/g) || []).map(e => ({ id: tag(e, 'yt:videoId'), title: tag(e, 'title'), at: tag(e, 'published') }));
+        all.sort((x, y) => y.at.localeCompare(x.at));
+      } catch (e) { info.tried.push(fd + ' → ' + e); }
+    }
+    if (!all.length && chId) {
+      for (const tab of ['videos', 'streams']) {
+        try {
+          const r = UrlFetchApp.fetch('https://www.youtube.com/channel/' + chId + '/' + tab, { muteHttpExceptions: true, headers: { 'Accept-Language': 'he,en' } });
+          info.tried.push(tab + ' page → ' + r.getResponseCode());
+          if (r.getResponseCode() !== 200) continue;
+          const html = r.getContentText(), seen = {};
+          // סרטונים בדף: videoRenderer (videoId + title.runs) או lockupViewModel (contentId + title.content)
+          const re = /"videoRenderer":\{"videoId":"([\w-]{11})"[\s\S]{0,3000}?"title":\{"runs":\[\{"text":"((?:[^"\\]|\\.)*)"|"lockupViewModel":\{[\s\S]{0,6000}?"title":\{"content":"((?:[^"\\]|\\.)*)"[\s\S]{0,3000}?"contentId":"([\w-]{11})"/g;
+          let m, i = 0;
+          while ((m = re.exec(html)) && i < 40) {
+            const id = m[1] || m[4], title = m[2] !== undefined ? m[2] : m[3];
+            if (!id || seen[id]) continue; seen[id] = 1;
+            let t = title; try { t = JSON.parse('"' + title + '"'); } catch (e) {}
+            all.push({ id, title: t, at: tab + ' #' + String(++i).padStart(2, '0') });
+          }
+        } catch (e) { info.tried.push(tab + ' page → ' + e); }
+        if (all.length) break;   // דף הסרטונים מסודר מהחדש לישן
+      }
+    }
     try {
-      const xml = UrlFetchApp.fetch('https://www.youtube.com/feeds/videos.xml?' + info.feed, { muteHttpExceptions: true }).getContentText();
-      const tag = (e, t) => ((e.match(new RegExp('<' + t + '[^>]*>([\\s\\S]*?)</' + t + '>')) || [])[1] || '')
-        .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-      const all = (xml.match(/<entry>[\s\S]*?<\/entry>/g) || []).map(e => ({ id: tag(e, 'yt:videoId'), title: tag(e, 'title'), at: tag(e, 'published') }));
-      all.sort((a, b) => b.at.localeCompare(a.at));
       info.titles = all.map(x => x.at.slice(0, 16) + ' ' + x.title);
       const norm = t => String(t).replace(/[֑-ׇ"'״׳`.,:;!?()\[\]\-–|]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
       const words = norm(filter || '').split(' ').filter(Boolean);   // כל המילים צריכות להופיע בשם (בכל סדר)
