@@ -612,6 +612,11 @@ function settingsLines_(s, scr) {
     const link = (z.type === 'youtube' && z.latest) ? (ytLatest_(z.link, z.filter) || z.link) : z.link;   // "השיעור האחרון" – הסרטון האחרון שעלה
     L.push('! שיעור חי: ' + z.ds.map(d => ZOOM_DAYS[d]).join('') + ' ' + z.t + (z.e ? '-' + z.e : '') + ' | ' + z.type + ' | ' + z.title + ' | ' + link);
   });
+  // שיעור שסומן "להציג בהודעות": הודעה בימים של השיעור, עד סוף השיעור – בכל מסך לפי הבחירה
+  (s.zoom || []).filter(z => z.msg && TIME_RE.test(z.t) && Array.isArray(z.ds) && z.ds.length && (!z.msgScr || +z.msgScr === scr)).forEach(z => {
+    const text = String(z.msgText || ((z.title || 'שיעור') + ' בשעה ' + z.t)).replace(/[|\r\n]/g, ' ');
+    L.push('! הודעת שיעור: ' + z.ds.map(d => ZOOM_DAYS[d]).join('') + ' ' + z.t + (TIME_RE.test(z.e) ? '-' + z.e : '') + ' | ' + text);
+  });
   // תפילה: כל זמן יכול לקבל מקום (היכל) – נכתב בסוגריים אחרי הזמן: 7:15 (בית המדרש)
   (s.prayers || []).filter(p => onScr_(p, scr)).forEach(p => {
     if (!p.label || !p.value) return;
@@ -826,7 +831,8 @@ function saveSettings(id, key, s) {
       t: TIME_RE.test(z.t) ? z.t : '', e: TIME_RE.test(z.e) ? z.e : '',
       type: LIVE_RE[z.type] ? z.type : liveType_(s),
       link: String(z.link || '').trim().slice(0, 300), latest: !!z.latest, filter: String(z.filter || '').replace(/[|\r\n]/g, ' ').trim().slice(0, 60),
-      title: String(z.title || '').replace(/[|\r\n]/g, ' ').slice(0, 80) })).filter(z => z.ds.length && z.t),
+      title: String(z.title || '').replace(/[|\r\n]/g, ' ').slice(0, 80),
+      msg: !!z.msg, msgScr: scr_(z.msgScr), msgText: String(z.msgText || '').replace(/[|\r\n]/g, ' ').trim().slice(0, 150) })).filter(z => z.ds.length && z.t),
     prayers: (s.prayers || []).slice(0, 30).map(p => ({ q: ['', 'חול', 'א-ה', 'שישי', 'שבת'].includes(p.q) ? p.q : '', label: String(p.label || '').slice(0, 30), value: String(p.value || '').slice(0, 120),
       halls: (Array.isArray(p.halls) ? p.halls : []).slice(0, 10).map(h => String(h || '').replace(/[(),|\r\n]/g, ' ').trim().slice(0, 24)), scr: scr_(p.scr) })),
     hal: cleanHal_(s.hal),

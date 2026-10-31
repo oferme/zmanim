@@ -396,6 +396,10 @@ function parseSettings(text){
       if(m2) (c.zoom = c.zoom || []).push({d: 'אבגדהוש'.indexOf(m2[1]), t: m2[2], e: m2[3] || ''});
     }
     else if(/שידור יוטיוב/.test(k)) c.youtube = v;
+    else if(/הודעת שיעור/.test(k)){   // "אבגדה 21:00-22:30 | הטקסט" – הודעה בימים של השיעור, עד סופו
+      const [when, ...rest] = v.split('|'), m2 = (when || '').trim().match(/^([אבגדהוש]+)\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
+      if(m2) (c.lessonMsgs = c.lessonMsgs || []).push({ds: [...m2[1]].map(ch => 'אבגדהוש'.indexOf(ch)), t: m2[2], e: m2[3] || '', text: rest.join('|').trim()});
+    }
     else if(/שיעור חי/.test(k)){   // "אבגדה 17:00-17:45 | youtube | כותרת | קישור"
       const [when, type, title, link] = v.split('|').map(x => x.trim());
       const m2 = (when || '').match(/^([אבגדהוש]+)\s+(\d{1,2}:\d{2})(?:\s*-\s*(\d{1,2}:\d{2}))?/);
@@ -1026,6 +1030,13 @@ function prayersToday(){
   return out;
 }
 const msgsNow = now => parseMessages(msgText).filter(m => (!m.when || !m.when.scr || m.when.scr === SCREEN) && whenNow(m.when, curH, curH1, now));
+// הודעות של שיעורים (מהאפליקציה): ביום של השיעור, מהבוקר ועד סוף השיעור
+function lessonMsgs(){
+  const n = nowParts(), dow = DOW_EN.indexOf(n.dow), cur = (+n.h) * 60 + (+n.m);
+  const mins = x => { const [h, m] = x.split(':').map(Number); return h * 60 + m; };
+  return (CFG.lessonMsgs || []).filter(z => z.ds.includes(dow) && cur < (z.e && mins(z.e) > mins(z.t) ? mins(z.e) : mins(z.t) + 90))
+    .sort((a, b) => mins(a.t) - mins(b.t)).map(z => ({body: z.text}));
+}
 function messagesBySide(targets){
   const n = nowParts(), now = `${n.h}:${n.m}`, res = {L:[], R:[], B:[]};
   const list = msgsNow(now);
@@ -1152,7 +1163,7 @@ function picBox(type){
     return TEF.map(([l, v]) => `<div class="plr"><div class="k">${esc(l)}</div><div class="v">${esc(v)}</div></div>`).join('');
   }
   if(type === 'msgs'){
-    const n = nowParts(), list = curH ? msgsNow(`${n.h}:${n.m}`) : [];
+    const n = nowParts(), list = lessonMsgs().concat(curH ? msgsNow(`${n.h}:${n.m}`) : []);
     const hf = haftaraToday();
     const html = (hf ? `<div class="pmsg hf"><span>${esc(hf.title)}</span>${hf.ref.map(g => g.map(x => `<em class="nw" style="font-style:normal;white-space:nowrap">${esc(x)}</em>`).join(' ')).join(' · ')}${hf.reason ? `<small>${esc(hf.reason)}</small>` : ''}</div>` : '')
                + list.map(m => `<div class="pmsg">${esc(m.body)}</div>`).join('');
@@ -1278,6 +1289,8 @@ function renderSlots(){
   const slots = {R: CFG.slotR, L: CFG.slotL, B: CFG.slotB};
   const targets = ['L','R','B'].filter(k => slots[k].includes('msgs'));
   const msgs = (MSG_URL && curH) ? messagesBySide(targets) : {L:[],R:[],B:[]};
+  const lm = targets.length ? lessonMsgs() : [];
+  if(lm.length){ const side = targets.includes('L') ? 'L' : targets[0]; msgs[side] = lm.concat(msgs[side]); }
   // מזל טוב – מופיע בראש ההודעות בתאריכים שנקבעו
   const today = nowParts().date, mz = (CFG.mazal || []).filter(x => x.from <= today && today <= x.to);
   if(mz.length && targets.length){
