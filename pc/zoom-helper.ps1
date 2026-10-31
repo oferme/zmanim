@@ -6,6 +6,9 @@
 param([string]$Page, [string]$Chrome, [string]$Api)
 
 $ErrorActionPreference = 'SilentlyContinue'
+# Hidden window has no console: the download progress bar of Invoke-WebRequest fails there
+# ("No process is on the other end of the pipe"), so it is turned off
+$ProgressPreference = 'SilentlyContinue'
 # Windows PowerShell 5.1 does not always use TLS 1.2 by default - Google and YouTube require it
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 $mutex = New-Object System.Threading.Mutex($false, 'Local\ZmanimZoomHelper')
@@ -28,8 +31,9 @@ $done = @{}           # shiurim already joined (key -> $true)
 function Fetch {
   try {
     $u = $Api + '?shul=' + $shul + '&what=zoom&t=' + [DateTime]::Now.Ticks
-    $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 40 -Uri $u
-    $txt = [Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray())
+    $wc = New-Object System.Net.WebClient
+    $wc.Encoding = [Text.Encoding]::UTF8
+    $txt = $wc.DownloadString($u)
     if ($txt -match '^ERR') { return }
     $list = @()
     foreach ($l in ($txt -split "`n")) {
