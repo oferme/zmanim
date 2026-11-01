@@ -71,10 +71,21 @@ function ActiveKey($s, $now) {
 
 function KioskProcs { Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -like '*ZmanimKiosk*' } }
 function Stop-Kiosk { KioskProcs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force } }
+# Chrome hides the mouse pointer only after the mouse moves - so we move it once to the corner of the screen
+function Hide-Cursor {
+  try {
+    Add-Type -AssemblyName System.Windows.Forms
+    $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(($b.Right - 1), ($b.Bottom - 1))
+    Start-Sleep -Milliseconds 300
+    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(($b.Right - 2), ($b.Bottom - 2))
+  } catch {}
+}
 function Start-Kiosk {
   if (KioskProcs) { return }
   Start-Process -FilePath $Chrome -ArgumentList @('--kiosk', ('--user-data-dir="' + $kioskDir + '"'), '--no-first-run',
     '--disable-session-crashed-bubble', '--hide-crash-restore-bubble', '--noerrdialogs', '--disable-translate', '--autoplay-policy=no-user-gesture-required', $Page)
+  Start-Sleep -Seconds 12; Hide-Cursor
 }
 
 function Start-OBS([int]$wait = 0) {   # optional: OBS virtual camera with the synagogue logo
@@ -135,6 +146,7 @@ function Leave-Zoom {
 function ZoomInstalled { return (Test-Path 'Registry::HKEY_CLASSES_ROOT\zoommtg') }
 if (-not (ZoomInstalled)) { Log 'Zoom is not installed yet (zoommtg link not registered)' }
 Log ('helper started for ' + $shul)
+Start-Sleep -Seconds 15; Hide-Cursor   # the zmanim screen was just opened by zmanim-online.bat
 
 while ($true) {
   if (((Get-Date) - $lastFetch).TotalMinutes -ge 2) { Fetch }
