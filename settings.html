@@ -495,7 +495,7 @@ function collapsible(d, sumFn){
   return d;
 }
 let HALL_DRAW = [];
-const DAYQ = {'': 'כל יום', 'א-ה': 'א׳–ה׳', 'שישי': 'שישי', 'שבת': 'שבת', 'חול': 'חול'};
+const DAYQ = {'': 'כל יום', 'א-ה': 'א׳–ה׳', 'שישי': 'שישי', 'שבת': 'שבת', 'חול': 'א׳–ו׳'};
 const ltr = t => '\u2066' + t + '\u2069';   // טווחי שעות/תאריכים – משמאל לימין, כדי שלא יתהפכו בעברית
 const fmtD = iso => iso ? iso.split('-').reverse().slice(0, 2).map(Number).join('.') : '';
 const DAYS_L = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','שבת'];
@@ -510,7 +510,7 @@ function prayerCard(p){
   d.innerHTML = `<div class="top"><input class="field label" placeholder="שם (שחרית)" aria-label="שם התפילה"></div>
     <input class="field value" dir="auto" placeholder="6:30, 7:15  או  15 דקות לפני השקיעה" aria-label="זמנים">
     <div class="halls" style="display:flex;flex-direction:column;gap:8px"></div>
-    <div class="seg days" data-vals=",א-ה,שישי,שבת" data-labels="כל יום,א׳–ה׳,שישי,שבת"></div>
+    <div class="seg days" data-vals=",א-ה,חול,שישי,שבת" data-labels="כל יום,א׳–ה׳,א׳–ו׳,שישי,שבת"></div>
     <button type="button" class="del">מחיקה</button>`;
   d.querySelector('.label').value = p.label || ''; d.querySelector('.value').value = p.value || '';
   p.halls = Array.isArray(p.halls) ? p.halls : [];
