@@ -1042,6 +1042,7 @@ function prayersToday(){
   list = list.filter(p => rank(p.q) === best[p.label]);
   const n = nowParts(), now = `${n.h}:${n.m}`; let nextMarked = false;
   const out = list.map(p => { const tt = prayerTimes(p.value); return {label: p.label, times: tt.map(x => x.t), halls: tt.map(x => x.hall)}; }).filter(p => p.times.length);
+  out.sort((a, b) => a.times[0].localeCompare(b.times[0]));   // לפי שעת התפילה (לא לפי סדר ההזנה)
   // סימון התפילה הבאה
   const flat = []; out.forEach((p,i) => p.times.forEach(tm => flat.push([tm, i])));
   flat.sort((a,b) => a[0].localeCompare(b[0]));
