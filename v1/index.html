@@ -19,6 +19,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg1);color:var(--text);fo
 body{background:radial-gradient(ellipse at 50% 42%,var(--bg2) 0%,var(--bg1) 72%);display:flex;align-items:center;justify-content:center;cursor:none;user-select:none;-webkit-user-select:none}
 html{cursor:none}
 body.cur{cursor:default}
+/* עד שההגדרות נטענות – לא מציגים את הלוח (כדי שמסך תמונה לא יופיע קודם כמסך רגיל) */
+body.boot .stage,body.boot .pstage{visibility:hidden}
 .stage{width:calc(var(--u)*100);height:calc(var(--u)*56.25);display:flex;flex-direction:column;padding:calc(var(--u)*2.4) calc(var(--u)*3.2) calc(var(--u)*2.6)}
 header{position:relative;display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:calc(var(--u)*.9);border-bottom:1px solid var(--line)}
 .hmid{position:absolute;left:50%;top:0;bottom:calc(var(--u)*.9);transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*1.2);max-width:42%;pointer-events:none}
@@ -297,7 +299,7 @@ body.th-pic.fr-v{background:#2a1d0e}
  filter:drop-shadow(0 1px 1px rgba(60,40,10,.35))}
 </style>
 </head>
-<body>
+<body class="boot">
 <div id="zoomBar"></div>
 <div id="live"></div>
 <div id="rotHint">לתצוגה מלאה – סובבו את המכשיר לרוחב ולחצו על המסך</div>
@@ -1412,7 +1414,7 @@ async function loadMsgs(){
   notice('');
   msgText = text;
   CFG = parseSettings(text); TZ = CFG.tz || 'Asia/Jerusalem';
-  applyTheme();
+  applyTheme(); document.body.classList.remove('boot');
   // השרת (Apps Script) ישן מהמסך – חלק מהאפשרויות לא יגיעו. מתריע בפינה עד שפורסים גרסה חדשה
   $('srvWarn').textContent = (CFG.server || 0) < NEED_SERVER ? 'השרת לא מעודכן – יש להדביק את הקוד החדש ב־Apps Script ולפרוס "גרסה חדשה"' : '';
   if(CFG.sysVer && MY_VER && CFG.sysVer !== MY_VER){ location.replace('../?shul=' + encodeURIComponent(SHUL) + (SCREEN === 2 ? '&screen=2' : '')); return; }   // הוגדרה גרסה אחרת – עוברים אליה
@@ -1427,6 +1429,9 @@ async function loadMsgs(){
   $('grid').style.zoom = CFG.bottom / 100;
   renderSlots(); applyBlack();
 }
+// פתיחה מהירה: העיצוב (רגיל / בהיר / תמונה) מההגדרות האחרונות שנשמרו בדפדפן, עוד לפני שהשרת עונה
+try{ const c = localStorage.getItem('msgs_' + SK); if(c && !/^ERR:/.test(c)){ CFG = parseSettings(c); TZ = CFG.tz || TZ; applyTheme(); document.body.classList.remove('boot'); } }catch(e){}
+setTimeout(() => document.body.classList.remove('boot'), 15000);   // גיבוי – לא להשאיר מסך ריק
 loadMsgs(); setInterval(loadMsgs, 2*60*1000);   // בדיקה כל 2 דקות
 
 // ---------- סגירת התוכנה מרחוק: שורה "סגור מסך" במסמך ההודעות ----------
