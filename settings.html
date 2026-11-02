@@ -629,6 +629,7 @@ function centerCard(c){
     <div><label class="cap">התאמה למסגרת</label><div class="seg cfit" data-vals="contain,cover" data-labels="כל התמונה,מילוי המסגרת"></div></div><p class="hint">מומלץ תמונה לרוחב (פוסטר של אירוע, תמונה של בית הכנסת).</p>`;
   d.innerHTML = body + `<div><label class="cap">ימים</label><div class="seg cds"></div></div>
     <div class="two"><div><label class="cap">מתאריך (לא חובה)</label><input class="field cf" type="date" dir="ltr"></div><div><label class="cap">עד תאריך</label><input class="field ct" type="date" dir="ltr"></div></div>
+    <button type="button" class="add cclr" style="padding:9px">ניקוי התאריכים (להציג לפי הימים בלבד)</button>
     <button type="button" class="del">מחיקה</button>`;
   const q = x => d.querySelector(x);
   [['.ckk','kicker'],['.ctl','title'],['.ctx','text'],['.cnt','note']].forEach(([cl, k]) => { const el = q(cl); if (!el) return; el.value = c[k] || ''; el.addEventListener('input', () => { c[k] = el.value; changed(); }); });
@@ -639,8 +640,11 @@ function centerCard(c){
   paint();
   ds.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const v = +b.dataset.v; c.ds = c.ds.includes(v) ? c.ds.filter(x => x !== v) : [...c.ds, v].sort(); paint(); changed(); });
   q('.cf').value = c.from || ''; q('.ct').value = c.to || '';
-  q('.cf').addEventListener('change', e => { c.from = e.target.value; changed(); });
-  q('.ct').addEventListener('change', e => { c.to = e.target.value; changed(); });
+  const syncClr = () => { q('.cclr').hidden = !c.from && !c.to; };
+  q('.cf').addEventListener('change', e => { c.from = e.target.value; syncClr(); changed(); });
+  q('.ct').addEventListener('change', e => { c.to = e.target.value; syncClr(); changed(); });
+  q('.cclr').addEventListener('click', () => { c.from = c.to = ''; q('.cf').value = q('.ct').value = ''; syncClr(); changed(); });
+  syncClr();
   if (c.type === 'image') {
     const pv = q('.imgprev');
     const showImg = src => { pv.innerHTML = src ? `<img src="${src}" alt="">` : 'אין תמונה'; };
