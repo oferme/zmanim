@@ -26,6 +26,7 @@ $sessions = @()
 $lastFetch = [datetime]::MinValue
 $current = $null      # key of the shiur we are in now
 $currentType = ''
+$hadKiosk = $true
 $done = @{}           # shiurim already joined (key -> $true)
 
 function Fetch {
@@ -165,6 +166,7 @@ while ($true) {
     $done[$key] = $true
     $script:current = $key
     $script:currentType = $active.Type
+    $script:hadKiosk = [bool](KioskProcs)   # was the zmanim screen open before the shiur? (only then it is reopened afterwards)
     Stop-Kiosk
     if ($active.Type -eq 'web') { Open-Web $active }
     else {
@@ -176,7 +178,7 @@ while ($true) {
     $script:current = $null
     if ($currentType -eq 'web') { Close-Web } else { Leave-Zoom }
     Start-Sleep -Seconds 3
-    Start-Kiosk
+    if ($hadKiosk) { Start-Kiosk } else { Log 'zmanim screen was not open before the shiur - not reopened' }
   }
   Start-Sleep -Seconds 20
 }
