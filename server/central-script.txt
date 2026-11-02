@@ -75,7 +75,7 @@ function selfUpdate_() {
     const t = r.getContentText();
     if (r.getResponseCode() >= 300) {
       if (/has not been used|is disabled|SERVICE_DISABLED|User has not enabled/i.test(t)) throw new Error('צריך להדליק את Google Apps Script API: script.google.com/home/usersettings');
-      if (/insufficient|scope/i.test(t)) throw new Error('חסרות הרשאות script.projects / script.deployments בקובץ appsscript.json');
+      if (/insufficient authentication scopes/i.test(t)) throw new Error('חסרות הרשאות script.projects / script.deployments בקובץ appsscript.json\n' + t.slice(0, 300));
       throw new Error('Apps Script API ' + r.getResponseCode() + ': ' + t.slice(0, 300));
     }
     return t ? JSON.parse(t) : {};
