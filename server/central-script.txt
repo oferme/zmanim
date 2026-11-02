@@ -50,9 +50,66 @@ function onOpen() {
     .addItem('הוספת הסבר "שני מסכים" למסמכי ההודעות', 'addScreenNotes')
     .addItem('התקנה ראשונית', 'setup')
     .addSeparator()
+    .addItem('עדכון הקוד מ-GitHub', 'updateFromGithub')
+    .addItem('קישור לעדכון מהטלפון', 'showUpdateLink')
+    .addSeparator()
     .addItem('גיבוי עכשיו', 'backupNow')
     .addItem('הפעלת גיבוי אוטומטי כל לילה', 'enableBackup')
     .addToUi();
+}
+
+// ---------- עדכון עצמי של הקוד מ-GitHub ----------
+// מושך את server/central-script.txt מהמאגר, מחליף את קובץ הקוד בפרויקט, יוצר גרסה ומעדכן את הפריסה הקיימת (אותה כתובת /exec).
+// דורש פעם אחת: Google Apps Script API דולק (script.google.com/home/usersettings), והרשאות script.projects ו-script.deployments ב-appsscript.json
+const CODE_URL = 'https://raw.githubusercontent.com/oferme/zmanim/main/server/central-script.txt';
+function selfUpdate_() {
+  const code = UrlFetchApp.fetch(CODE_URL + '?t=' + Date.now(), { muteHttpExceptions: true });
+  if (code.getResponseCode() !== 200) throw new Error('לא הצלחתי להוריד את הקוד מ-GitHub (' + code.getResponseCode() + ')');
+  const src = code.getContentText();
+  const nb = +((src.match(/const SERVER_BUILD = (\d+)/) || [])[1] || 0);
+  if (!nb || src.length < 20000 || src.indexOf('function doGet') < 0 || src.indexOf('function selfUpdate_') < 0) throw new Error('הקובץ שהורד לא נראה כמו קוד השרת – לא עודכן');
+  const id = ScriptApp.getScriptId(), api = 'https://script.googleapis.com/v1/projects/' + id;
+  const call = (method, path, body) => {
+    const r = UrlFetchApp.fetch(api + path, { method, contentType: 'application/json', muteHttpExceptions: true,
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, payload: body ? JSON.stringify(body) : undefined });
+    const t = r.getContentText();
+    if (r.getResponseCode() >= 300) {
+      if (/has not been used|is disabled|SERVICE_DISABLED|User has not enabled/i.test(t)) throw new Error('צריך להדליק את Google Apps Script API: script.google.com/home/usersettings');
+      if (/insufficient|scope/i.test(t)) throw new Error('חסרות הרשאות script.projects / script.deployments בקובץ appsscript.json');
+      throw new Error('Apps Script API ' + r.getResponseCode() + ': ' + t.slice(0, 300));
+    }
+    return t ? JSON.parse(t) : {};
+  };
+  const content = call('get', '/content');
+  const files = content.files || [];
+  const f = files.find(x => x.type === 'SERVER_JS' && /const SERVER_BUILD =/.test(x.source || '')) || files.find(x => x.type === 'SERVER_JS');
+  if (!f) throw new Error('לא נמצא קובץ קוד בפרויקט');
+  if (f.source === src) return { same: true, build: nb };
+  f.source = src;
+  call('put', '/content', { files: files.map(x => ({ name: x.name, type: x.type, source: x.source })) });
+  const ver = call('post', '/versions', { description: 'עדכון מ-GitHub – גרסת שרת ' + nb });
+  const depId = (API_URL.match(/\/s\/([\w-]+)\/exec/) || [])[1];
+  if (!depId) throw new Error('הקוד עודכן, אבל לא נמצאה כתובת הפריסה (API_URL) – יש לפרוס גרסה חדשה ידנית');
+  call('put', '/deployments/' + depId, { deploymentConfig: { scriptId: id, versionNumber: ver.versionNumber, manifestFileName: 'appsscript', description: 'גרסת שרת ' + nb } });
+  return { build: nb, version: ver.versionNumber };
+}
+function updateFromGithub() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const r = selfUpdate_();
+    ui.alert(r.same ? 'הקוד כבר מעודכן (גרסת שרת ' + r.build + ').' : 'הקוד עודכן ונפרס! גרסת שרת ' + r.build + ' (גרסה ' + r.version + ' בפריסה).\nהמסכים יתעדכנו תוך כמה דקות.');
+  } catch (e) { ui.alert('העדכון לא הצליח:\n' + (e && e.message || e)); }
+}
+// קישור סודי לעדכון מהטלפון: ...exec?what=update&admin=KEY
+function adminKey_() {
+  const p = PropertiesService.getScriptProperties();
+  let k = p.getProperty('ADMIN_KEY');
+  if (!k) { k = Utilities.getUuid().replace(/-/g, ''); p.setProperty('ADMIN_KEY', k); }
+  return k;
+}
+function showUpdateLink() {
+  const link = API_URL + '?what=update&admin=' + adminKey_();
+  SpreadsheetApp.getUi().alert('קישור לעדכון הקוד מהטלפון (שמרו אותו במועדפים, ואל תשתפו אותו):\n\n' + link);
 }
 
 // ---------- גיבוי ----------
@@ -129,7 +186,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 19;
+const SERVER_BUILD = 20;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -235,7 +292,13 @@ function doGet(e) {
   if (p.page === 'api') return json_(apiLoad_(id, String(p.key || '')));
 
   const out = (t) => ContentService.createTextOutput(t).setMimeType(ContentService.MimeType.TEXT);
-  if (p.what === 'build') return out('גרסת שרת: ' + SERVER_BUILD);   // בדיקה מהירה בדפדפן: ...exec?what=build
+  if (p.what === 'build') return out('גרסת שרת: ' + SERVER_BUILD);
+  if (p.what === 'update') {   // עדכון הקוד מ-GitHub מהטלפון – רק עם המפתח הסודי
+    const k = PropertiesService.getScriptProperties().getProperty('ADMIN_KEY');
+    if (!k || String(p.admin || '') !== k) return out('אין הרשאה');
+    try { const r = selfUpdate_(); return out(r.same ? 'הקוד כבר מעודכן – גרסת שרת ' + r.build : 'עודכן ונפרס: גרסת שרת ' + r.build + ' (גרסה ' + r.version + '). המסכים יתעדכנו תוך כמה דקות.'); }
+    catch (e) { return out('העדכון לא הצליח: ' + (e && e.message || e)); }
+  }   // בדיקה מהירה בדפדפן: ...exec?what=build
   if (p.what === 'yt') return json_(ytLatest_(String(p.url || ''), String(p.filter || ''), true));   // בדיקת "השיעור האחרון": ...exec?what=yt&url=...&filter=...
   if (!id) return out('ERR:NO_ID');
   const what = String(p.what || '');
