@@ -708,7 +708,7 @@ function render(){
     ['חצות היום', Z.chatzot],
     ['שקיעת החמה', sunsetJ],
   ];
-  BASE = {netz: cards[0][1], sunset: sunsetJ, chatzot: Z.chatzot, candles: null, havdalah: null};
+  BASE = {netz: cards[0][1], sunset: sunsetJ, chatzot: Z.chatzot, candles: null, havdalah: null, rt: Z.tzeit72min};   // rt = צאת לרבינו תם (72 דקות)
   const candles = todays('candles'), hav = todays('havdalah');
   if(candles){
     // הדלקת נרות: X דקות לפני השקיעה (לפי ההגדרה), אחרת לפי Hebcal
@@ -1012,7 +1012,7 @@ const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;
 let DAF = '', ZCARDS = [], BASE = {}, IS_SAT = false, IS_FRI = false, TEF = [], PZ = [], PARASHA = '';
 const toMin = v => { if(!v) return null; const x = (v.length > 8 ? v.slice(11,19) : v).split(':').map(Number); return x[0]*60 + x[1] + (x[2]||0)/60; };
 const fromMin = m => { m = Math.floor(((m % 1440) + 1440) % 1440); return pad(Math.floor(m/60)) + ':' + pad(m % 60); };
-const BASES = [['הדלקת נרות','candles'],['הדלקה','candles'],['צאת השבת','havdalah'],['צאת שבת','havdalah'],['צאת','havdalah'],['השקיעה','sunset'],['שקיעה','sunset'],['הנץ','netz'],['נץ','netz'],['חצות','chatzot']];
+const BASES = [['רבינו תם','rt'],['ברבינו תם','rt'],['ר"ת','rt'],['ר״ת','rt'],['לר"ת','rt'],['לר״ת','rt'],['צאת ר"ת','rt'],['צאת ר״ת','rt'],['צאת השבת לר"ת','rt'],['צאת השבת לר״ת','rt'],['הדלקת נרות','candles'],['הדלקה','candles'],['צאת השבת','havdalah'],['צאת שבת','havdalah'],['צאת','havdalah'],['השקיעה','sunset'],['שקיעה','sunset'],['הנץ','netz'],['נץ','netz'],['חצות','chatzot']];
 function baseMin(name, B){ name = name.trim(); for(const [w,k] of BASES) if(name.startsWith(w)) return toMin((B || BASE)[k]); return null; }
 // זמן תפילה: "6:30" או "15 דקות לפני השקיעה" או "שקיעה-15"
 function prayerTime(tok, B){
@@ -1214,7 +1214,7 @@ function shabbatCenter(c){
   if(n.dow === 'Sat' && hav && `${n.h}:${n.m}` >= tm(hav.date)) return null;   // השבת יצאה
   const candles = (n.dow === 'Fri' && BASE.candles) ? BASE.candles : tm(cnd && cnd.date);
   const zs = (data.zsat && data.zsat.times) || {};
-  const B = {candles, sunset: candles ? fromMin(toMin(candles) + (+CFG.candleMin || 40)) : null, havdalah: tm(hav && hav.date), netz: zs.sunrise, chatzot: zs.chatzot};
+  const B = {candles, sunset: candles ? fromMin(toMin(candles) + (+CFG.candleMin || 40)) : null, havdalah: tm(hav && hav.date), netz: zs.sunrise, chatzot: zs.chatzot, rt: zs.tzeit72min};
   const rowsFor = q => (CFG.prayers || []).filter(p => p.q === q).flatMap(p => prayerTimes(p.value, B).map(x => [x.t, `<div class="prow"><span>${esc(p.label)}${hallTag(x.hall)}</span><b>${show(x.t)}</b></div>`]));
   const fr = rowsFor('שישי'), sh = rowsFor('שבת');
   if(candles) fr.push([candles.padStart(5,'0'), `<div class="prow hl"><span>הדלקת נרות</span><b>${show(candles)}</b></div>`]);
