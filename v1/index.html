@@ -1503,8 +1503,10 @@ function zoomBar(n){
 // שידור יוטיוב – מוצג במסך עצמו בזמן השיעור
 function ytEmbed(u){
   let m;
-  if((m = u.match(/(?:youtu\.be\/|[?&]v=|\/(?:live|embed|shorts)\/)([\w-]{11})/))) return 'https://www.youtube.com/embed/' + m[1] + '?autoplay=1&rel=0&playsinline=1';
-  if((m = u.match(/(?:\/channel\/|[?&]channel=)(UC[\w-]{22})/))) return 'https://www.youtube.com/embed/live_stream?channel=' + m[1] + '&autoplay=1&playsinline=1';
+  // בלי כתוביות / תרגום אוטומטי, ובעברית (כדי שיוטיוב לא יבחר כתוביות או פסקול מתורגם לפי שפת המכשיר)
+  const NOCC = '&cc_load_policy=0&iv_load_policy=3&hl=iw&cc_lang_pref=iw';
+  if((m = u.match(/(?:youtu\.be\/|[?&]v=|\/(?:live|embed|shorts)\/)([\w-]{11})/))) return 'https://www.youtube.com/embed/' + m[1] + '?autoplay=1&rel=0&playsinline=1' + NOCC;
+  if((m = u.match(/(?:\/channel\/|[?&]channel=)(UC[\w-]{22})/))) return 'https://www.youtube.com/embed/live_stream?channel=' + m[1] + '&autoplay=1&playsinline=1' + NOCC;
   return null;
 }
 function liveNow(n){   // השיעור שמתקיים עכשיו (כולל שיעור שעובר את חצות)
