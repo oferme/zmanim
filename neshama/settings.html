@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>לוח נשמה – ניהול</title>
+<meta name="theme-color" content="#2a160a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="לוח נשמה">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="../icon-192.png">
+<link rel="icon" href="../icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700;900&family=Heebo:wght@400;500;700;800&display=swap">
+<style>
+/* אפליקציית הגבאי ללוח הנשמה – נפרדת מאפליקציית לוח הזמנים. הכתובת: neshama/settings.html?shul=<מזהה>&key=<מפתח> */
+:root{
+  --bg:#1b0f07; --surface:#2a1a0e; --surface2:#3a2615; --line:rgba(226,184,87,.24);
+  --gold:#e2b857; --gold2:#f7de9a; --text:#f5ecdb; --muted:#c2ab8a; --ok:#7fd1a1; --danger:#ff8f7a;
+  --display:'Frank Ruhl Libre','David',serif; --body:'Heebo','Arial',sans-serif;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none !important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--body);font-size:16px}
+body{display:flex;flex-direction:column;overscroll-behavior:none}
+button,input,select{font-family:inherit;font-size:16px;color:inherit}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(var(--safe-t) + 12px) 16px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line)}
+.bar .tt{flex:1;min-width:0}
+.bar h1{margin:0;font-family:var(--display);font-weight:900;font-size:21px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .sub{font-size:13px;color:var(--muted)}
+.chip-status{font-size:13px;font-weight:700;padding:5px 11px;border-radius:999px;background:var(--surface);color:var(--muted);white-space:nowrap}
+.chip-status.saving{color:var(--gold2)} .chip-status.saved{color:var(--ok)} .chip-status.err{color:var(--danger)}
+main{flex:1;overflow-y:auto;padding:16px 16px calc(96px + var(--safe-b))}
+.tab{display:none;flex-direction:column;gap:14px;max-width:560px;margin:0 auto}
+.tab.on{display:flex}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.card h2{margin:0 0 12px;font-size:15px;font-weight:700;color:var(--gold)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}
+.card h2 + .row{border-top:0;padding-top:0}
+.row .lbl{flex:1;min-width:0}
+.row .lbl b{display:block;font-weight:500}
+.row .lbl small{color:var(--muted);font-size:13px}
+.field{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);outline:none}
+.field:focus{border-color:var(--gold)}
+select.field{appearance:none}
+.two{display:flex;gap:10px}.two>*{flex:1;min-width:0}
+.three{display:grid;grid-template-columns:1fr 1.4fr 1.2fr;gap:8px}
+label.cap{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
+.sw{position:relative;width:52px;height:30px;flex:none}
+.sw input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;z-index:1}
+.sw span{position:absolute;inset:0;border-radius:999px;background:#5a4128;transition:background .2s}
+.sw span::after{content:'';position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw input:checked + span{background:var(--gold)}
+.sw input:checked + span::after{transform:translateX(-22px)}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px;font-weight:500;cursor:pointer}
+.seg button.on{background:var(--gold);color:#2a160a;border-color:var(--gold);font-weight:800}
+.hint{font-size:13px;color:var(--muted);line-height:1.6;margin:0}
+.hint b{color:var(--text)}
+.big{width:100%;padding:15px;border-radius:14px;border:0;font-weight:800;font-size:17px;cursor:pointer;text-align:center;text-decoration:none;display:block}
+.big.gold{background:var(--gold);color:#2a160a}
+.big.ghost{background:var(--surface2);color:var(--text)}
+.big.danger{background:rgba(255,143,122,.15);color:var(--danger);border:1px solid rgba(255,143,122,.4)}
+.big:disabled{opacity:.5}
+.add{width:100%;padding:14px;border-radius:14px;border:1.5px dashed var(--gold);background:none;color:var(--gold2);font-weight:700;cursor:pointer}
+/* רשימת השמות */
+.tools{display:flex;gap:8px;align-items:center}
+.tools .field{flex:1}
+.count{font-size:13px;color:var(--muted);margin:4px 2px 0}
+.list{display:flex;flex-direction:column;gap:8px}
+.it{display:flex;align-items:center;gap:12px;width:100%;text-align:right;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;color:var(--text)}
+.it .tx{flex:1;min-width:0}
+.it b{display:block;font-family:var(--display);font-weight:700;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it small{display:block;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .nx{flex:none;text-align:center;font-size:12px;color:var(--muted);min-width:64px}
+.it .nx strong{display:block;color:var(--gold2);font-size:15px}
+.it.soon{border-color:var(--gold);background:linear-gradient(160deg,#4a2f14,#2a1a0e)}
+.it.off{opacity:.55}
+.it.bad small{color:var(--danger)}
+.empty{text-align:center;color:var(--muted);padding:30px 10px;line-height:1.7}
+/* עורך */
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet .box{width:100%;max-width:560px;max-height:92vh;overflow-y:auto;background:var(--surface);border-radius:20px 20px 0 0;border:1px solid var(--line);padding:18px 16px calc(18px + var(--safe-b))}
+.sheet h3{margin:0 0 6px;font-family:var(--display);font-size:22px;color:var(--gold2)}
+.calc{margin-top:10px;padding:12px;border-radius:12px;background:var(--bg);border:1px dashed var(--line);font-size:15px;line-height:1.6}
+.calc b{color:var(--gold2)}
+.calc.err{color:var(--danger);border-color:rgba(255,143,122,.5)}
+.btns{display:flex;gap:10px;margin-top:16px}.btns>*{flex:1}
+details{margin-top:12px;border-top:1px solid rgba(255,255,255,.07);padding-top:10px}
+details summary{color:var(--gold);font-size:14px;cursor:pointer}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:6;background:rgba(27,15,7,.97);border-top:1px solid var(--line);display:flex;padding:6px 8px calc(6px + var(--safe-b))}
+nav button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:12px;font-weight:500;cursor:pointer}
+nav button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--gold2)}
+.err-screen{flex:1;display:grid;place-items:center;text-align:center;padding:30px;color:var(--muted);font-size:18px;line-height:1.7}
+.toast{position:fixed;bottom:calc(84px + var(--safe-b));left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--gold);color:var(--text);padding:10px 18px;border-radius:999px;font-size:14px;z-index:30;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="tt"><h1 id="title">לוח נשמה</h1><div class="sub" id="subTitle">ניהול השמות והתצוגה</div></div>
+  <span class="chip-status" id="status">טוען…</span>
+</header>
+<main id="main" hidden>
+  <!-- שמות -->
+  <section class="tab on" id="t-names">
+    <div class="tools">
+      <input class="field" id="q" type="search" placeholder="חיפוש שם…">
+    </div>
+    <div class="seg" id="sortSel" data-vals="next,abc,date" data-labels="היארצייט הקרוב,א-ב,לפי תאריך"></div>
+    <div class="count" id="count"></div>
+    <button type="button" class="add" id="addBtn">+ הוספת נפטר</button>
+    <div class="list" id="list"></div>
+  </section>
+  <!-- תצוגה -->
+  <section class="tab" id="t-disp">
+    <div class="card">
+      <h2>עיצוב המסך</h2>
+      <div class="seg" id="theme" data-vals="wood,dark" data-labels="מסורתי – עץ ופליז,כהה וזהב"></div>
+      <label class="cap">כותרת</label><input class="field" id="sTitle" maxlength="40">
+      <label class="cap">שורה מתחת לכותרת <small>(ריק = שם בית הכנסת)</small></label><input class="field" id="sSub" maxlength="60">
+      <label class="cap">שורה בתחתית המסך <small>(ריק = בלי)</small></label><input class="field" id="sFooter" maxlength="80">
+    </div>
+    <div class="card">
+      <h2>הלוח</h2>
+      <label class="cap" style="margin-top:0">שמות בכל עמוד</label><div class="seg" id="perPage" data-vals="12,16,20,24"></div>
+      <label class="cap">זמן לכל עמוד</label><div class="seg" id="rotate" data-vals="8,12,20,30" data-labels="8 שניות,12 שניות,20 שניות,30 שניות"></div>
+      <label class="cap">סדר השמות</label><div class="seg" id="order" data-vals="date,abc" data-labels="לפי התאריך בשנה,לפי א-ב"></div>
+      <div class="row" style="margin-top:8px"><div class="lbl"><b>עמודת "יארצייטים השבוע"</b><small>מיום ראשון עד שבת, בצד המסך</small></div><label class="sw"><input type="checkbox" id="week"><span></span></label></div>
+    </div>
+    <div class="card">
+      <h2>יארצייט באדר</h2>
+      <p class="hint">מי שנפטר באדר של שנה פשוטה – מתי היארצייט שלו בשנה מעוברת:</p>
+      <div class="seg" id="adar" data-vals=",1,2" data-labels="לפי הנוסח,באדר א׳,באדר ב׳" style="margin-top:10px"></div>
+      <p class="hint" id="adarHint" style="margin-top:8px"></p>
+    </div>
+    <div class="card">
+      <h2>קישורים</h2>
+      <a class="big gold" id="dispLink" target="_blank" rel="noopener">פתיחת המסך</a>
+      <a class="big ghost" id="fileLink" target="_blank" rel="noopener" style="margin-top:10px">קובץ השמות בגוגל שיטס (לעריכה מהמחשב)</a>
+      <p class="hint" id="scrHint" style="margin-top:10px"></p>
+    </div>
+  </section>
+</main>
+<div class="err-screen" id="errScreen" hidden></div>
+<nav id="nav" hidden>
+  <button type="button" class="on" data-tab="t-names"><svg viewBox="0 0 24 24"><path d="M12 3c1.5 2 3 3.5 3 5.5a3 3 0 0 1-6 0C9 6.5 10.5 5 12 3z"/><path d="M9 12h6v9H9z"/></svg>שמות</button>
+  <button type="button" data-tab="t-disp"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>תצוגה</button>
+</nav>
+<div class="sheet" id="sheet" hidden><div class="box" id="ed"></div></div>
+<div class="toast" id="toast"></div>
+<script src="heb.js"></script>
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec';
+const Q = new URLSearchParams(location.search);
+const SHUL = (Q.get('shul') || '').trim().toLowerCase(), KEY = Q.get('key') || '';
+const DEMO = SHUL === 'demo';
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+const DAYS_S = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','שבת'];
+const TITLES = ['ז״ל','ע״ה','זצ״ל','הי״ד',''];
+const MONTHS = [7,8,9,10,11,12,13,1,2,3,4,5,6];   // סדר החודשים מתשרי
+let D = null, LIST = [], SET = {}, PLACE = {}, SORT = 'next';
+
+function status(t, cls){ if(DEMO && cls === 'saved'){ t = 'הדגמה – לא נשמר'; cls = ''; } const s = $('status'); s.textContent = t; s.className = 'chip-status ' + (cls || ''); }
+function toast(t){ const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('on'), 2200); }
+function segment(el, value, onPick){
+  const vals = el.dataset.vals.split(','), labels = (el.dataset.labels || el.dataset.vals).split(',');
+  el.innerHTML = vals.map((v, i) => `<button type="button" data-v="${v}">${labels[i]}</button>`).join('');
+  const set = v => el.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(v ?? '')));
+  set(value);
+  el.onclick = e => { const b = e.target.closest('button'); if(!b) return; set(b.dataset.v); onPick(b.dataset.v); };
+}
+// ---------- חישובים ----------
+let TODAY = null;   // מחושב פעם בחצי דקה (לא לכל שורה)
+function todayAbs(){
+  if(TODAY && Date.now() - TODAY.at < 30000) return TODAY.v;
+  const tz = PLACE.tz || 'Asia/Jerusalem';
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone: tz, hourCycle:'h23', year:'numeric', month:'numeric', day:'numeric', hour:'numeric', minute:'numeric'}).formatToParts(new Date()).map(x => [x.type, x.value]));
+  const y = +p.year, m = +p.month, d = +p.day, min = (+p.hour % 24) * 60 + +p.minute;
+  const off = Math.round((Date.UTC(y, m - 1, d, Math.floor(min / 60), min % 60) - Math.floor(Date.now() / 60000) * 60000) / 60000);
+  TODAY = {at: Date.now(), v: HEB.gAbs(y, m, d) + (min >= HEB.sunset(y, m, d, PLACE.lat || 31.778, PLACE.lon || 35.235, off) ? 1 : 0)};
+  return TODAY.v;
+}
+const adarRule = () => SET.adar === '1' || SET.adar === '2' ? SET.adar : (/מזרח/.test(PLACE.nusach || '') ? '2' : '1');
+function parseFix(s){ const t = String(s || '').trim().split(/\s+/); if(t.length < 2) return null; const d = HEB.ungem(t[0]), m = HEB.monthOf(t.slice(1).join(' ')); return d >= 1 && d <= 30 && m ? {d, m} : null; }
+function info(o){   // מפענח שורה: תאריך פטירה, יארצייט קרוב
+  let d = HEB.ungem(o.d), m = HEB.monthOf(o.m), y = HEB.yearOf(o.y);
+  const g = String(o.g || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(!(d >= 1 && d <= 30 && m && y > 3000) && g){ const h = HEB.fromGreg(+g[1], +g[2], +g[3], o.as === 'כן'); d = h.d; m = h.m; y = h.y; }
+  const ok = d >= 1 && d <= 30 && m >= 1 && m <= 13 && y > 3000;
+  if(ok && m === 13 && !HEB.leap(y)) m = 12;
+  const p = {ok, d, m, y, fix: parseFix(o.fix)};
+  if(ok){ const t = todayAbs(); p.next = HEB.yahrzeitIn(p, t, t + 400, adarRule()); if(p.next !== null) p.inDays = p.next - t; }
+  return p;
+}
+const fmtG = a => { const g = HEB.absG(a); return g.d + '.' + g.m + '.' + g.y; };
+const nextTxt = p => p.next == null ? '' : `יום ${DAYS_S[HEB.dow(p.next)]} ${HEB.fmt(HEB.fromAbs(p.next))} (${fmtG(p.next)})`;
+
+// ---------- רשימה ----------
+function drawList(){
+  const q = $('q').value.trim().replace(/[׳'"״]/g, '');
+  const rows = LIST.map(o => Object.assign({o}, info(o))).filter(r => !q || (r.o.n + ' ' + r.o.note).replace(/[׳'"״]/g, '').includes(q));
+  const ord = r => !r.ok ? 9999 : ((r.m >= 7 ? r.m - 7 : r.m + 6) * 31 + r.d);
+  rows.sort((a, b) => SORT === 'abc' ? a.o.n.localeCompare(b.o.n, 'he') : SORT === 'date' ? ord(a) - ord(b) : ((a.inDays ?? 9999) - (b.inDays ?? 9999)) || a.o.n.localeCompare(b.o.n, 'he'));
+  $('count').textContent = LIST.length ? (q ? `${rows.length} מתוך ${LIST.length} שמות` : `${LIST.length} שמות בלוח`) : '';
+  $('list').innerHTML = rows.length ? rows.map(r => {
+    const t = r.o.t ? ' ' + r.o.t : '';
+    const sub = r.ok ? 'נלב״ע ' + HEB.fmt({d: r.d, m: r.m, y: r.y}, true) + (r.fix ? ' · יארצייט קבוע: ' + HEB.gem(r.fix.d) + ' ' + HEB.monthName(r.fix.m) : '') + (r.o.note ? ' · ' + r.o.note : '') : 'חסר תאריך פטירה תקין';
+    const nx = r.inDays == null ? '' : r.inDays === 0 ? '<strong>היום</strong>' : `<strong>${r.inDays === 1 ? 'מחר' : 'בעוד ' + r.inDays}</strong>${r.inDays === 1 ? '' : 'ימים'}`;
+    return `<button type="button" class="it${r.inDays != null && r.inDays <= 7 ? ' soon' : ''}${r.o.on === 'לא' ? ' off' : ''}${r.ok ? '' : ' bad'}" data-id="${esc(r.o.id)}"><div class="tx"><b>${esc(r.o.n + t)}</b><small>${esc(sub)}${r.o.on === 'לא' ? ' · מוסתר מהמסך' : ''}</small></div><div class="nx">${nx}</div></button>`;
+  }).join('') : `<div class="empty">${LIST.length ? 'לא נמצאו שמות' : 'עדיין אין שמות בלוח.<br>לוחצים על <b>+ הוספת נפטר</b>.'}</div>`;
+}
+$('list').addEventListener('click', e => { const b = e.target.closest('.it'); if(b) edit(LIST.find(o => o.id === b.dataset.id)); });
+$('q').addEventListener('input', drawList);
+$('addBtn').addEventListener('click', () => edit(null));
+
+// ---------- עורך ----------
+function edit(o){
+  const isNew = !o;
+  const E = Object.assign({id: '', n: '', t: 'ז״ל', d: '', m: '', y: '', g: '', as: '', fix: '', note: '', on: 'כן'}, o || {});
+  const init = info(E);
+  let mode = E.g && !(HEB.ungem(E.d) && HEB.monthOf(E.m)) ? 'g' : (isNew ? 'g' : 'h');
+  const dayOpts = Array.from({length: 30}, (_, i) => `<option value="${i + 1}">${HEB.gem(i + 1)}</option>`).join('');
+  const monOpts = MONTHS.map(m => `<option value="${m}">${m === 12 ? 'אדר / אדר א׳' : HEB.monthName(m)}</option>`).join('');
+  const fx = parseFix(E.fix);
+  $('ed').innerHTML = `
+    <h3>${isNew ? 'הוספת נפטר' : 'עריכה'}</h3>
+    <label class="cap">שם (כפי שיופיע בלוח)</label>
+    <input class="field" id="eN" maxlength="60" placeholder="למשל: ר׳ אברהם בן יוסף" value="${esc(E.n)}">
+    <label class="cap">תואר</label><div class="seg" id="eT" data-vals="${TITLES.join(',')}" data-labels="ז״ל,ע״ה,זצ״ל,הי״ד,בלי"></div>
+    <label class="cap">תאריך הפטירה</label><div class="seg" id="eMode" data-vals="g,h" data-labels="לפי תאריך לועזי,לפי תאריך עברי"></div>
+    <div id="gBox">
+      <label class="cap">תאריך לועזי</label><input class="field" type="date" id="eG" dir="ltr" value="${esc(E.g)}" max="${new Date().toISOString().slice(0, 10)}">
+      <div class="row"><div class="lbl"><b>הפטירה הייתה אחרי השקיעה</b><small>אז התאריך העברי הוא של היום הבא</small></div><label class="sw"><input type="checkbox" id="eAs" ${E.as === 'כן' ? 'checked' : ''}><span></span></label></div>
+    </div>
+    <div id="hBox">
+      <div class="three"><div><label class="cap">יום</label><select class="field" id="eD"><option value=""></option>${dayOpts}</select></div>
+      <div><label class="cap">חודש</label><select class="field" id="eM"><option value=""></option>${monOpts}</select></div>
+      <div><label class="cap">שנה</label><input class="field" id="eY" placeholder="תשנ״ב" maxlength="10" value="${esc(E.y)}"></div></div>
+    </div>
+    <div class="calc" id="eCalc"></div>
+    <label class="cap">הערה <small>(למשל: נתרם ע״י המשפחה)</small></label><input class="field" id="eNote" maxlength="60" value="${esc(E.note)}">
+    <div class="row" style="margin-top:6px"><div class="lbl"><b>מוצג במסך</b></div><label class="sw"><input type="checkbox" id="eOn" ${E.on === 'לא' ? '' : 'checked'}><span></span></label></div>
+    <details ${fx ? 'open' : ''}><summary>יארצייט בתאריך קבוע (לפי הוראת רב)</summary>
+      <p class="hint" style="margin:8px 0">רק אם המשפחה נוהגת בתאריך אחר מהחישוב הרגיל. אחרת – להשאיר ריק.</p>
+      <div class="two"><select class="field" id="eFD"><option value="">—</option>${dayOpts}</select><select class="field" id="eFM"><option value="">—</option>${monOpts}</select></div>
+    </details>
+    <div class="btns"><button type="button" class="big gold" id="eSave">שמירה</button><button type="button" class="big ghost" id="eCancel">ביטול</button></div>
+    ${isNew ? '' : '<button type="button" class="big danger" id="eDel" style="margin-top:10px">מחיקה מהלוח</button>'}`;
+  if(init.ok){ $('eD').value = init.d; $('eM').value = init.m; if(!E.y) $('eY').value = HEB.gem(init.y); }
+  if(fx){ $('eFD').value = fx.d; $('eFM').value = fx.m; }
+  let title = E.t;
+  segment($('eT'), TITLES.includes(E.t) ? E.t : '', v => { title = v; });
+  const sync = () => { $('gBox').hidden = mode !== 'g'; $('hBox').hidden = mode !== 'h'; calc(); };
+  segment($('eMode'), mode, v => { mode = v; const r = read(); if(r.ok && v === 'h'){ $('eD').value = r.d; $('eM').value = r.m; $('eY').value = HEB.gem(r.y); } sync(); });
+  function read(){   // התאריך העברי מהשדות
+    if(mode === 'g'){
+      const g = $('eG').value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(!g) return {ok: false, why: 'בוחרים תאריך לועזי'};
+      const h = HEB.fromGreg(+g[1], +g[2], +g[3], $('eAs').checked); return Object.assign({ok: true}, h);
+    }
+    const d = +$('eD').value; let m = +$('eM').value; const y = HEB.yearOf($('eY').value);
+    if(!d || !m || !(y > 3000)) return {ok: false, why: 'בוחרים יום וחודש, וכותבים שנה (למשל תשנ״ב)'};
+    if(m === 13 && !HEB.leap(y)) return {ok: false, why: 'בשנת ' + HEB.gem(y) + ' לא היה אדר ב׳'};
+    if(d > HEB.monthDays(m, y)) return {ok: false, why: 'בשנת ' + HEB.gem(y) + ' היו בחודש ' + HEB.monthName(m, y) + ' רק 29 ימים'};
+    return {ok: true, d, m, y};
+  }
+  function calc(){
+    const r = read(), c = $('eCalc');
+    c.classList.toggle('err', !r.ok);
+    if(!r.ok){ c.textContent = r.why; return; }
+    const fd = +$('eFD').value, fm = +$('eFM').value, t = todayAbs();
+    const nx = HEB.yahrzeitIn({d: r.d, m: r.m, y: r.y, fix: fd && fm ? {d: fd, m: fm} : null}, t, t + 400, adarRule());
+    c.innerHTML = `תאריך הפטירה: <b>${esc(HEB.fmt(r, true))}</b>` + (nx != null ? `<br>היארצייט הקרוב: <b>${esc(nextTxt({next: nx}))}</b>` : '');
+  }
+  ['eG','eAs','eD','eM','eY','eFD','eFM'].forEach(id => { $(id).addEventListener('input', calc); $(id).addEventListener('change', calc); });
+  sync();
+  $('sheet').hidden = false; setTimeout(() => $('eN').focus(), 50);
+  $('eCancel').onclick = close;
+  $('eSave').onclick = async () => {
+    const n = $('eN').value.trim(), r = read();
+    if(!n){ toast('חסר שם'); $('eN').focus(); return; }
+    if(!r.ok){ toast(r.why); return; }
+    const fd = +$('eFD').value, fm = +$('eFM').value;
+    const item = {id: E.id, n, t: title, d: HEB.gem(r.d), m: HEB.monthName(r.m, r.y), y: HEB.gem(r.y),
+      g: mode === 'g' ? $('eG').value : '', as: mode === 'g' && $('eAs').checked ? 'כן' : '',
+      fix: fd && fm ? HEB.gem(fd) + ' ' + HEB.monthName(fm) : '', note: $('eNote').value.trim(), on: $('eOn').checked ? 'כן' : 'לא'};
+    $('eSave').disabled = true; status('שומר…', 'saving');
+    try{
+      const j = await post({action: 'nput', item});
+      item.id = j.id || item.id;
+      const i = LIST.findIndex(x => x.id === item.id); if(i >= 0) LIST[i] = item; else LIST.push(item);
+      status('נשמר ✓', 'saved'); toast(isNew ? 'נוסף ללוח' : 'נשמר'); close(); drawList();
+    }catch(e){ status('לא נשמר', 'err'); toast(e.message || 'לא נשמר – בדקו חיבור'); $('eSave').disabled = false; }
+  };
+  if($('eDel')){
+    let sure = false;
+    $('eDel').onclick = async () => {
+      if(!sure){ sure = true; $('eDel').textContent = 'ללחוץ שוב למחיקה של ' + E.n; return; }
+      status('מוחק…', 'saving');
+      try{ await post({action: 'ndel', item: {id: E.id}}); LIST = LIST.filter(x => x.id !== E.id); status('נמחק', 'saved'); toast('נמחק מהלוח'); close(); drawList(); }
+      catch(e){ status('לא נמחק', 'err'); toast(e.message || 'לא נמחק'); }
+    };
+  }
+}
+function close(){ $('sheet').hidden = true; $('ed').innerHTML = ''; }
+$('sheet').addEventListener('click', e => { if(e.target === $('sheet')) close(); });
+
+// ---------- תצוגה ----------
+let setTimer = null;
+function setChanged(){ status('שומר…', 'saving'); clearTimeout(setTimer); setTimer = setTimeout(async () => {
+  try{ await post({action: 'nset', set: SET}); status('נשמר ✓', 'saved'); } catch(e){ status('לא נשמר – בדקו חיבור', 'err'); }
+}, 900); }
+function bindSet(){
+  segment($('theme'), SET.theme || 'wood', v => { SET.theme = v; setChanged(); });
+  [['sTitle','title'],['sSub','sub'],['sFooter','footer']].forEach(([id, k]) => { $(id).value = SET[k] || ''; $(id).oninput = e => { SET[k] = e.target.value; setChanged(); }; });
+  $('sSub').placeholder = D.name || '';
+  segment($('perPage'), SET.perPage || '16', v => { SET.perPage = v; setChanged(); });
+  segment($('rotate'), SET.rotate || '12', v => { SET.rotate = v; setChanged(); });
+  segment($('order'), SET.order || 'date', v => { SET.order = v; setChanged(); });
+  $('week').checked = SET.week !== 'לא'; $('week').onchange = e => { SET.week = e.target.checked ? 'כן' : 'לא'; setChanged(); };
+  const adarH = () => { $('adarHint').textContent = !SET.adar ? 'לפי הנוסח של בית הכנסת: ' + (adarRule() === '2' ? 'אדר ב׳ (מנהג עדות המזרח)' : 'אדר א׳ (מנהג אשכנז)') + '.' : ''; };
+  segment($('adar'), SET.adar || '', v => { SET.adar = v; adarH(); setChanged(); drawList(); }); adarH();
+  $('dispLink').href = D.display || ('index.html?shul=' + encodeURIComponent(SHUL));
+  $('fileLink').href = D.file || '#'; $('fileLink').hidden = !D.file;
+  $('scrHint').textContent = D.screens ? 'מסכים מאושרים ללוח הנשמה: ' + D.screens + '. מסך נוסף יציג קוד לאישור.' : '';
+}
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.tab));
+  $('main').scrollTop = 0;
+}));
+
+// ---------- שרת ----------
+async function post(body){
+  if(DEMO){ await new Promise(r => setTimeout(r, 150)); return {ok: true, id: body.item && (body.item.id || 'd' + Date.now())}; }   // הדגמה – לא נשמר
+  const r = await fetch(API, {method: 'POST', headers: {'Content-Type': 'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({shul: SHUL, key: KEY}, body))});
+  const j = await r.json(); if(!j.ok) throw new Error(j.error || 'שגיאה'); return j;
+}
+function fail(t){ $('main').hidden = true; $('nav').hidden = true; $('errScreen').hidden = false; $('errScreen').textContent = t; status('', ''); }
+async function load(){
+  if(!SHUL){ fail('חסר מזהה בית כנסת בקישור.'); return; }
+  try{
+    if(DEMO) D = {ok: true, name: 'בית הכנסת – הדגמה', place: {}, set: {theme: 'wood', title: 'לוח נשמה', sub: '', footer: 'הנצחה בלוח – לפרטים אצל הגבאי', adar: '', perPage: '16', rotate: '12', order: 'date', week: 'כן'}, display: 'index.html?shul=demo', screens: 1,
+      list: [{id: 'a', n: 'ר׳ אברהם בן יוסף', t: 'ז״ל', d: 'י״ח', m: 'חשון', y: 'תשנ״ב', g: '', as: '', fix: '', note: 'נתרם ע״י המשפחה', on: 'כן'},
+             {id: 'b', n: 'שרה בת משה', t: 'ע״ה', d: '', m: '', y: '', g: '1999-03-02', as: 'כן', fix: '', note: '', on: 'כן'},
+             {id: 'c', n: 'ר׳ דוד בן חיים', t: 'ז״ל', d: 'ל׳', m: 'חשון', y: 'תשס״ד', g: '', as: '', fix: '', note: '', on: 'כן'}]};
+    else { const r = await fetch(`${API}?page=napi&shul=${encodeURIComponent(SHUL)}&key=${encodeURIComponent(KEY)}&t=${Date.now()}`, {cache: 'no-store'}); D = await r.json(); }
+  }catch(e){ fail('אין חיבור לאינטרנט. נסו שוב בעוד רגע.'); return; }
+  if(!D.ok){ fail(D.error || 'הקישור אינו תקין.'); return; }
+  LIST = D.list || []; SET = Object.assign({}, D.set); PLACE = D.place || {};
+  $('title').textContent = D.name || 'לוח נשמה'; $('subTitle').textContent = 'לוח נשמה – שמות ותצוגה'; document.title = 'לוח נשמה – ' + (D.name || '');
+  $('main').hidden = false; $('nav').hidden = false;
+  segment($('sortSel'), SORT, v => { SORT = v; drawList(); });
+  bindSet(); drawList(); status(DEMO ? 'הדגמה – לא נשמר' : 'מעודכן', DEMO ? '' : 'saved');
+}
+load();
+if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('../sw.js', {scope: '../'}).catch(()=>{});
+</script>
+</body>
+</html>

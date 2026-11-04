@@ -14,10 +14,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPW
 const SHEET = 'בתי כנסת';
 // כל שורה = "היכל" אחד: הגדרות, הודעות וקישור משלו. כמה היכלות של אותו בית כנסת – אותו שם בעמודה "ארגון".
 // עמודות: מזהה | שם | קישור למסמך | פעיל | גרסה | מייל גבאי | קישור למסך | הערות | מפתח | הגדרות | קישור להגדרות | ארגון | מספר מסכים
-const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2'];
+const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה'];
 // מיקום כל עמודה נקבע לפי הכותרת שלה בשורה 1 (כך שאפשר להזיז / להוסיף עמודות בגיליון בלי לשבור את המערכת)
-const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2'];
-let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14 };
+const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile'];
+let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16 };
 function mapCols_(sh) {
   const last = Math.max(sh.getLastColumn(), 1);
   const h = sh.getRange(1, 1, 1, last).getValues()[0].map(x => String(x).replace(/\s+/g, ' ').trim());
@@ -48,6 +48,7 @@ function onOpen() {
     .addItem('הוספת בית כנסת חדש', 'addShul')
     .addItem('יצירת / עדכון קישורי הגדרות', 'fillMissingLinks')
     .addItem('הוספת הסבר "שני מסכים" למסמכי ההודעות', 'addScreenNotes')
+    .addItem('הפעלת לוח נשמה לבית כנסת', 'neshEnable')
     .addItem('התקנה ראשונית', 'setup')
     .addSeparator()
     .addItem('עדכון הקוד מ-GitHub', 'updateFromGithub')
@@ -188,7 +189,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 21;
+const SERVER_BUILD = 22;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -292,6 +293,7 @@ function doGet(e) {
   const id = String(p.shul || '').trim().toLowerCase();
   if (p.page === 'settings') return settingsPage_(id, String(p.key || ''));
   if (p.page === 'api') return json_(apiLoad_(id, String(p.key || '')));
+  if (p.page === 'napi') return json_(neshLoad_(id, String(p.key || '')));   // אפליקציית לוח הנשמה
 
   const out = (t) => ContentService.createTextOutput(t).setMimeType(ContentService.MimeType.TEXT);
   if (p.what === 'build') return out('גרסת שרת: ' + SERVER_BUILD);
@@ -306,6 +308,7 @@ function doGet(e) {
   const what = String(p.what || '');
   const scr = String(p.screen || '') === '2' ? 2 : 1;   // מסך שני של אותו היכל: ...&screen=2
   const cache = CacheService.getScriptCache();
+  if (what === 'neshama') return neshDisplay_(id, p, cache);   // מסך לוח הנשמה (JSON)
   if (what === 'hal' || what === 'haltest') {   // פס ההלכות של היום (מספריא, דרך השרת – עובר גם בסינון)
     if (what === 'haltest') return json_(halTest_(String(p.book || 'Mishnah Berurah')));
     const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
@@ -376,9 +379,11 @@ function doGet(e) {
   return out(text);
 }
 // בודק אם המסך מאושר. מסכים חדשים מאושרים אוטומטית עד המכסה ("מספר מסכים"), מעבר לזה – ממתינים לאישור ידני
-function checkDevice_(id, dev, code, cache) {
+// kind 'n' = מסך לוח נשמה: נרשם בלשונית "מסכים" כ"<מזהה> לוח נשמה", והמכסה מעמודה "לוח נשמה"
+function checkDevice_(id, dev, code, cache, kind) {
   if (!dev) return 'ERR:DEVICE:0000';
-  const ck = 'dev_' + id + '_' + dev;
+  const nesh = kind === 'n', label = nesh ? id + ' לוח נשמה' : id;
+  const ck = (nesh ? 'devn_' : 'dev_') + id + '_' + dev;
   if (cache.get(ck) === '1') return null;
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
@@ -387,7 +392,7 @@ function checkDevice_(id, dev, code, cache) {
     const dv = devSheet_(), rows = dv.getDataRange().getValues(), now = new Date();
     let approved = 0;
     for (let i = 1; i < rows.length; i++) {
-      if (String(rows[i][D.shul]).toLowerCase() !== id) continue;
+      if (String(rows[i][D.shul]).trim().toLowerCase() !== label) continue;
       if (String(rows[i][D.dev]) === dev) {
         dv.getRange(i + 1, D.last + 1).setValue(now);
         const st = String(rows[i][D.status]).trim();
@@ -396,9 +401,9 @@ function checkDevice_(id, dev, code, cache) {
       }
       if (String(rows[i][D.status]).trim() === 'מאושר') approved++;
     }
-    const quota = Math.max(1, parseInt(f.row[C.screens], 10) || 1);
+    const quota = nesh ? (parseInt(f.row[C.nesh], 10) || 0) : Math.max(1, parseInt(f.row[C.screens], 10) || 1);
     const ok = approved < quota;
-    dv.appendRow([dev, code || '----', id, ok ? 'מאושר' : 'ממתין', now, now, '']);
+    dv.appendRow([dev, code || '----', label, ok ? 'מאושר' : 'ממתין', now, now, '']);
     if (ok) { cache.put(ck, '1', 600); return null; }
     return 'ERR:DEVICE:' + (code || '----');
   } finally { lock.releaseLock(); }
@@ -421,6 +426,7 @@ function doPost(e) {
     if (b.action === 'logo') return json_(saveLogo_(id, b.key, String(b.data || '')));
     if (b.action === 'img') return json_(saveImage_(id, b.key, String(b.data || '')));
     if (b.action === 'aiTable') return json_(aiTable_(id, b.key, String(b.data || '')));
+    if (/^n(put|del|set)$/.test(String(b.action))) return json_(neshPost_(id, b.key, b));   // אפליקציית לוח הנשמה
     saveSettings(id, b.key, b.s || {});
     return json_({ ok: true });
   } catch (err) { return json_({ ok: false, error: String(err && err.message || err) }); }
@@ -1220,4 +1226,154 @@ function TEMPLATE() {
     '# =========================================================',
     ''
   ].join('\n');
+}
+
+// =================================================================
+// ---------- לוח נשמה (אפליקציה ומסך נפרדים: neshama/) ----------
+// =================================================================
+// לכל בית כנסת קובץ גיליון משלו בתיקייה "לוחות נשמה" (כדי שגיליון הניהול יישאר קטן גם עם אלפי בתי כנסת).
+// בגיליון הניהול: עמודה "לוח נשמה" = כמה מסכי לוח נשמה מאושרים (ריק / 0 = כבוי), "קובץ לוח נשמה" = קישור לקובץ.
+// בקובץ: לשונית "נפטרים" (שורה לכל נפטר) ולשונית "הגדרות" (מפתח | ערך | הסבר).
+// התאריכים נשמרים כטקסט עברי (י״ח | חשון | תשנ״ב), והחישוב (יארצייט, השבוע) נעשה במסך – neshama/heb.js
+const NESH_FOLDER = 'לוחות נשמה';
+const NESH_TAB = 'נפטרים', NESH_SET_TAB = 'הגדרות';
+const NESH_HEAD = ['מזהה', 'שם', 'תואר', 'יום', 'חודש', 'שנה', 'תאריך לועזי', 'אחרי השקיעה', 'יארצייט קבוע', 'הערה', 'פעיל'];
+const NESH_KEYS = ['id', 'n', 't', 'd', 'm', 'y', 'g', 'as', 'fix', 'note', 'on'];
+const NESH_SET = [   // מפתח, ברירת מחדל, הסבר
+  ['theme', 'wood', 'עיצוב: wood = מסורתי (עץ ופליז), dark = כהה וזהב'],
+  ['title', 'לוח נשמה', 'כותרת'],
+  ['sub', '', 'שורה מתחת לכותרת (ריק = שם בית הכנסת)'],
+  ['footer', 'הנצחה בלוח – לפרטים אצל הגבאי', 'שורה בתחתית (ריק = בלי)'],
+  ['perPage', '16', 'שמות בכל עמוד (12 / 16 / 20 / 24)'],
+  ['rotate', '12', 'שניות לכל עמוד'],
+  ['adar', '', 'פטירה באדר של שנה פשוטה – בשנה מעוברת: 1 = אדר א, 2 = אדר ב (ריק = לפי הנוסח)'],
+  ['order', 'date', 'סדר השמות: date = לפי תאריך הפטירה בשנה, abc = לפי א-ב'],
+  ['week', 'כן', 'עמודת "יארצייטים השבוע" (כן / לא)']
+];
+const neshClean_ = (v, n) => { v = String(v == null ? '' : v).replace(/[\r\n\t]+/g, ' ').trim().slice(0, n || 80); return /^[=+\-@]/.test(v) ? "'" + v : v; };
+function neshFolder_() { const it = DriveApp.getFoldersByName(NESH_FOLDER); return it.hasNext() ? it.next() : DriveApp.createFolder(NESH_FOLDER); }
+function neshFileId_(row) { const m = String(row[C.neshFile] || '').match(/[-\w]{25,}/); return m ? m[0] : ''; }
+function neshCreate_(name, email) {
+  const ss = SpreadsheetApp.create('לוח נשמה – ' + name);
+  const sh = ss.getSheets()[0].setName(NESH_TAB);
+  sh.setRightToLeft(true);
+  sh.getRange(1, 1, 1, NESH_HEAD.length).setValues([NESH_HEAD]).setFontWeight('bold');
+  sh.setFrozenRows(1);
+  sh.getRange(2, 1, 999, NESH_HEAD.length).setNumberFormat('@');   // הכול טקסט – שהגיליון לא יהפוך תאריכים ומספרים
+  sh.hideColumns(1);   // המזהה – לשימוש האפליקציה
+  const st = ss.insertSheet(NESH_SET_TAB);
+  st.setRightToLeft(true);
+  st.getRange(1, 1, NESH_SET.length + 1, 3).setNumberFormat('@').setValues([['מפתח', 'ערך', 'הסבר']].concat(NESH_SET));
+  st.getRange(1, 1, 1, 3).setFontWeight('bold');
+  const file = DriveApp.getFileById(ss.getId());
+  file.moveTo(neshFolder_());
+  if (email) { try { file.addEditor(email); } catch (e) {} }
+  return ss.getUrl();
+}
+// תפריט: הפעלת לוח נשמה לבית כנסת קיים – יוצר את הקובץ (אם אין) וקובע כמה מסכים
+function neshEnable() {
+  const ui = SpreadsheetApp.getUi();
+  const r1 = ui.prompt('מזהה בית הכנסת (מעמודה "מזהה")', ui.ButtonSet.OK_CANCEL);
+  if (r1.getSelectedButton() !== ui.Button.OK) return;
+  const id = r1.getResponseText().trim().toLowerCase(), f = findRow_(id);
+  if (!f) { ui.alert('לא נמצא בית כנסת עם המזהה הזה.'); return; }
+  const r2 = ui.prompt('כמה מסכי לוח נשמה מאושרים? (מספר, 0 = כיבוי)', ui.ButtonSet.OK_CANCEL);
+  if (r2.getSelectedButton() !== ui.Button.OK) return;
+  const n = Math.max(0, parseInt(r2.getResponseText(), 10) || 0);
+  let url = String(f.row[C.neshFile] || '');
+  if (!neshFileId_(f.row) && n > 0) {
+    url = neshCreate_(String(f.row[C.name] || id), String(f.row[C.email] || '').trim());
+    f.sh.getRange(f.r, C.neshFile + 1).setValue(url);
+  }
+  f.sh.getRange(f.r, C.nesh + 1).setValue(n);
+  CacheService.getScriptCache().remove('nesh_' + id);
+  let key = String(f.row[C.key] || '');
+  if (!key) { key = newKey_(); f.sh.getRange(f.r, C.key + 1).setValue(key); }
+  ui.alert(n ? 'לוח הנשמה הופעל (' + n + ' מסכים).\n\nקישור למסך:\n' + DISPLAY_URL + 'neshama/?shul=' + id +
+    '\n\nאפליקציה לגבאי:\n' + DISPLAY_URL + 'neshama/settings.html?shul=' + id + '&key=' + key + '\n\nקובץ השמות:\n' + url
+    : 'לוח הנשמה כובה. הקובץ נשמר בדרייב.');
+}
+function neshSettings_(ss) {
+  const o = {}; NESH_SET.forEach(x => { o[x[0]] = x[1]; });
+  const st = ss.getSheetByName(NESH_SET_TAB);
+  if (st) st.getDataRange().getValues().slice(1).forEach(r => { const k = String(r[0]).trim(); if (k in o) o[k] = String(r[1]).trim(); });
+  return o;
+}
+const neshTxt_ = v => v instanceof Date ? Utilities.formatDate(v, 'Asia/Jerusalem', 'yyyy-MM-dd') : String(v == null ? '' : v).trim();
+function neshRows_(ss) {
+  const sh = ss.getSheetByName(NESH_TAB);
+  if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, NESH_KEYS.length).getValues().map(r => {
+    const o = {}; NESH_KEYS.forEach((k, i) => { o[k] = neshTxt_(r[i]); }); return o;
+  }).filter(o => o.n);
+}
+// מיקום לחישוב השקיעה – מההגדרות של לוח הזמנים (ברירת מחדל: ירושלים)
+function neshPlace_(row) {
+  const s = parseJson_(row[C.settings]) || {};
+  const lat = parseFloat(s.lat), lon = parseFloat(s.lon);
+  return { lat: isNaN(lat) ? 31.778 : lat, lon: isNaN(lon) ? 35.235 : lon, tz: String(s.tz || 'Asia/Jerusalem'), nusach: String(row[C.nusach] || s.nusach || '') };
+}
+// המסך: ...exec?shul=ID&what=neshama&dev=&code=  → JSON
+function neshDisplay_(id, p, cache) {
+  const send = t => ContentService.createTextOutput(t).setMimeType(ContentService.MimeType.JSON);
+  const f = findRow_(id);
+  if (!f) return send(JSON.stringify({ ok: false, err: 'ERR:NOT_FOUND' }));
+  if (!(parseInt(f.row[C.nesh], 10) > 0) || !neshFileId_(f.row)) return send(JSON.stringify({ ok: false, err: 'ERR:NESH_OFF' }));
+  const dev = String(p.dev || '').replace(/[^a-z0-9]/gi, '').slice(0, 32);
+  const err = checkDevice_(id, dev, String(p.code || '').replace(/\D/g, '').slice(0, 6), cache, 'n');
+  if (err) return send(JSON.stringify({ ok: false, err }));
+  const hit = cache.get('nesh_' + id);
+  if (hit !== null) return send(hit);
+  const ss = SpreadsheetApp.openById(neshFileId_(f.row));
+  const t = JSON.stringify({ ok: true, name: String(f.row[C.name] || ''), place: neshPlace_(f.row), set: neshSettings_(ss),
+    list: neshRows_(ss).filter(o => o.on !== 'לא').map(o => { delete o.id; delete o.on; return o; }), server: SERVER_BUILD });
+  if (t.length < 95000) cache.put('nesh_' + id, t, 300);
+  return send(t);
+}
+function neshAuth_(id, key) {
+  const f = id ? findRow_(id) : null;
+  if (!f || !key || String(f.row[C.key]) !== String(key)) throw new Error('הקישור אינו תקין. יש לפנות למנהל המערכת.');
+  if (!neshFileId_(f.row)) throw new Error('לוח הנשמה עוד לא הופעל לבית הכנסת הזה. יש לפנות למנהל המערכת.');
+  return f;
+}
+// האפליקציה: טעינה
+function neshLoad_(id, key) {
+  try {
+    const f = neshAuth_(id, key), ss = SpreadsheetApp.openById(neshFileId_(f.row));
+    return { ok: true, name: String(f.row[C.name] || ''), place: neshPlace_(f.row), set: neshSettings_(ss), list: neshRows_(ss),
+      file: ss.getUrl(), screens: parseInt(f.row[C.nesh], 10) || 0, display: DISPLAY_URL + 'neshama/?shul=' + id };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+}
+// האפליקציה: nput (הוספה / עדכון שורה לפי מזהה), ndel (מחיקה), nset (הגדרות)
+function neshPost_(id, key, b) {
+  const f = neshAuth_(id, key);
+  const lock = LockService.getScriptLock(); lock.waitLock(15000);
+  try {
+    const ss = SpreadsheetApp.openById(neshFileId_(f.row));
+    let out = { ok: true };
+    if (b.action === 'nset') {
+      const st = ss.getSheetByName(NESH_SET_TAB) || ss.insertSheet(NESH_SET_TAB);
+      const cur = neshSettings_(ss), inp = b.set || {};
+      st.clear();
+      st.getRange(1, 1, NESH_SET.length + 1, 3).setNumberFormat('@').setValues([['מפתח', 'ערך', 'הסבר']].concat(NESH_SET.map(x => [x[0], neshClean_(x[0] in inp ? inp[x[0]] : cur[x[0]], 120), x[2]])));
+      st.getRange(1, 1, 1, 3).setFontWeight('bold');
+    } else {
+      const sh = ss.getSheetByName(NESH_TAB);
+      const last = sh.getLastRow(), ids = last > 1 ? sh.getRange(2, 1, last - 1, 1).getValues().map(r => String(r[0])) : [];
+      const it = b.item || {}, at = it.id ? ids.indexOf(String(it.id)) : -1;
+      if (b.action === 'ndel') {
+        if (at < 0) throw new Error('השורה לא נמצאה (אולי נמחקה כבר)');
+        sh.deleteRow(at + 2);
+      } else {
+        if (!neshClean_(it.n)) throw new Error('חסר שם');
+        const rid = at >= 0 ? String(it.id) : Utilities.getUuid().replace(/-/g, '').slice(0, 10);
+        const vals = NESH_KEYS.map(k => k === 'id' ? rid : neshClean_(it[k], k === 'note' ? 120 : 80));
+        const r = at >= 0 ? at + 2 : last + 1;
+        sh.getRange(r, 1, 1, vals.length).setNumberFormat('@').setValues([vals]);
+        out.id = rid;
+      }
+    }
+    CacheService.getScriptCache().remove('nesh_' + id);
+    return out;
+  } finally { lock.releaseLock(); }
 }
