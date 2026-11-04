@@ -128,6 +128,42 @@ textarea.field{min-height:90px;resize:vertical;font:inherit;line-height:1.5}
 .addrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .addrow .add{padding:11px 8px}
 .err-screen{flex:1;display:grid;place-items:center;text-align:center;padding:30px;color:var(--muted);font-size:18px;line-height:1.7}
+/* זמני שבת לפי פרשה */
+.ptsum .r{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.06);font-size:14px}
+.ptsum .r:first-child{border-top:0}
+.ptsum .r span{color:var(--muted)}
+#ptEd{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column}
+#ptEd .edbar{display:flex;align-items:center;gap:10px;padding:calc(var(--safe-t) + 12px) 16px 10px;border-bottom:1px solid var(--line)}
+#ptEd .edbar h1{flex:1;margin:0;font-family:var(--display);font-size:20px}
+#ptEd .edbar button{border:0;background:var(--surface);color:var(--text);width:38px;height:38px;border-radius:50%;font-size:20px;cursor:pointer}
+#ptEd .edbody{flex:1;overflow-y:auto;padding:16px 16px calc(24px + var(--safe-b));display:flex;flex-direction:column;gap:14px;max-width:760px;width:100%;margin:0 auto}
+.ptq{padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}.ptq:first-of-type{border-top:0;padding-top:0}
+.ptq b{display:block;font-weight:600;margin-bottom:6px}.ptq small{display:block;color:var(--muted);font-size:12.5px;margin:-2px 0 6px}
+.ptq .seg button{padding:6px 12px;font-size:14px}
+.ptcol{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,.06)}
+.ptcol .field{padding:8px 12px}
+@media (min-width:600px){.ptcol{grid-template-columns:1fr auto auto}.ptcol .seg{grid-column:auto;order:2}.ptcol .x{order:3}}
+.ptcol:first-of-type{border-top:0}
+.ptcol .seg{grid-column:1/-1}.ptcol .seg button{padding:6px 12px;font-size:14px}
+.ptcol .x,.ptgrid .x{border:0;background:none;color:var(--danger);font-size:20px;cursor:pointer;padding:0 6px}
+.ptcol.guess .field{border-color:var(--gold2)}
+.ptgw{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.ptgrid{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;min-width:100%}
+.ptgrid th{background:var(--surface2);color:var(--gold2);font-size:11.5px;font-weight:700;padding:6px 4px;line-height:1.2;position:sticky;top:0}
+.ptgrid td{padding:2px;border-top:1px solid rgba(255,255,255,.06)}
+.ptgrid input{width:100%;min-width:54px;border:1px solid transparent;background:none;color:var(--text);padding:7px 4px;border-radius:7px;text-align:center;font-size:14px;outline:none}
+.ptgrid td.k input{min-width:86px;text-align:right;font-weight:600}
+.ptgrid input:focus{border-color:var(--gold);background:var(--bg)}
+.ptgrid td.uns input{background:rgba(255,143,122,.2);color:var(--danger);font-weight:700}
+.ptgrid tr.cur td{background:rgba(226,184,87,.14)}
+.ptw{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.06)}
+.ptw:first-of-type{border-top:0}
+.ptw .field{padding:9px 12px}
+.ptnote{font-size:13px;color:var(--muted);line-height:1.6;margin:0;padding-right:16px}
+.ptbusy{text-align:center;padding:30px 10px;color:var(--muted);line-height:1.8}
+.ptbusy .spin{width:38px;height:38px;border-radius:50%;border:3px solid var(--surface2);border-top-color:var(--gold);margin:0 auto 12px;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ptbanner{background:rgba(226,184,87,.12);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.6}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -305,6 +341,17 @@ textarea.field{min-height:90px;resize:vertical;font:inherit;line-height:1.5}
       <p class="hint">שעה קבועה (<b>6:30</b>) או יחסית: <b>15 דקות לפני השקיעה</b>, <b>שקיעה+20</b>, <b>הדלקת נרות+10</b>. כמה מניינים – עם פסיק: <b>6:15, 7:30</b>. כדי שיופיעו במסך, בוחרים "תפילות" באחת המשבצות.</p>
       <p class="hint" style="margin-top:8px"><b>ימים:</b> תפילה של "שישי" או "שבת" מחליפה באותו יום את התפילה עם אותו שם של "כל יום". ביום שישי מופיע גם הערב, ולכן <b>קבלת שבת</b> וערבית של ליל שבת נכנסות תחת "שישי".</p>
     </div>
+    <div class="card" id="ptCard">
+      <h2>זמני שבת לפי פרשה</h2>
+      <p class="hint" style="margin-bottom:12px">בית הכנסת פרסם לוח זמנים לכמה חודשים? מעלים תמונה או PDF – המערכת קוראת את הטבלה, שואלת מה שלא ברור, ומכניסה הכול. בכל שבת המסך לוקח את השורה של פרשת השבוע.</p>
+      <label class="big gold" id="ptAiBtn" style="display:block;text-align:center">📷 העלאת תמונה / PDF של הלוח<input type="file" id="ptFile" accept="image/*,application/pdf" hidden></label>
+      <div class="two" style="margin-top:10px"><button class="big ghost" type="button" id="ptPasteBtn" style="font-size:15px">📋 הדבקה מאקסל</button><button class="big ghost" type="button" id="ptManBtn" style="font-size:15px">✏️ הזנה ידנית</button></div>
+      <div id="ptSum" hidden style="margin-top:14px">
+        <div class="row" style="border-top:1px solid rgba(255,255,255,.06);padding-top:12px"><div class="lbl"><b id="ptSumT"></b><small id="ptSumS"></small></div><label class="sw"><input type="checkbox" id="ptOn"><span></span></label></div>
+        <div class="ptsum" id="ptWeek"></div>
+        <div class="two" style="margin-top:8px"><button class="big ghost" type="button" id="ptEditBtn" style="font-size:15px">צפייה ועריכה</button><button class="big danger" type="button" id="ptDelBtn" style="font-size:15px">מחיקה</button></div>
+      </div>
+    </div>
     <div class="card">
       <h2>מקומות התפילה</h2>
       <p class="hint" style="margin-bottom:10px">כשמניין מתקיים במקום אחר (בית המדרש, היכל עליון...) – מוסיפים כאן את המקום, ובכל תפילה בוחרים אותו ליד השעה. בלי בחירה = ההיכל הרגיל, ושום דבר לא מוצג. כדאי שם קצר.</p>
@@ -393,6 +440,10 @@ textarea.field{min-height:90px;resize:vertical;font:inherit;line-height:1.5}
   <div class="err-screen" id="errScreen" hidden></div>
 </main>
 
+<div id="ptEd" hidden>
+  <div class="edbar"><h1 id="ptEdT">זמני שבת לפי פרשה</h1><button type="button" id="ptX" aria-label="סגירה">×</button></div>
+  <div class="edbody" id="ptBody"></div>
+</div>
 <nav id="nav">
   <button type="button" class="on" data-tab="t-loc"><span class="pill"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>מיקום</button>
   <button type="button" data-tab="t-layout"><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>מסך</button>
@@ -428,7 +479,7 @@ const OTHER = 'אחר / חוץ לארץ';
 const TZS = ['Asia/Jerusalem','Europe/London','Europe/Paris','Europe/Antwerp','America/New_York','America/Chicago','America/Los_Angeles','America/Toronto','America/Sao_Paulo','America/Argentina/Buenos_Aires','America/Mexico_City','Australia/Sydney','Africa/Johannesburg','Europe/Moscow','Europe/Kiev'];
 const SLOTS = [['msgs','הודעות'],['zmanim','זמני היום'],['prayers','תפילות'],['learn','לימוד יומי'],['tefila','היום בתפילה']];
 const SLOT_NAME = Object.assign({daf:'לימוד יומי'}, Object.fromEntries(SLOTS));
-let S = null, DOC = '', SCREENS = 1, EDIT = 1;
+let S = null, DOC = '', SCREENS = 1, EDIT = 1, AI = false;
 // בחירת מסך לפריט (כשיש לבית הכנסת 2 מסכים): '' = בשניהם, '1' = רק הראשי, '2' = רק מסך 2
 function scrSeg(obj){
   const w = document.createElement('div');
@@ -979,6 +1030,7 @@ function bind(){
   S.offDates.forEach(o => $('offDates').appendChild(offCard(o)));
   S.prayers = S.prayers || [];
   S.prayers.forEach(p => $('prayers').appendChild(prayerCard(p)));
+  ptInit();
 
   if (DOC) $('docBtn').href = DOC; else $('docBtn').hidden = true;
   $('screenOff').checked = !!S.screenOff; $('nightOff').checked = !!S.nightOff;
@@ -1005,13 +1057,215 @@ function fail(msg){
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
   $('nav').hidden = true; $('errScreen').hidden = false; $('errScreen').textContent = msg; status('', '');
 }
+// ---------- זמני שבת לפי פרשה ----------
+const PT_DAY = {fri: 'שישי', sat: 'שבת', motz: 'מוצאי שבת'};
+const PARSHIOT = ['בראשית','נח','לך לך','וירא','חיי שרה','תולדות','ויצא','וישלח','וישב','מקץ','ויגש','ויחי','שמות','וארא','בא','בשלח','יתרו','משפטים','תרומה','תצוה','כי תשא','ויקהל','פקודי','ויקרא','צו','שמיני','תזריע','מצורע','אחרי מות','קדושים','אמור','בהר','בחוקותי','במדבר','נשא','בהעלותך','שלח','קרח','חוקת','בלק','פנחס','מטות','מסעי','דברים','ואתחנן','עקב','ראה','שופטים','כי תצא','כי תבוא','נצבים','וילך','האזינו','וזאת הברכה'];
+const pNorm = x => String(x || '').replace(/פרשת|פרשות/g, '').replace(/[ךםןףץ]/g, c => 'כמנפצ'['ךםןףץ'.indexOf(c)]).replace(/[^א-ת]/g, '');
+const guessDay = l => /ער"?ש|ערש|קבלת|שישי|ליל שבת/.test(l) ? 'fri' : /מוצ|ערבית|הבדלה|אבות ובנים|מלווה/.test(l) ? 'motz' : 'sat';
+let PT_WEEK = '';   // פרשת השבוע (מ-hebcal) – לסימון בטבלה
+async function ptWeek(){
+  try {
+    const d = new Date(), e = new Date(Date.now() + 7 * 864e5), f = x => x.toISOString().slice(0, 10);
+    const r = await fetch(`https://www.hebcal.com/hebcal?v=1&cfg=json&s=on&i=${S.israel === false ? 'off' : 'on'}&start=${f(d)}&end=${f(e)}`);
+    const j = await r.json(), it = (j.items || []).find(i => i.category === 'parashat');
+    PT_WEEK = it ? String(it.hebrew || '').replace(/[֑-ׇ]/g, '') : '';
+  } catch (e) { PT_WEEK = ''; }
+}
+function ptRowFor(T, ph){
+  if (!T || !ph) return -1;
+  const full = pNorm(ph), parts = ph.replace(/פרשת|פרשות/g, '').split(/[-–־]/).map(pNorm).filter(Boolean);
+  const hit = k => { k = pNorm(k); return k && (k === full || parts.some(x => k === x || k.startsWith(x) && k.length > x.length + 2)); };
+  let i = T.rows.findIndex(r => pNorm(r.k) === full); if (i < 0) i = T.rows.findIndex(r => hit(r.k)); return i;
+}
+function ptSummary(){
+  const T = S.ptable, has = T && T.rows && T.rows.length && T.cols && T.cols.length;
+  $('ptSum').hidden = !has; $('ptAiBtn').hidden = !AI;
+  if (!has) return;
+  $('ptOn').checked = T.on !== false;
+  $('ptSumT').textContent = `${T.rows.length} שורות · ${T.cols.length} תפילות`;
+  $('ptSumS').textContent = `${T.rows[0].k} – ${T.rows[T.rows.length - 1].k}` + (T.at ? ' · עודכן ' + T.at.split('-').reverse().slice(0, 2).join('/') : '');
+  const i = ptRowFor(T, PT_WEEK), box = $('ptWeek');
+  const rows = [];
+  if (PT_WEEK) rows.push(['השבוע', PT_WEEK + (i < 0 ? ' – אין בטבלה, מוצגים הזמנים הרגילים' : '')]);
+  if (i >= 0) T.cols.forEach((c, j) => { if (T.rows[i].v[j]) rows.push([c.label, T.rows[i].v[j] + ' · ' + PT_DAY[c.day]]); });
+  box.innerHTML = rows.map(() => '<div class="r"><span></span><b></b></div>').join('');
+  box.querySelectorAll('.r').forEach((el, k) => { el.querySelector('span').textContent = rows[k][0]; el.querySelector('b').textContent = rows[k][1]; });
+}
+function ptInit(){
+  ptSummary(); ptWeek().then(ptSummary);
+  $('ptOn').addEventListener('change', e => { S.ptable.on = e.target.checked; changed(); });
+  $('ptDelBtn').addEventListener('click', () => { if (!confirm('למחוק את טבלת זמני השבת?')) return; S.ptable = null; ptSummary(); changed(); });
+  $('ptEditBtn').addEventListener('click', () => ptOpen({cols: S.ptable.cols, rows: S.ptable.rows}, 'edit'));
+  $('ptManBtn').addEventListener('click', () => ptOpen(S.ptable && S.ptable.rows.length ? {cols: S.ptable.cols, rows: S.ptable.rows} :
+    {cols: ['מנחה ערש״ק', 'שחרית', 'מנחה שבת', 'ערבית מוצ״ש'].map(l => ({label: l, day: guessDay(l)})), rows: []}, 'manual'));
+  $('ptPasteBtn').addEventListener('click', () => ptOpen({cols: [], rows: []}, 'paste'));
+  $('ptX').addEventListener('click', ptClose);
+  $('ptFile').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if (f) ptAi(f); });
+}
+let W = null;   // עותק עבודה של הטבלה בעורך
+function ptOpen(T, mode, extra){
+  W = Object.assign({cols: [], rows: [], unsure: [], weekday: [], questions: [], notes: [], mode}, JSON.parse(JSON.stringify(T)), extra || {});
+  W.rows.forEach(r => { while (r.v.length < W.cols.length) r.v.push(''); });
+  $('ptEd').hidden = false; document.body.style.overflow = 'hidden';
+  ptDraw();
+}
+function ptClose(){ $('ptEd').hidden = true; document.body.style.overflow = ''; W = null; }
+function ptBusy(t){ $('ptEd').hidden = false; $('ptBody').innerHTML = `<div class="ptbusy"><div class="spin"></div>${t}</div>`; }
+function ptErr(t){ $('ptBody').innerHTML = `<div class="card"><h2>לא הצלחנו לקרוא את הלוח</h2><p class="hint"></p><button class="big ghost" type="button" style="margin-top:12px">סגירה</button></div>`;
+  $('ptBody').querySelector('.hint').textContent = t; $('ptBody').querySelector('button').onclick = ptClose; }
+async function ptAi(file){
+  ptBusy('קורא את הלוח מהתמונה…<br><small>זה לוקח בדרך כלל חצי דקה עד דקה</small>');
+  try {
+    let data;
+    if (file.type === 'application/pdf') {
+      if (file.size > 9e6) return ptErr('קובץ ה-PDF גדול מדי. אפשר לצלם את הדף ולהעלות תמונה.');
+      data = await new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = bad; r.readAsDataURL(file); });
+    } else {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = URL.createObjectURL(file); });
+      const k = Math.min(1, 2200 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height);
+      data = cv.toDataURL('image/jpeg', 0.9);
+    }
+    const j = await post({shul: SHUL, key: KEY, action: 'aiTable', data});
+    const r = j.r;
+    if (!r.rows.length && !r.weekday.length) return ptErr('לא נמצאה בתמונה טבלת זמנים.');
+    const extra = {unsure: r.unsure, unsure0: r.unsure, weekday: r.weekday.map(w => Object.assign(w, {add: w.sure && !!w.value})), questions: r.questions, notes: r.notes, provider: r.provider, title: r.title};
+    if (j.alt) {   // השוואה בין שני הספקים
+      const a = j.alt, diff = [];
+      r.rows.forEach((row, i) => row.v.forEach((v, c) => { const o = a.rows[i] && a.rows[i].v[c]; if (o !== undefined && o !== v) diff.push([i, c]); }));
+      extra.alt = a; extra.diff = diff.length + (a.rows.length !== r.rows.length || a.cols.length !== r.cols.length ? ' (וגם מספר שורות/עמודות שונה)' : '');
+      extra.unsure = r.unsure.concat(diff);
+    }
+    ptOpen({cols: r.cols, rows: r.rows}, 'ai', extra);
+  } catch (e) { ptErr(String(e.message || e)); }
+}
+function ptParse(text){
+  // מאקסל: עמודות מופרדות בטאב. מטקסט רגיל: מה שלפני השעה הראשונה = הפרשה, ואחריו השעות
+  const TM = /\d{1,2}[:.]\d{2}/g;
+  const split = l => /\t/.test(l) ? l.split('\t').map(x => x.trim())
+    : (l.match(TM) ? [l.slice(0, l.search(TM)).trim(), ...l.match(TM)] : l.split(/\s{2,}|\s*[;|]\s*/).map(x => x.trim()));
+  const lines = text.split(/\r?\n/).map(split).filter(l => l.some(Boolean));
+  if (!lines.length) return;
+  const isTime = x => /^\d{1,2}[:.]\d{2}$/.test(x);
+  let head = null;
+  if (!lines[0].slice(1).some(isTime)) head = lines.shift();
+  const n = Math.max(...lines.map(l => l.length)) - 1;
+  W.cols = Array.from({length: n}, (_, i) => { const l = head && head[i + 1] || 'תפילה ' + (i + 1); return {label: l, day: guessDay(l)}; });
+  W.rows = lines.map(l => ({k: l[0], v: Array.from({length: n}, (_, i) => (l[i + 1] || '').replace('.', ':'))}));
+  W.unsure = []; W.mode = 'manual'; ptDraw();
+}
+function ptDraw(){
+  const B = $('ptBody'); B.innerHTML = '';
+  const card = (h, html) => { const d = document.createElement('div'); d.className = 'card'; d.innerHTML = (h ? `<h2>${h}</h2>` : '') + html; B.appendChild(d); return d; };
+  const txt = (el, t) => { el.textContent = t; return el; };
+  $('ptEdT').textContent = W.mode === 'ai' ? 'קריאת הלוח מהתמונה' : 'זמני שבת לפי פרשה';
+  if (W.mode === 'paste') {
+    const c = card('הדבקה מאקסל / Google Sheets', `<p class="hint" style="margin-bottom:10px">מסמנים בגיליון את הטבלה (כולל שורת הכותרות), מעתיקים ומדביקים כאן. עמודה ראשונה = הפרשה.</p>
+      <textarea class="field" id="ptTa" style="min-height:180px" dir="auto" placeholder="פרשה	מנחה ערש״ק	שחרית&#10;בראשית	18:00	08:15"></textarea><button class="big gold" type="button" style="margin-top:10px">קריאת הטבלה</button>`);
+    c.querySelector('button').onclick = () => ptParse(c.querySelector('textarea').value);
+    return;
+  }
+  if (W.mode === 'ai') {
+    const c = card('', `<b style="display:block"></b><small class="hint"></small>`);
+    txt(c.querySelector('b'), `זוהו ${W.rows.length} שורות ו-${W.cols.length} תפילות` + (W.weekday.length ? ` + ${W.weekday.length} זמני חול` : ''));
+    txt(c.querySelector('small'), (W.unsure.length ? `${W.unsure.length} תאים מסומנים באדום – כדאי לבדוק אותם מול התמונה. ` : '') + 'בודקים, מתקנים אם צריך, ושומרים.');
+    if (W.alt) {
+      const name = p => p === 'claude' ? 'Claude' : 'Gemini';
+      const b = document.createElement('div'); b.className = 'ptbanner'; B.appendChild(b);
+      b.innerHTML = `<b></b><br><span></span><button class="big ghost" type="button" style="margin-top:8px;font-size:14px;padding:10px"></button>`;
+      txt(b.querySelector('b'), `השוואה: ${name(W.provider)} מול ${name(W.alt.provider)}`);
+      txt(b.querySelector('span'), `מספר התאים השונים: ${W.diff}. מוצגת הקריאה של ${name(W.provider)}; תאים שונים מסומנים באדום.`);
+      txt(b.querySelector('button'), `להציג את הקריאה של ${name(W.alt.provider)}`);
+      b.querySelector('button').onclick = () => { const a = W.alt, me = {provider: W.provider, cols: W.cols, rows: W.rows, unsure: W.unsure0 || [], weekday: W.weekday, questions: W.questions, notes: W.notes};
+        ptOpen({cols: a.cols, rows: a.rows}, 'ai', {alt: me, diff: W.diff, provider: a.provider, unsure: (a.unsure || []).concat(W.unsure.filter(x => !(W.unsure0 || []).some(y => y[0] === x[0] && y[1] === x[1]))), unsure0: a.unsure || [],
+          weekday: (a.weekday || []).map(w => Object.assign(w, {add: w.sure && !!w.value})), questions: a.questions || [], notes: a.notes || []}); };
+    }
+  }
+  // שאלות
+  const qs = W.questions.filter(q => !q.done);
+  if (qs.length) {
+    const c = card('שאלות', '');
+    qs.forEach(q => {
+      const d = document.createElement('div'); d.className = 'ptq'; d.innerHTML = '<b></b><div class="seg"></div>'; txt(d.querySelector('b'), q.text);
+      q.options.forEach(o => { const b = document.createElement('button'); b.type = 'button'; txt(b, o.label); b.onclick = () => {
+        if (q.target.w !== undefined && W.weekday[q.target.w]) { const w = W.weekday[q.target.w]; w.value = o.value; w.add = !!o.value; w.sure = true; }
+        if (q.target.col !== undefined && W.cols[q.target.col] && PT_DAY[o.value]) { W.cols[q.target.col].day = o.value; W.cols[q.target.col].sure = true; }
+        q.done = true; ptDraw(); }; d.querySelector('.seg').appendChild(b); });
+      c.appendChild(d);
+    });
+  }
+  // עמודות
+  const cc = card('התפילות בטבלה ובאיזה יום', `<p class="hint" style="margin-bottom:8px">שם זהה לתפילה בזמני התפילות (למשל "שחרית") מחליף אותה בשבת.</p>`);
+  W.cols.forEach((col, i) => {
+    const d = document.createElement('div'); d.className = 'ptcol' + (col.sure === false ? ' guess' : '');
+    d.innerHTML = `<input class="field" aria-label="שם התפילה"><button type="button" class="x" aria-label="מחיקת עמודה">×</button><div class="seg" data-vals="fri,sat,motz" data-labels="שישי,שבת,מוצאי שבת"></div>`;
+    const inp = d.querySelector('input'); inp.value = col.label; inp.oninput = () => { col.label = inp.value; const th = B.querySelectorAll('.ptgrid th')[i + 1]; if (th) th.textContent = inp.value; };
+    segment(d.querySelector('.seg'), col.day, v => { col.day = v; col.sure = true; d.classList.remove('guess'); });
+    d.querySelector('.x').onclick = () => { W.cols.splice(i, 1); W.rows.forEach(r => r.v.splice(i, 1)); W.unsure = W.unsure.filter(u => u[1] !== i).map(u => [u[0], u[1] > i ? u[1] - 1 : u[1]]); ptDraw(); };
+    cc.appendChild(d);
+  });
+  const addc = document.createElement('button'); addc.type = 'button'; addc.className = 'add'; addc.style.marginTop = '8px'; txt(addc, '+ עמודה');
+  addc.onclick = () => { W.cols.push({label: '', day: 'sat'}); W.rows.forEach(r => r.v.push('')); ptDraw(); }; cc.appendChild(addc);
+  // הטבלה
+  const tc = card('הטבלה', `<p class="hint" style="margin-bottom:10px">לוחצים על תא כדי לתקן. שעה כמו <b>08:15</b>, או זמן יחסי כמו <b>שקיעה-15</b>.</p><div class="ptgw"><table class="ptgrid"><thead></thead><tbody></tbody></table></div>`);
+  const thr = document.createElement('tr'); ['פרשה', ...W.cols.map(c => c.label), ''].forEach(h => thr.appendChild(txt(document.createElement('th'), h))); tc.querySelector('thead').appendChild(thr);
+  const cur = ptRowFor(W, PT_WEEK), tb = tc.querySelector('tbody');
+  W.rows.forEach((r, i) => {
+    const tr = document.createElement('tr'); if (i === cur) tr.className = 'cur';
+    const mk = (val, cls, on) => { const td = document.createElement('td'); if (cls) td.className = cls; const inp = document.createElement('input'); inp.value = val; inp.dir = cls === 'k' ? 'rtl' : 'ltr'; inp.oninput = () => { on(inp.value); td.classList.remove('uns'); }; td.appendChild(inp); tr.appendChild(td); };
+    mk(r.k, 'k', v => r.k = v);
+    r.v.forEach((v, c) => mk(v, W.unsure.some(u => u[0] === i && u[1] === c) ? 'uns' : '', x => { r.v[c] = x; }));
+    const td = document.createElement('td'), x = document.createElement('button'); x.type = 'button'; x.className = 'x'; txt(x, '×'); x.onclick = () => { W.rows.splice(i, 1); W.unsure = W.unsure.filter(u => u[0] !== i).map(u => [u[0] > i ? u[0] - 1 : u[0], u[1]]); ptDraw(); };
+    td.appendChild(x); tr.appendChild(td); tb.appendChild(tr);
+  });
+  const ar = document.createElement('div'); ar.className = 'addrow'; ar.style.marginTop = '10px';
+  ar.innerHTML = '<button type="button" class="add">+ שורה</button><button type="button" class="add">מילוי כל הפרשות</button>'; tc.appendChild(ar);
+  ar.children[0].onclick = () => { W.rows.push({k: '', v: W.cols.map(() => '')}); ptDraw(); };
+  ar.children[1].onclick = () => { const have = W.rows.map(r => pNorm(r.k)); PARSHIOT.forEach(p => { if (!have.includes(pNorm(p))) W.rows.push({k: p, v: W.cols.map(() => '')}); });
+    W.rows.sort((a, b) => { const ia = PARSHIOT.findIndex(p => pNorm(a.k).startsWith(pNorm(p))), ib = PARSHIOT.findIndex(p => pNorm(b.k).startsWith(pNorm(p))); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); }); ptDraw(); };
+  // זמני חול שזוהו
+  if (W.weekday.length) {
+    const wc = card('זמני ימי החול שזוהו', `<p class="hint" style="margin-bottom:8px">מה שמסומן ✓ יתווסף לזמני התפילות הרגילים (תפילה עם אותו שם ואותם ימים – תתעדכן).</p>`);
+    W.weekday.forEach(w => {
+      const d = document.createElement('div'); d.className = 'ptw';
+      d.innerHTML = `<label class="sw"><input type="checkbox"><span></span></label><div><b style="display:block;font-weight:600"></b><input class="field" dir="auto" style="margin-top:6px"></div>`;
+      const ck = d.querySelector('input[type=checkbox]'), vi = d.querySelector('.field');
+      ck.checked = !!w.add; ck.onchange = () => w.add = ck.checked;
+      txt(d.querySelector('b'), w.label + ' · ' + DAYQ[w.q || '']); vi.value = w.value; vi.placeholder = 'שעה או זמן יחסי';
+      vi.oninput = () => { w.value = vi.value; if (vi.value && !ck.checked) { ck.checked = w.add = true; } };
+      wc.appendChild(d);
+    });
+  }
+  if (W.notes.length) { const nc = card('הערות מהלוח', '<ul class="ptnote"></ul>'); W.notes.forEach(n => nc.querySelector('ul').appendChild(txt(document.createElement('li'), n))); }
+  const sv = document.createElement('button'); sv.type = 'button'; sv.className = 'big gold'; txt(sv, '✓ אישור ושמירה'); sv.onclick = ptSave; B.appendChild(sv);
+  const cn = document.createElement('button'); cn.type = 'button'; cn.className = 'big ghost'; txt(cn, 'ביטול'); cn.onclick = ptClose; B.appendChild(cn);
+}
+function ptSave(){
+  const cols = W.cols.map(c => ({label: c.label.trim(), day: c.day})), keep = cols.map(c => !!c.label);
+  const rows = W.rows.filter(r => r.k.trim()).map(r => ({k: r.k.trim(), v: r.v.map(x => x.trim().replace(/^(\d{1,2})\.(\d{2})$/, '$1:$2')).filter((x, i) => keep[i])}));
+  const C2 = cols.filter(c => c.label);
+  if (!rows.length || !C2.length) { alert('הטבלה ריקה – צריך לפחות שורה אחת ותפילה אחת.'); return; }
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  S.ptable = {on: true, cols: C2, rows, at: today};
+  // זמני חול – לזמני התפילות הרגילים
+  let added = 0;
+  W.weekday.filter(w => w.add && w.value.trim() && w.label.trim()).forEach(w => {
+    const old = S.prayers.find(p => p.label.trim() === w.label.trim() && (p.q || '') === (w.q || ''));
+    if (old) old.value = w.value.trim(); else S.prayers.push({q: w.q || '', label: w.label.trim(), value: w.value.trim()});
+    added++;
+  });
+  if (added) { $('prayers').innerHTML = ''; HALL_DRAW.length = 0; S.prayers.forEach(p => $('prayers').appendChild(prayerCard(p))); }
+  ptClose(); ptSummary(); changed();
+}
+
 async function load(){
   if (!SHUL || !KEY) return fail('יש לפתוח את האפליקציה מהקישור שקיבלתם מהמנהל.');
   try {
     const r = await fetch(`${API}?page=api&shul=${encodeURIComponent(SHUL)}&key=${encodeURIComponent(KEY)}&t=${Date.now()}`, {cache:'no-store'});
     const j = await r.json();
     if (!j.ok) return fail(j.error || 'הקישור אינו תקין.');
-    S = j.s; DOC = j.doc; SCREENS = +j.screens || 1; bind(); BOUND = true; nowCard(); status('מעודכן', 'saved');
+    S = j.s; DOC = j.doc; SCREENS = +j.screens || 1; AI = !!j.ai; bind(); BOUND = true; nowCard(); status('מעודכן', 'saved');
   } catch(e){ fail('אין חיבור לאינטרנט. נסו שוב בעוד רגע.'); }
 }
 load();

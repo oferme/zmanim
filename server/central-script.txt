@@ -53,6 +53,8 @@ function onOpen() {
     .addItem('עדכון הקוד מ-GitHub', 'updateFromGithub')
     .addItem('קישור לעדכון מהטלפון', 'showUpdateLink')
     .addSeparator()
+    .addItem('קריאת לוחות מתמונה – מפתחות וספק', 'setupAi')
+    .addSeparator()
     .addItem('גיבוי עכשיו', 'backupNow')
     .addItem('הפעלת גיבוי אוטומטי כל לילה', 'enableBackup')
     .addToUi();
@@ -186,7 +188,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 20;
+const SERVER_BUILD = 21;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -407,8 +409,8 @@ function apiLoad_(id, key) {
   const f = id ? findRow_(id) : null;
   if (!f || !key || String(f.row[C.key]) !== key) return { ok: false, error: 'הקישור אינו תקין. יש לפנות למנהל המערכת.' };
   const s = Object.assign(defaults_(f.row[C.name]), parseJson_(f.row[C.settings]) || {});
-  migrateDaf_(s); nusachDefault_(s, f.row); s.pic = cleanPic_(s.pic); s.hal = cleanHal_(s.hal);
-  return { ok: true, s, doc: String(f.row[C.doc] || ''), name: String(f.row[C.name] || ''), screens: Math.max(1, parseInt(f.row[C.screens], 10) || 1) };
+  migrateDaf_(s); nusachDefault_(s, f.row); s.pic = cleanPic_(s.pic); s.hal = cleanHal_(s.hal); s.ptable = cleanPtable_(s.ptable);
+  return { ok: true, ai: aiReady_(), s, doc: String(f.row[C.doc] || ''), name: String(f.row[C.name] || ''), screens: Math.max(1, parseInt(f.row[C.screens], 10) || 1) };
 }
 // שמירה מהאפליקציה: גוף הבקשה = {"shul","key","action":"save"|"close","s":{...}}
 function doPost(e) {
@@ -418,6 +420,7 @@ function doPost(e) {
     if (b.action === 'close') { closeScreen(id, b.key); return json_({ ok: true }); }
     if (b.action === 'logo') return json_(saveLogo_(id, b.key, String(b.data || '')));
     if (b.action === 'img') return json_(saveImage_(id, b.key, String(b.data || '')));
+    if (b.action === 'aiTable') return json_(aiTable_(id, b.key, String(b.data || '')));
     saveSettings(id, b.key, b.s || {});
     return json_({ ok: true });
   } catch (err) { return json_({ ok: false, error: String(err && err.message || err) }); }
@@ -680,6 +683,9 @@ function settingsLines_(s, scr) {
     const text = String(z.msgText || ((z.title || 'שיעור') + ' בשעה ' + z.t)).replace(/[|\r\n]/g, ' ');
     L.push('! הודעת שיעור: ' + z.ds.map(d => ZOOM_DAYS[d]).join('') + ' ' + z.t + (TIME_RE.test(z.e) ? '-' + z.e : '') + ' | ' + text);
   });
+  // זמני שבת לפי פרשה – המסך בוחר את השורה של פרשת השבוע
+  const pt = cleanPtable_(s.ptable);
+  if (pt.on && pt.rows.length && pt.cols.length) L.push('! טבלת פרשות: ' + JSON.stringify({ cols: pt.cols, rows: pt.rows }));
   // תפילה: כל זמן יכול לקבל מקום (היכל) – נכתב בסוגריים אחרי הזמן: 7:15 (בית המדרש)
   (s.prayers || []).filter(p => onScr_(p, scr)).forEach(p => {
     if (!p.label || !p.value) return;
@@ -690,6 +696,117 @@ function settingsLines_(s, scr) {
   return L.join('\n');
 }
 
+
+// ===================== זמני שבת לפי פרשה =====================
+// {on, cols:[{label, day:'fri'|'sat'|'motz'}], rows:[{k:'בראשית', v:['18:00', ...]}], at}
+const PT_DAYS = ['fri', 'sat', 'motz'];
+function cleanPtable_(t) {
+  t = t && typeof t === 'object' ? t : {};
+  const cols = (Array.isArray(t.cols) ? t.cols : []).slice(0, 16).map(c => ({
+    label: String(c && c.label || '').replace(/[:\[\]\r\n|]/g, ' ').trim().slice(0, 30), day: PT_DAYS.includes(c && c.day) ? c.day : 'sat' }));
+  const rows = (Array.isArray(t.rows) ? t.rows : []).slice(0, 80).map(r => ({
+    k: String(r && r.k || '').replace(/[\r\n|]/g, ' ').trim().slice(0, 40),
+    v: cols.map((c, i) => String((r && Array.isArray(r.v) ? r.v : [])[i] || '').replace(/[\r\n|\[\]]/g, ' ').trim().slice(0, 60)) })).filter(r => r.k);
+  return { on: t.on !== false, cols, rows, at: /^\d{4}-\d{2}-\d{2}$/.test(t.at) ? t.at : '' };
+}
+
+// ===================== קריאת לוח תפילות מתמונה (בינה מלאכותית) =====================
+// המפתחות נשמרים רק כאן, במאפייני הסקריפט: GEMINI_KEY, CLAUDE_KEY, AI_PROVIDER (gemini / claude), AI_COMPARE (1 = להריץ את שניהם ולהשוות)
+// אפשר לשנות דגם: GEMINI_MODEL, CLAUDE_MODEL. מכסה יומית לכל בית כנסת: AI_DAILY (ברירת מחדל 15)
+function aiProps_() { return PropertiesService.getScriptProperties(); }
+function aiReady_() { const p = aiProps_(); return !!(p.getProperty('GEMINI_KEY') || p.getProperty('CLAUDE_KEY')); }
+function setupAi() {
+  const ui = SpreadsheetApp.getUi(), p = aiProps_();
+  const ask = (title, text) => { const r = ui.prompt(title, text, ui.ButtonSet.OK_CANCEL); return r.getSelectedButton() === ui.Button.OK ? r.getResponseText().trim() : null; };
+  const g = ask('מפתח Gemini', 'הדביקו מפתח מ-aistudio.google.com/apikey\n(ריק = להשאיר כמו שהוא, "מחק" = למחוק)\nכרגע: ' + (p.getProperty('GEMINI_KEY') ? 'מוגדר' : 'לא מוגדר'));
+  if (g === null) return;
+  if (g === 'מחק') p.deleteProperty('GEMINI_KEY'); else if (g) p.setProperty('GEMINI_KEY', g);
+  const c = ask('מפתח Claude', 'הדביקו מפתח מ-console.anthropic.com/settings/keys\n(ריק = להשאיר כמו שהוא, "מחק" = למחוק)\nכרגע: ' + (p.getProperty('CLAUDE_KEY') ? 'מוגדר' : 'לא מוגדר'));
+  if (c === null) return;
+  if (c === 'מחק') p.deleteProperty('CLAUDE_KEY'); else if (c) p.setProperty('CLAUDE_KEY', c);
+  const v = ask('איזה ספק להפעיל?', 'כתבו: gemini  או  claude  או  שניהם (להשוואה – כל תמונה נשלחת לשניהם)\nכרגע: ' + (p.getProperty('AI_COMPARE') === '1' ? 'שניהם' : (p.getProperty('AI_PROVIDER') || 'gemini')));
+  if (v === null) return;
+  if (/שני|both/i.test(v)) { p.setProperty('AI_COMPARE', '1'); }
+  else if (/claude/i.test(v)) { p.setProperty('AI_PROVIDER', 'claude'); p.deleteProperty('AI_COMPARE'); }
+  else if (/gemini/i.test(v)) { p.setProperty('AI_PROVIDER', 'gemini'); p.deleteProperty('AI_COMPARE'); }
+  ui.alert('נשמר.\nGemini: ' + (p.getProperty('GEMINI_KEY') ? 'מוגדר' : '—') + '\nClaude: ' + (p.getProperty('CLAUDE_KEY') ? 'מוגדר' : '—') +
+    '\nספק: ' + (p.getProperty('AI_COMPARE') === '1' ? 'שניהם (השוואה)' : (p.getProperty('AI_PROVIDER') || 'gemini')));
+}
+const AI_PROMPT = [
+  'You read a synagogue prayer-times schedule (image or PDF, usually Hebrew) and convert it to JSON for a display system.',
+  'Return ONLY a JSON object, no markdown, with this shape:',
+  '{"title":"","cols":[{"label":"","day":"fri|sat|motz","sure":true}],"rows":[["<parsha or row key>","<time>",...]],',
+  ' "unsure":[[row,col]],"weekday":[{"label":"","value":"","q":"","sure":true}],"questions":[{"text":"","target":{"w":0},"options":[{"label":"","value":""}]}],"notes":[""]}',
+  'Rules:',
+  '- "rows"/"cols": the main table of Shabbat times by weekly parsha (or by Shabbat/date). Each row = [row key exactly as written (parsha name, Hebrew), then one cell per column in "cols" order].',
+  '- Column "label": the prayer/shiur name in Hebrew as written, short (e.g. "מנחה ערש״ק", "שחרית", "ערבית א׳"). Merge two-line headers.',
+  '- Column "day": fri = Friday / erev Shabbat (e.g. מנחה ערש״ק, קבלת שבת); sat = during Shabbat day; motz = motzaei Shabbat (ערבית מוצ״ש, havdala, and Saturday-night shiurim). "sure":false if you are guessing.',
+  '- Cells: copy times exactly as HH:MM (24h, add leading zero not needed). Afternoon times written like 4:30 mean 16:30 – convert. Empty cell = "".',
+  '- "unsure": [rowIndex, colIndex] (0-based, colIndex counts only time columns) of any cell you could not read with certainty. Be honest – the gabbai checks these.',
+  '- "weekday": fixed weekday prayers printed elsewhere on the page. "value" must use ONE of these formats: "6:30" | "6:30, 7:15" (several minyanim) | "15 דקות לפני השקיעה" | "שקיעה-15" | "10 דקות אחרי השקיעה" | relative to: השקיעה, הנץ, חצות, הדלקת נרות, צאת השבת, צאת ר״ת.',
+  '  "q": "" = every day, "חול" = Sunday–Friday, "א-ה" = Sunday–Thursday, "שישי", "שבת". If a value cannot be expressed in these formats (e.g. "סמוך", "מיד אחרי מנחה"), set value "" and sure:false and add a question.',
+  '- "questions": only for things you truly cannot decide. target {"w":i} = weekday item i (option value = the value to use; value "" = do not show), {"col":i} = column i day (option values fri/sat/motz). Max 6 questions, Hebrew, short.',
+  '- "notes": short Hebrew notes about anything on the page that is not captured (e.g. "ייתכנו שינויים", holiday times without dates).',
+  '- If the page is not a prayer schedule, return {"error":"<short Hebrew reason>"}.'
+].join('\n');
+function aiCall_(provider, b64, mime) {
+  const p = aiProps_();
+  if (provider === 'claude') {
+    const key = p.getProperty('CLAUDE_KEY'); if (!key) return null;
+    const part = mime === 'application/pdf' ? { type: 'document', source: { type: 'base64', media_type: mime, data: b64 } } : { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } };
+    return { provider, url: 'https://api.anthropic.com/v1/messages', method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify({ model: p.getProperty('CLAUDE_MODEL') || 'claude-sonnet-5-5', max_tokens: 8000,
+        messages: [{ role: 'user', content: [part, { type: 'text', text: AI_PROMPT }] }] }) };
+  }
+  const key = p.getProperty('GEMINI_KEY'); if (!key) return null;
+  return { provider: 'gemini', url: 'https://generativelanguage.googleapis.com/v1beta/models/' + (p.getProperty('GEMINI_MODEL') || 'gemini-flash-latest') + ':generateContent',
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key },
+    payload: JSON.stringify({ contents: [{ role: 'user', parts: [{ inline_data: { mime_type: mime, data: b64 } }, { text: AI_PROMPT }] }],
+      generationConfig: { temperature: 0, responseMimeType: 'application/json' } }) };
+}
+function aiParse_(provider, res) {
+  const code = res.getResponseCode(), body = parseJson_(res.getContentText()) || {};
+  if (code !== 200) return { error: (provider === 'claude' ? 'Claude' : 'Gemini') + ': ' + ((body.error && (body.error.message || body.error.type)) || ('שגיאה ' + code)) };
+  const txt = provider === 'claude' ? (body.content || []).filter(x => x.type === 'text').map(x => x.text).join('')
+    : ((((body.candidates || [])[0] || {}).content || {}).parts || []).map(x => x.text || '').join('');
+  const m = String(txt).match(/\{[\s\S]*\}/);
+  const j = m ? parseJson_(m[0]) : null;
+  if (!j) return { error: 'התשובה מהבינה המלאכותית לא הייתה תקינה – נסו שוב' };
+  if (j.error) return { error: String(j.error).slice(0, 200) };
+  // ניקוי: רק מה שהאפליקציה מבינה
+  const cols = (Array.isArray(j.cols) ? j.cols : []).slice(0, 16).map(c => ({ label: String(c.label || '').trim().slice(0, 30), day: PT_DAYS.includes(c.day) ? c.day : 'sat', sure: c.sure !== false }));
+  const rows = (Array.isArray(j.rows) ? j.rows : []).slice(0, 80).map(r => Array.isArray(r) ? r : [r && r.k].concat(r && r.v || []))
+    .map(r => ({ k: String(r[0] || '').trim().slice(0, 40), v: cols.map((c, i) => String(r[i + 1] == null ? '' : r[i + 1]).trim().slice(0, 20)) })).filter(r => r.k);
+  const unsure = (Array.isArray(j.unsure) ? j.unsure : []).filter(x => Array.isArray(x) && x.length === 2).map(x => [+x[0], +x[1]]).filter(x => x[0] >= 0 && x[0] < rows.length && x[1] >= 0 && x[1] < cols.length).slice(0, 200);
+  const weekday = (Array.isArray(j.weekday) ? j.weekday : []).slice(0, 20).map(w => ({ label: String(w.label || '').trim().slice(0, 30), value: String(w.value || '').trim().slice(0, 120),
+    q: ['', 'חול', 'א-ה', 'שישי', 'שבת'].includes(w.q) ? w.q : '', sure: w.sure !== false })).filter(w => w.label);
+  const questions = (Array.isArray(j.questions) ? j.questions : []).slice(0, 6).map(q => ({ text: String(q.text || '').slice(0, 200),
+    target: q.target && Number.isInteger(+q.target.w) && q.target.w !== undefined ? { w: +q.target.w } : q.target && q.target.col !== undefined ? { col: +q.target.col } : {},
+    options: (Array.isArray(q.options) ? q.options : []).slice(0, 5).map(o => ({ label: String(o.label || o.value || '').slice(0, 40), value: String(o.value == null ? '' : o.value).slice(0, 120) })) }))
+    .filter(q => q.text && q.options.length);
+  return { provider, title: String(j.title || '').slice(0, 80), cols, rows, unsure, weekday, questions, notes: (Array.isArray(j.notes) ? j.notes : []).map(String).slice(0, 8) };
+}
+function aiTable_(id, key, data) {
+  const f = id ? findRow_(id) : null;
+  if (!f || !key || String(f.row[C.key]) !== key) return { ok: false, error: 'אין הרשאה' };
+  if (!aiReady_()) return { ok: false, error: 'קריאה מתמונה עדיין לא הופעלה – פנו למנהל המערכת' };
+  const m = data.match(/^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64,(.+)$/);
+  if (!m) return { ok: false, error: 'אפשר להעלות תמונה (JPG / PNG) או PDF' };
+  if (m[2].length > 14e6) return { ok: false, error: 'הקובץ גדול מדי' };
+  const p = aiProps_(), cache = CacheService.getScriptCache(), qk = 'aiq_' + id + '_' + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyyMMdd');
+  const used = +(cache.get(qk) || 0), lim = +(p.getProperty('AI_DAILY') || 15);
+  if (used >= lim) return { ok: false, error: 'הגעתם למכסה היומית של קריאה מתמונות (' + lim + '). נסו מחר.' };
+  cache.put(qk, String(used + 1), 6 * 3600);
+  const first = p.getProperty('AI_PROVIDER') === 'claude' || !p.getProperty('GEMINI_KEY') ? 'claude' : 'gemini';
+  const list = (p.getProperty('AI_COMPARE') === '1' ? [first, first === 'claude' ? 'gemini' : 'claude'] : [first]).map(x => aiCall_(x, m[2], m[1])).filter(Boolean);
+  if (!list.length) return { ok: false, error: 'אין מפתח לספק שנבחר' };
+  const res = UrlFetchApp.fetchAll(list.map(r => { const o = Object.assign({}, r); delete o.provider; return o; }));
+  const out = res.map((r, i) => aiParse_(list[i].provider, r));
+  const good = out.filter(x => !x.error);
+  if (!good.length) return { ok: false, error: out[0].error };
+  return { ok: true, r: good[0], alt: good[1] || null };
+}
 
 // ===================== פס הלכות (ספריא) =====================
 // מקורות: hebcal = לוח יומי מוכן (קיצור שו"ע, ערוך השולחן, חפץ חיים, שמירת הלשון), book = ספר בקצב קבוע מנקודת התחלה, text = טקסט שהגבאי מדביק
@@ -898,7 +1015,7 @@ function saveSettings(id, key, s) {
       msg: !!z.msg, msgScr: scr_(z.msgScr), msgText: String(z.msgText || '').replace(/[|\r\n]/g, ' ').trim().slice(0, 150) })).filter(z => z.ds.length && z.t),
     prayers: (s.prayers || []).slice(0, 30).map(p => ({ q: ['', 'חול', 'א-ה', 'שישי', 'שבת'].includes(p.q) ? p.q : '', label: String(p.label || '').slice(0, 30), value: String(p.value || '').slice(0, 120),
       halls: (Array.isArray(p.halls) ? p.halls : []).slice(0, 10).map(h => String(h || '').replace(/[(),|\r\n]/g, ' ').trim().slice(0, 24)), scr: scr_(p.scr) })),
-    hal: cleanHal_(s.hal),
+    hal: cleanHal_(s.hal), ptable: cleanPtable_(s.ptable),
     theme: THEMES[s.theme] ? s.theme : 'dark', theme2: THEMES[s.theme2] ? s.theme2 : 'picture', pic: cleanPic_(s.pic),
     halls: (Array.isArray(s.halls) ? s.halls : []).map(h => String(h || '').replace(/[(),|\r\n]/g, ' ').trim().slice(0, 24)).filter(Boolean).slice(0, 10),
     learnScr: Object.fromEntries(Object.entries(s.learnScr || {}).filter(([k, v]) => LEARN_KEYS.includes(k) && ['1', '2'].includes(String(v))).map(([k, v]) => [k, String(v)]))

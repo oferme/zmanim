@@ -395,6 +395,7 @@ function parseSettings(text){
     const k = m[1].replace(/\s+/g,' '), v = m[2];
     if(/^עיצוב/.test(k)) c.theme = /בהיר/.test(v) ? 'light' : /תמונה/.test(v) ? 'picture' : 'dark';
     else if(/^תמונה$/.test(k)){ try{ c.pic = JSON.parse(v); }catch(e){} }
+    else if(/^טבלת פרשות/.test(k)){ try{ c.ptable = JSON.parse(v); }catch(e){} }   // זמני שבת לפי פרשה: {cols:[{label,day}], rows:[{k,v:[]}]}
     else if(/^פס הלכות/.test(k)) c.hal = {speed: /איטי/.test(v) ? 'slow' : /מהיר/.test(v) ? 'fast' : 'normal'};   // פס הלכות נע (מסך תמונה)   // מסך תמונה: מסגרת, קוביות ותוכן המרכז
     else if(/לימוד יומי/.test(k)) c.learn = v.split(/[,\s]+/).filter(x => LEARN_DEF[x]);
     else if(/^תחנון/.test(k)) c.tachanun = !/^(לא|no|0)/i.test(v);
@@ -745,7 +746,7 @@ function render(){
   // פרשת השבוע – תמיד. אם השבת הקרובה היא חג (אין פרשה), מוצג שם השבת
   const shabHol = items.find(i => i.category==='holiday' && i.date.slice(0,10)===data.sat);
   $('sub').textContent = parsha ? strip(parsha.hebrew || parsha.title) : (shabHol ? 'שבת ' + strip(shabHol.hebrew || shabHol.title) : '');
-  PARASHA = $('sub').textContent;
+  PARASHA = $('sub').textContent; PARASHA_HE = parsha ? strip(parsha.hebrew || '') : '';
   picHeader();
 }
 
@@ -1009,7 +1010,7 @@ function parseMessages(text){
 }
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 // ===================== משבצות המסך =====================
-let DAF = '', ZCARDS = [], BASE = {}, IS_SAT = false, IS_FRI = false, TEF = [], PZ = [], PARASHA = '';
+let DAF = '', ZCARDS = [], BASE = {}, IS_SAT = false, IS_FRI = false, TEF = [], PZ = [], PARASHA = '', PARASHA_HE = '';
 const toMin = v => { if(!v) return null; const x = (v.length > 8 ? v.slice(11,19) : v).split(':').map(Number); return x[0]*60 + x[1] + (x[2]||0)/60; };
 const fromMin = m => { m = Math.floor(((m % 1440) + 1440) % 1440); return pad(Math.floor(m/60)) + ':' + pad(m % 60); };
 const BASES = [['רבינו תם','rt'],['ברבינו תם','rt'],['ר"ת','rt'],['ר״ת','rt'],['לר"ת','rt'],['לר״ת','rt'],['צאת ר"ת','rt'],['צאת ר״ת','rt'],['צאת השבת לר"ת','rt'],['צאת השבת לר״ת','rt'],['הדלקת נרות','candles'],['הדלקה','candles'],['צאת השבת','havdalah'],['צאת שבת','havdalah'],['צאת','havdalah'],['השקיעה','sunset'],['שקיעה','sunset'],['הנץ','netz'],['נץ','netz'],['חצות','chatzot']];
@@ -1030,16 +1031,30 @@ function prayerTimes(value, B){
   }).filter(Boolean);
 }
 // תפילות להיום: [שבת] מחליף בשבת את אותה תפילה; [חול] = א׳–ו׳; [שישי] = יום שישי
+// טבלת זמני שבת לפי פרשה: השורה של פרשת השבוע (גם פרשות מחוברות, וגם "מצורע – שבת הגדול")
+const pNorm = x => String(x || '').replace(/פרשת|פרשות/g, '').replace(/[ךםןףץ]/g, c => 'כמנפצ'['ךםןףץ'.indexOf(c)]).replace(/[^א-ת]/g, '');
+function ptableRow(){
+  const T = CFG.ptable; if(!T || !Array.isArray(T.rows) || !PARASHA_HE) return null;
+  const full = pNorm(PARASHA_HE), parts = PARASHA_HE.replace(/פרשת|פרשות/g, '').split(/[-–־]/).map(pNorm).filter(Boolean);
+  const hit = k => { k = pNorm(k); return k && (k === full || full.startsWith(k) && parts.includes(k) || parts.some(x => k === x || k.startsWith(x) && k.length > x.length + 2)); };
+  return T.rows.find(r => pNorm(r.k) === full) || T.rows.find(r => hit(r.k)) || null;
+}
+function ptablePrayers(){
+  if(!IS_FRI && !IS_SAT) return [];
+  const T = CFG.ptable, r = ptableRow(); if(!r) return [];
+  return (T.cols || []).map((c, i) => ({label: c.label, value: (r.v || [])[i] || '', q: c.day === 'fri' ? 'שישי' : 'שבת', pt: true}))
+    .filter(p => p.label && p.value && (p.q === 'שישי' ? IS_FRI : IS_SAT));
+}
 function prayersToday(){
-  const all = CFG.prayers || [];
+  const all = (CFG.prayers || []).concat(ptablePrayers());
   // ימים: "" = כל יום, "חול" = א׳–ו׳, "א-ה" = א׳–ה׳, "שישי", "שבת". יום שישי כולל את הערב (קבלת שבת).
   // הגדרה ספציפית יותר מחליפה באותו יום תפילה עם אותו שם (שבת/שישי/א-ה > חול > כל יום)
   const SUNTHU = !IS_SAT && !IS_FRI;
   const okQ = q => !q || (q === 'שבת' ? IS_SAT : q === 'שישי' ? IS_FRI : q === 'א-ה' ? SUNTHU : q === 'חול' ? !IS_SAT : false);
-  const rank = q => !q ? 0 : q === 'חול' ? 1 : 2;
+  const rank = p => p.pt ? 3 : !p.q ? 0 : p.q === 'חול' ? 1 : 2;   // טבלת הפרשות גוברת על הכול
   let list = all.filter(p => okQ(p.q));
-  const best = {}; list.forEach(p => { best[p.label] = Math.max(best[p.label] ?? -1, rank(p.q)); });
-  list = list.filter(p => rank(p.q) === best[p.label]);
+  const best = {}; list.forEach(p => { best[p.label] = Math.max(best[p.label] ?? -1, rank(p)); });
+  list = list.filter(p => rank(p) === best[p.label]);
   const n = nowParts(), now = `${n.h}:${n.m}`; let nextMarked = false;
   const out = list.map(p => { const tt = prayerTimes(p.value); return {label: p.label, times: tt.map(x => x.t), halls: tt.map(x => x.hall)}; }).filter(p => p.times.length);
   out.sort((a, b) => a.times[0].localeCompare(b.times[0]));   // לפי שעת התפילה (לא לפי סדר ההזנה)
