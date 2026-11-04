@@ -82,11 +82,39 @@ function Hide-Cursor {
     [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(($b.Right - 2), ($b.Bottom - 2))
   } catch {}
 }
+# A window opened by this hidden background helper does not get the focus, so the Windows taskbar
+# stays on top of the full-screen screen. Here we bring the Chrome window to the front.
+try {
+  Add-Type -Namespace ZmWin -Name U32 -MemberDefinition @'
+[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
+[DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
+[DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, UIntPtr e);
+'@
+} catch {}
+function Focus-Chrome($tag) {
+  try {
+    $ids = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -like ('*' + $tag + '*') } | ForEach-Object { $_.ProcessId }
+    foreach ($id in $ids) {
+      $h = (Get-Process -Id $id).MainWindowHandle
+      if ($h -and $h -ne [IntPtr]::Zero) {
+        [ZmWin.U32]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)   # a short Alt press - Windows then lets us move the focus
+        [ZmWin.U32]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+        [ZmWin.U32]::ShowWindow($h, 9) | Out-Null
+        [ZmWin.U32]::BringWindowToTop($h) | Out-Null
+        [ZmWin.U32]::SetForegroundWindow($h) | Out-Null
+        Log ('focus ' + $tag)
+        return
+      }
+    }
+  } catch {}
+}
 function Start-Kiosk {
   if (KioskProcs) { return }
   Start-Process -FilePath $Chrome -ArgumentList @('--kiosk', ('--user-data-dir="' + $kioskDir + '"'), '--no-first-run',
     '--disable-session-crashed-bubble', '--hide-crash-restore-bubble', '--noerrdialogs', '--disable-translate', '--autoplay-policy=no-user-gesture-required', $Page)
-  Start-Sleep -Seconds 12; Hide-Cursor
+  Start-Sleep -Seconds 12; Focus-Chrome 'ZmanimKiosk'; Hide-Cursor
+  Start-Sleep -Seconds 5; Focus-Chrome 'ZmanimKiosk'   # once more, in case Zoom's closing took the focus back
 }
 
 function Start-OBS([int]$wait = 0) {   # optional: OBS virtual camera with the synagogue logo
@@ -106,6 +134,7 @@ function Open-Web($s) {   # web broadcast: separate full-screen Chrome window
   Start-Process -FilePath $Chrome -ArgumentList @('--kiosk', ('--user-data-dir="' + $liveDir + '"'), '--no-first-run',
     '--disable-session-crashed-bubble', '--hide-crash-restore-bubble', '--noerrdialogs', '--autoplay-policy=no-user-gesture-required', $s.Link)
   Log ('open web ' + $s.Start + ' ' + $s.Link)
+  Start-Sleep -Seconds 10; Focus-Chrome 'ZmanimLive'; Hide-Cursor
 }
 function Close-Web {
   Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -like '*ZmanimLive*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
