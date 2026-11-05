@@ -39,6 +39,7 @@ header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:ca
 .board.fade{opacity:0}
 .pl{position:relative;display:flex;align-items:center;gap:calc(var(--u)*.6);padding:calc(var(--u)*.5) calc(var(--u)*1);min-width:0}
 .pl .tx{flex:1;min-width:0;text-align:center}
+.pl .n,.pl .n2{white-space:nowrap}
 .pl .n{font-weight:700;font-size:calc(var(--u)*1.45);line-height:1.15}
 .pl .n2{font-weight:500;font-size:calc(var(--u)*1.15);line-height:1.15}
 .pl .dt{font-family:Heebo,Arial,sans-serif;font-size:calc(var(--u)*1.1);margin-top:calc(var(--u)*.15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -49,6 +50,7 @@ header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:ca
 .wr{display:grid;grid-template-columns:calc(var(--u)*9.4) minmax(0,1fr);gap:calc(var(--u)*.7);padding:calc(var(--u)*.55) calc(var(--u)*.5);align-items:baseline}
 .wr .dy{font-family:Heebo,Arial,sans-serif;font-weight:600;font-size:calc(var(--u)*1.2);white-space:nowrap}
 .wr .nm{font-weight:700;font-size:calc(var(--u)*1.5);line-height:1.25}
+.wr .nm div{white-space:nowrap}
 .wr .nm div + div{margin-top:calc(var(--u)*.2)}
 .wr.past{opacity:.5}
 .foot{font-family:Heebo,Arial,sans-serif;font-weight:600;font-size:calc(var(--u)*1.35);text-align:center}
@@ -92,29 +94,75 @@ body.wood .wr.now{background:rgba(255,211,90,.16);border-radius:calc(var(--u)*.4
 body.wood .pager,body.wood .foot{color:#e8cfa0;text-shadow:0 1px 2px #000}
 body.wood .notice{background:#2a160a;color:#f6dc8e}
 
-/* ===== עיצוב כהה וזהב (כמו מסך הזמנים) ===== */
-body.dark{color:#f3ead6;background:radial-gradient(ellipse at 50% 0%,#16274a,#0b1730 60%,#070f22)}
-body.dark .dp,body.dark .title{color:#e2b857}
-body.dark .dp .s,body.dark .title .st{color:#b9ad92}
-body.dark .title .t{text-shadow:0 0 calc(var(--u)*2) rgba(226,184,87,.3)}
-body.dark .today{background:linear-gradient(90deg,rgba(226,184,87,.16),rgba(226,184,87,.05));border:1px solid rgba(226,184,87,.45);border-radius:calc(var(--u)*.8)}
-body.dark .today .lbl{color:#e2b857}
-body.dark .today .d{color:#b9ad92}
-body.dark .today .tx + .tx{border-right:1px solid rgba(226,184,87,.3)}
-body.dark .lamp .w{background:linear-gradient(90deg,#d8cfb8,#fffaf0 45%,#cfc4a8)}
-body.dark .pl{background:rgba(255,255,255,.045);border:1px solid rgba(226,184,87,.18);border-radius:calc(var(--u)*.5)}
+/* נר קטן (בעיצוב הכהה) – דולק ומהבהב ליד היארצייטים של השבוע */
+.cn{display:none;flex:none;position:relative;width:calc(var(--u)*1.05);height:calc(var(--u)*3.1)}
+.cn::before{content:'';position:absolute;bottom:0;left:0;right:0;height:58%;border-radius:calc(var(--u)*.15) calc(var(--u)*.15) calc(var(--u)*.1) calc(var(--u)*.1);
+  background:linear-gradient(90deg,#8d8370,#efe6d0 40%,#fffaf0 55%,#b9ae94)}
+.cn::after{content:'';position:absolute;bottom:58%;left:50%;width:1px;height:10%;background:#3a2c1a;transform:translateX(-50%)}
+.cn i{display:none;position:absolute;bottom:64%;left:50%;width:70%;height:38%;margin-left:-35%;border-radius:50% 50% 50% 50% / 62% 62% 38% 38%;
+  background:radial-gradient(ellipse at 50% 72%,#fffbe8 0 18%,#ffd36b 40%,#ff9a2a 70%,rgba(255,120,30,0) 73%);
+  box-shadow:0 0 calc(var(--u)*1.1) calc(var(--u)*.35) rgba(255,180,70,.6),0 0 calc(var(--u)*3) calc(var(--u)*.8) rgba(255,170,60,.18);
+  transform-origin:50% 100%;animation:fl2 1.9s ease-in-out infinite;animation-delay:var(--dl,0s)}
+.cn.sm{display:inline-block;vertical-align:-12%;width:calc(var(--u)*.75);height:calc(var(--u)*2.1);margin-left:calc(var(--u)*.55)}
+.cn.sm i{display:block}
+@keyframes fl2{0%,100%{transform:scale(1,1) rotate(-2deg);opacity:1}20%{transform:scale(.9,1.08) rotate(2deg)}40%{transform:scale(1.05,.94) rotate(-1deg);opacity:.92}
+  60%{transform:scale(.95,1.05) rotate(1.5deg)}80%{transform:scale(1.02,.97) rotate(-1.5deg);opacity:.97}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 1px rgba(255,215,120,.7),0 0 calc(var(--u)*1.2) rgba(226,184,87,.45),inset 0 0 calc(var(--u)*1.5) rgba(226,184,87,.18)}
+  50%{box-shadow:0 0 0 1px rgba(255,225,140,.95),0 0 calc(var(--u)*2.4) rgba(240,196,96,.75),inset 0 0 calc(var(--u)*2) rgba(226,184,87,.3)}}
+@keyframes halo{0%,100%{opacity:.75;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+
+/* ===== עיצוב כהה וזהב ===== */
+body.dark{color:#f3ead6;background:#070f22;
+  background-image:radial-gradient(ellipse at 50% -10%,rgba(60,90,160,.45),transparent 60%),radial-gradient(ellipse at 50% 120%,rgba(226,184,87,.12),transparent 55%),
+  radial-gradient(circle at 20% 30%,rgba(255,255,255,.035) 0 1px,transparent 1.5px),radial-gradient(circle at 70% 80%,rgba(255,255,255,.03) 0 1px,transparent 1.5px),
+  linear-gradient(180deg,#0d1b38,#070f22);background-size:auto,auto,calc(var(--u)*3.3) calc(var(--u)*3.3),calc(var(--u)*4.7) calc(var(--u)*4.7),auto}
+body.dark .main:not(.noweek){grid-template-columns:minmax(0,1fr) calc(var(--u)*29.5)}
+body.dark .stage{border:1px solid rgba(226,184,87,.35);box-shadow:inset 0 0 0 calc(var(--u)*.45) rgba(7,15,34,.9),inset 0 0 0 calc(var(--u)*.55) rgba(226,184,87,.28),inset 0 0 calc(var(--u)*6) rgba(0,0,0,.55)}
+/* מסגרת זהב כפולה – לכותרות, ללוחיות ולעמודת השבוע */
+body.dark .dp,body.dark .title,body.dark .week,body.dark .pl{background:linear-gradient(180deg,#1d3260,#101f40 60%,#0c1834);border:1px solid rgba(226,184,87,.6);
+  box-shadow:inset 0 1px 0 rgba(255,230,160,.22),inset 0 0 0 calc(var(--u)*.28) rgba(8,16,36,.85),inset 0 0 0 calc(var(--u)*.34) rgba(226,184,87,.3),0 calc(var(--u)*.35) calc(var(--u)*1) rgba(0,0,0,.55)}
+body.dark .dp,body.dark .title{border-radius:calc(var(--u)*.7);color:#f2cf78}
+body.dark .title{padding:calc(var(--u)*.6) calc(var(--u)*6)}
+body.dark .title::before,body.dark .title::after{content:'✦';position:absolute;top:50%;transform:translateY(-50%);color:#e2b857;font-size:calc(var(--u)*1.6);text-shadow:0 0 calc(var(--u)*1) rgba(226,184,87,.6)}
+body.dark .title::before{right:calc(var(--u)*2)} body.dark .title::after{left:calc(var(--u)*2)}
+body.dark .title .t{background:linear-gradient(180deg,#fff1c2,#f2cf78 45%,#c99a3c);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 calc(var(--u)*.8) rgba(226,184,87,.35))}
+body.dark .dp .s,body.dark .title .st{color:#cdbf9f}
+/* היום */
+body.dark .today{border-radius:calc(var(--u)*.9);border:1px solid transparent;
+  background:linear-gradient(90deg,#3a2d14,#1a2546 45%,#13203f) padding-box,linear-gradient(90deg,#f7de9a,#a87a2c 40%,#e2b857 70%,#7a5a20) border-box;
+  box-shadow:0 0 calc(var(--u)*2.2) rgba(226,184,87,.25),inset 0 0 calc(var(--u)*3) rgba(255,190,80,.12),0 calc(var(--u)*.4) calc(var(--u)*1.2) rgba(0,0,0,.5)}
+body.dark .today::before{content:'';position:absolute;right:calc(var(--u)*-1);top:50%;width:calc(var(--u)*11);height:calc(var(--u)*11);margin-top:calc(var(--u)*-5.5);border-radius:50%;
+  background:radial-gradient(circle,rgba(255,200,90,.35),rgba(255,170,60,.1) 45%,transparent 70%);animation:halo 3.2s ease-in-out infinite;pointer-events:none}
+body.dark .today .lbl{color:#f2cf78}
+body.dark .today .nm{color:#fff6e0;text-shadow:0 0 calc(var(--u)*1.2) rgba(255,210,120,.25)}
+body.dark .today .d{color:#cdbf9f}
+body.dark .today .tx + .tx{border-right:1px solid rgba(226,184,87,.35)}
+body.dark .today.empty .nm{color:#f2cf78}
+body.dark .lamp .w{background:linear-gradient(90deg,#b9ae94,#fffaf0 45%,#cfc4a8);box-shadow:0 calc(var(--u)*.2) calc(var(--u)*.6) rgba(0,0,0,.5)}
+/* הלוחיות */
+body.dark .pl{border-radius:calc(var(--u)*.55);padding:calc(var(--u)*.5) calc(var(--u)*.9)}
 body.dark .pl .bulb{display:none}
-body.dark .pl.wk{border-color:#e2b857;background:rgba(226,184,87,.1)}
-body.dark .pl.wk .bulb{display:block;width:calc(var(--u)*1.2);height:calc(var(--u)*1.2);background:radial-gradient(circle,#fff2c0,#ffb53a 55%,rgba(255,150,40,0) 72%)}
-body.dark .pl.td{background:rgba(226,184,87,.2)}
-body.dark .pl .dt{color:#b9ad92}
-body.dark .week{background:rgba(255,255,255,.04);border:1px solid rgba(226,184,87,.25);border-radius:calc(var(--u)*.8)}
-body.dark .week h3{color:#e2b857;border-bottom:1px solid rgba(226,184,87,.3)}
-body.dark .wr{border-bottom:1px solid rgba(226,184,87,.1)}
-body.dark .wr .dy{color:#b9ad92}
-body.dark .wr.now{background:rgba(226,184,87,.14);border-radius:calc(var(--u)*.4)}
-body.dark .wr.now .nm{color:#f2cf78}
-body.dark .pager,body.dark .foot{color:#b9ad92}
+body.dark .pl .n,body.dark .pl .n2{color:#f6ecd4}
+body.dark .pl .dt{color:#c4b58f}
+body.dark .pl.wk{background:linear-gradient(180deg,#3b3018,#1e2442 55%,#141f3e);border-color:#f2cf78;
+  box-shadow:inset 0 1px 0 rgba(255,235,170,.35),inset 0 0 0 calc(var(--u)*.28) rgba(8,16,36,.7),inset 0 0 0 calc(var(--u)*.34) rgba(242,207,120,.55),0 0 calc(var(--u)*1.4) rgba(226,184,87,.35),0 calc(var(--u)*.35) calc(var(--u)*1) rgba(0,0,0,.55)}
+body.dark .pl.wk .cn{display:block}
+body.dark .pl.wk .cn i{display:block}
+body.dark .pl.wk .n,body.dark .pl.wk .n2{color:#fff3d0}
+body.dark .pl.wk .dt{color:#f2cf78}
+body.dark .pl.td{animation:glow 2.8s ease-in-out infinite;border-color:#ffe39a}
+/* השבוע */
+body.dark .week{border-radius:calc(var(--u)*.9);padding:calc(var(--u)*1.2) calc(var(--u)*1.4)}
+body.dark .week h3{color:#f2cf78;border-bottom:0;position:relative;padding-bottom:calc(var(--u)*1);text-shadow:0 0 calc(var(--u)*1) rgba(226,184,87,.3)}
+body.dark .week h3::after{content:'';position:absolute;bottom:0;left:12%;right:12%;height:1px;background:linear-gradient(90deg,transparent,#e2b857 30%,#f7de9a 50%,#e2b857 70%,transparent)}
+body.dark .wr{border-bottom:1px solid rgba(226,184,87,.12)}
+body.dark .wr .dy{color:#cdbf9f}
+body.dark .wr .nm{color:#f6ecd4;font-size:calc(var(--u)*1.4)}
+body.dark .wr.past{opacity:.42}
+body.dark .wr.now{background:linear-gradient(90deg,rgba(242,207,120,.28),rgba(226,184,87,.08));border-radius:calc(var(--u)*.45);border-bottom-color:transparent;box-shadow:inset 0 0 0 1px rgba(242,207,120,.55)}
+body.dark .wr.now .dy,body.dark .wr.now .nm{color:#fff1c2}
+body.dark .pager,body.dark .foot{color:#cdbf9f}
+body.dark .foot{color:#e2b857;letter-spacing:.02em}
 body.dark .notice{background:#0b1730;color:#f3ead6}
 </style>
 </head>
@@ -229,9 +277,10 @@ function render(force){
     let h = '';
     for(let a = ws; a <= we; a++){
       const ps = list.filter(p => p.yz === a);
-      h += `<div class="wr${a < today ? ' past' : a === today ? ' now' : ''}"><div class="dy">${DAYS_S[a - ws]} · ${esc(HEB.fmt(HEB.fromAbs(a)))}</div><div class="nm">${ps.length ? ps.map(p => `<div>${esc(full(p))}</div>`).join('') : '—'}</div></div>`;
+      h += `<div class="wr${a < today ? ' past' : a === today ? ' now' : ''}"><div class="dy">${DAYS_S[a - ws]} · ${esc(HEB.fmt(HEB.fromAbs(a)))}</div><div class="nm">${ps.length ? ps.map(p => `<div>${a >= today ? '<span class="cn sm"><i></i></span>' : ''}${esc(full(p))}</div>`).join('') : '—'}</div></div>`;
     }
     $('week').innerHTML = h;
+    fitAll('#week .nm div', .7);
   }
   // הלוח
   const per = [12, 16, 20, 24].includes(+S.perPage) ? +S.perPage : 16;
@@ -253,9 +302,18 @@ function drawPage(today){
   $('board').innerHTML = pg.length ? pg.map(p => {
     const date = p.fix ? HEB.gem(p.fix.d) + ' ' + HEB.monthName(p.fix.m) : p.ok ? HEB.fmt({d: p.d, m: p.m, y: p.y}) : '';
     const long = full(p).length > 22;
-    return `<div class="pl brass${p.yz !== null && p.yz !== undefined ? ' wk' : ''}${p.yz === today ? ' td' : ''}"><span class="bulb"></span><div class="tx"><div class="${long ? 'n2' : 'n'}">${esc(full(p))}</div>${date || p.note ? `<div class="dt">${esc([date, p.note].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`;
+    return `<div class="pl brass${p.yz !== null && p.yz !== undefined ? ' wk' : ''}${p.yz === today ? ' td' : ''}"><span class="bulb"></span><span class="cn" style="--dl:${(p.name.length % 7) * -.37}s"><i></i></span><div class="tx"><div class="${long ? 'n2' : 'n'}">${esc(full(p))}</div>${date || p.note ? `<div class="dt">${esc([date, p.note].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`;
   }).join('') : '<div class="pl brass" style="grid-column:1/-1"><div class="tx"><div class="n">עדיין לא נוספו שמות ללוח</div></div></div>';
   $('pager').textContent = PAGES.length > 1 ? `עמוד ${PAGE + 1} מתוך ${PAGES.length}` : '';
+  fitAll('#board .n, #board .n2', .62);
+}
+// שם ארוך – מוקטן עד שנכנס בשורה אחת (עד 62% מהגודל)
+function fitAll(sel, min){
+  document.querySelectorAll(sel).forEach(el => {
+    el.style.fontSize = '';
+    const base = parseFloat(getComputedStyle(el).fontSize), box = el.parentElement.clientWidth;
+    let f = base; while(el.scrollWidth > box && f > base * min){ f *= .94; el.style.fontSize = f + 'px'; }
+  });
 }
 
 // ---------- טעינת הנתונים ----------
@@ -295,7 +353,8 @@ async function load(){
 try{ const c = JSON.parse(localStorage.getItem('nesh_' + SHUL)); if(c && c.ok && SHUL !== 'demo'){ DATA = c; render(true); } }catch(e){}
 load();
 setInterval(load, (SHUL === 'demo' ? 60 : 5 * 60) * 1000);   // רענון הנתונים
-setInterval(() => render(), 30 * 1000);                     // החלפת היום בשקיעה
+setInterval(() => render(), 30 * 1000);
+addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => render(true), 300); });                     // החלפת היום בשקיעה
 // מסך מלא בלחיצה (במחשב בלי קיוסק)
 document.addEventListener('click', () => { const el = document.documentElement; if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{}); });
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('../sw.js', {scope: '../'}).catch(()=>{});
