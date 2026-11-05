@@ -14,10 +14,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPW
 const SHEET = 'בתי כנסת';
 // כל שורה = "היכל" אחד: הגדרות, הודעות וקישור משלו. כמה היכלות של אותו בית כנסת – אותו שם בעמודה "ארגון".
 // עמודות: מזהה | שם | קישור למסמך | פעיל | גרסה | מייל גבאי | קישור למסך | הערות | מפתח | הגדרות | קישור להגדרות | ארגון | מספר מסכים
-const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה', 'קישור למסך לוח נשמה', 'קישור לאפליקציית לוח נשמה'];
+const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה', 'קישור למסך לוח נשמה', 'קישור לאפליקציית לוח נשמה', 'תיקיית בית הכנסת'];
 // מיקום כל עמודה נקבע לפי הכותרת שלה בשורה 1 (כך שאפשר להזיז / להוסיף עמודות בגיליון בלי לשבור את המערכת)
-const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile', 'neshDisplay', 'neshApp'];
-let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16, neshDisplay: 17, neshApp: 18 };
+const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile', 'neshDisplay', 'neshApp', 'folder'];
+let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16, neshDisplay: 17, neshApp: 18, folder: 19 };
 function mapCols_(sh) {
   const last = Math.max(sh.getLastColumn(), 1);
   const h = sh.getRange(1, 1, 1, last).getValues()[0].map(x => String(x).replace(/\s+/g, ' ').trim());
@@ -41,6 +41,61 @@ function rowOf_(vals) {
 const DEV_SHEET = 'מסכים';
 const DEV_HEAD = ['מזהה מסך', 'קוד', 'היכל (מזהה)', 'סטטוס', 'נרשם', 'נראה לאחרונה', 'הערות'];
 const D = { dev: 0, code: 1, shul: 2, status: 3, first: 4, last: 5, notes: 6 };
+
+// ---------- תיקיות בדרייב ----------
+// "לוח זמנים לבתי כנסת" (הגיליון הראשי, גיבויים) ← תיקייה לכל בית כנסת "<שם> (<מזהה>)": מסמך ההודעות, קובץ לוח הנשמה, לוגו ותמונות.
+// תיקיית בית כנסת משותפת רק עם הבעלים (ועם מי שהוא משתף ידנית) ועם מייל הגבאי. מסומנת בתיאור "shul:<מזהה>".
+const ROOT_NAME = 'לוח זמנים לבתי כנסת';
+const SHUL_TAG = 'shul:';
+function root_() {
+  const pr = PropertiesService.getScriptProperties(), saved = pr.getProperty('ROOT_FOLDER');
+  if (saved) { try { const f = DriveApp.getFolderById(saved); if (!f.isTrashed()) return f; } catch (e) {} }
+  const file = DriveApp.getFileById(sheet_().getParent().getId()), ps = file.getParents();
+  const par = ps.hasNext() ? ps.next() : DriveApp.getRootFolder();
+  let f = par;
+  if (par.getName() !== ROOT_NAME) {   // הגיליון הראשי עובר לתיקייה חדשה, באותו מקום שבו הוא נמצא היום
+    const it = par.getFoldersByName(ROOT_NAME);
+    f = it.hasNext() ? it.next() : par.createFolder(ROOT_NAME);
+    file.moveTo(f);
+  }
+  pr.setProperty('ROOT_FOLDER', f.getId());
+  return f;
+}
+const tagOf_ = x => (String(x.getDescription() || '').match(/shul:([a-z0-9-]+)/) || [])[1] || '';
+// תיקיית בית הכנסת: לפי הקישור בעמודה, אחרי זה לפי הסימון, ואם create – יוצר. מחזיר {folder, isNew} או null
+function shulFolder_(id, name, link, create, map) {
+  const m = String(link || '').match(/[-\w]{25,}/);
+  if (m) { try { const x = DriveApp.getFolderById(m[0]); if (!x.isTrashed()) return { folder: x, isNew: false }; } catch (e) {} }
+  const root = root_();
+  if (!map) { map = {}; const it = root.getFolders(); while (it.hasNext()) { const x = it.next(); const t = tagOf_(x); if (t && !x.isTrashed()) map[t] = x; } }
+  if (map[id]) return { folder: map[id], isNew: false };
+  if (!create) return null;
+  const x = root.createFolder((name || id) + ' (' + id + ')');
+  x.setDescription(SHUL_TAG + id);
+  map[id] = x;
+  return { folder: x, isNew: true };
+}
+function shulFolderMap_() { const map = {}, it = root_().getFolders(); while (it.hasNext()) { const x = it.next(); const t = tagOf_(x); if (t && !x.isTrashed()) map[t] = x; } return map; }
+// תיקיית בית הכנסת לשורה בגיליון (יוצר אם אין, כותב את הקישור, משתף עם הגבאי)
+function rowFolder_(sh, r, row, map) {
+  const id = String(row[C.id]).trim().toLowerCase(), res = shulFolder_(id, String(row[C.name] || id), row[C.folder], true, map);
+  if (String(row[C.folder] || '') !== res.folder.getUrl()) { sh.getRange(r, C.folder + 1).setValue(res.folder.getUrl()); row[C.folder] = res.folder.getUrl(); }
+  const email = String(row[C.email] || '').trim();
+  if (res.isNew && email) { try { res.folder.addEditor(email); } catch (e) {} }
+  return res;
+}
+// מעביר קובץ לתיקייה (אם הוא לא כבר שם). מחזיר 1 = הועבר, 0 = כבר שם / אין, -1 = לא הצליח
+function moveIn_(fileId, folder) {
+  if (!fileId) return 0;
+  try {
+    const f = DriveApp.getFileById(fileId);
+    if (f.isTrashed()) return 0;
+    const ps = f.getParents();
+    while (ps.hasNext()) if (ps.next().getId() === folder.getId()) return 0;
+    f.moveTo(folder); return 1;
+  } catch (e) { return -1; }
+}
+const fileIdOf_ = v => (String(v || '').match(/[-\w]{25,}/) || [])[0] || '';
 
 // ---------- תפריט בגיליון ----------
 function onOpen() {
@@ -120,8 +175,11 @@ function showUpdateLink() {
 // בכל יום ראשון נשלח גם קובץ Excel של הגיליון למייל של בעל הסקריפט – עותק מחוץ לדרייב.
 const BACKUP_FOLDER = 'גיבויים – לוח זמנים';
 function backupFolder_() {
-  const it = DriveApp.getFoldersByName(BACKUP_FOLDER);
-  return it.hasNext() ? it.next() : DriveApp.createFolder(BACKUP_FOLDER);
+  const root = root_(), mine = root.getFoldersByName(BACKUP_FOLDER);
+  if (mine.hasNext()) return mine.next();
+  const it = DriveApp.getFoldersByName(BACKUP_FOLDER);   // תיקייה קיימת ממקום אחר – עוברת לתיקייה הראשית
+  if (it.hasNext()) { const f = it.next(); try { f.moveTo(root); } catch (e) {} return f; }
+  return root.createFolder(BACKUP_FOLDER);
 }
 function makeBackup_(sendMail) {
   const ss = sheet_().getParent(), folder = backupFolder_();
@@ -189,7 +247,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 23;
+const SERVER_BUILD = 24;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -216,14 +274,16 @@ function addShul() {
   const nusach = ask('נוסח בית הכנסת: אשכנז / ספרד / עדות המזרח – אפשר להשאיר ריק');
   if (nusach === null) return;
 
-  const docUrl = createDoc_(name, email);
+  const folder = shulFolder_(id, name, '', true).folder;
+  if (email) { try { folder.addEditor(email); } catch (e) {} }
+  const docUrl = createDoc_(name, email, folder);
   const doc = { getUrl: () => docUrl };
 
   const key = newKey_(), display = DISPLAY_URL + '?shul=' + id, sLink = settingsLink_(id, key);
   const sh = sheet_();
   const nScr = Math.max(1, parseInt(scr, 10) || 1);
   sh.appendRow(rowOf_({ id, name, doc: doc.getUrl(), active: 'כן', ver: 1, email, display, key, settings: JSON.stringify(defaults_(name)),
-    settingsLink: sLink, org: org || name, screens: nScr, nusach, display2: nScr >= 2 ? display + '&screen=2' : '' }));
+    settingsLink: sLink, org: org || name, screens: nScr, nusach, folder: folder.getUrl(), display2: nScr >= 2 ? display + '&screen=2' : '' }));
 
   if (email) {
     try {
@@ -243,6 +303,8 @@ function fillMissingLinks() {
   let fixed = 0, mig = 0, rest = 0;
   const amb = [];   // לא שוחזר – נמצא יותר מקובץ אחד מתאים
   let nIdx = null;  // אינדקס קבצי לוח הנשמה (נבנה רק כשצריך)
+  const fmap = shulFolderMap_();   // תיקיות בתי הכנסת הקיימות
+  let fNew = 0, moved = 0; const moveErr = [];
   for (let i = 1; i < rows.length; i++) {
     // שורה שנוספה בגרסה קודמת לפי סדר עמודות קבוע (המפתח בעמודה I) – מועברת לעמודות הנכונות לפי הכותרות
     const old = rows[i];
@@ -255,6 +317,8 @@ function fillMissingLinks() {
     }
     const id = String(rows[i][C.id]).trim().toLowerCase();
     if (!id) continue;
+    // צריך לסדר תיקייה? – אין קישור לתיקייה, או שהתיקייה בקישור כבר לא קיימת (נמחקה)
+    const needOrg = !fmap[id] || fileIdOf_(rows[i][C.folder]) !== fmap[id].getId();
     let key = String(rows[i][C.key] || '');
     if (!key) { key = newKey_(); sh.getRange(i + 1, C.key + 1).setValue(key); n++; }
     sh.getRange(i + 1, C.settingsLink + 1).setValue(settingsLink_(id, key));
@@ -284,15 +348,28 @@ function fillMissingLinks() {
       const name = String(rows[i][C.name] || id);
       const ans = ui.alert('ל"' + name + '" אין מסמך הודעות.\n\nליצור עכשיו מסמך הודעות חדש?\n(אם כבר יש לכם מסמך – לחצו "לא" והדביקו את הקישור שלו בעמודה "קישור למסמך")', ui.ButtonSet.YES_NO);
       if (ans === ui.Button.YES) {
-        const url = createDoc_(name, String(rows[i][C.email] || '').trim());
+        const url = createDoc_(name, String(rows[i][C.email] || '').trim(), rowFolder_(sh, i + 1, rows[i], fmap).folder);
         sh.getRange(i + 1, C.doc + 1).setValue(url); d++;
       }
     }
+    // תיקיית בית הכנסת – כשהקישור חסר: נמצאת / נוצרת, והקבצים של בית הכנסת עוברים אליה
+    if (needOrg) {
+      const fr = rowFolder_(sh, i + 1, rows[i], fmap); if (fr.isNew) fNew++;
+      const s0 = parseJson_(rows[i][C.settings]) || {};
+      [fileIdOf_(rows[i][C.doc]), neshFileId_(rows[i]), s0.logoId].concat(picImages_(s0)).forEach(fid => {
+        const r = moveIn_(fid, fr.folder); if (r > 0) moved++; else if (r < 0) moveErr.push(String(rows[i][C.name] || id));
+      });
+    }
   }
-  ui.alert('קישורי ההגדרות עודכנו.' + (rest ? ' שוחזרו ' + rest + ' קישורים שנמחקו.' : '') +
+  if (moved) ['לוגואים', 'תמונות למסך', NESH_FOLDER].forEach(n => {   // תיקיות כלליות ישנות שהתרוקנו – לפח (תיקייה שיש בה משהו – לא נוגעים)
+    const it = DriveApp.getFoldersByName(n);
+    while (it.hasNext()) { const f = it.next(); try { if (!f.isTrashed() && !f.getFiles().hasNext() && !f.getFolders().hasNext()) f.setTrashed(true); } catch (e) {} }
+  });
+  ui.alert('קישורי ההגדרות עודכנו.' + (fNew ? ' נוצרו ' + fNew + ' תיקיות לבתי כנסת.' : '') + (moved ? ' הועברו ' + moved + ' קבצים לתיקיות של בתי הכנסת.' : '') +
+    (moveErr.length ? '\n\nלא הצלחתי להעביר חלק מהקבצים של: ' + moveErr.filter((x, k, a) => a.indexOf(x) === k).join(', ') + ' (אולי הקובץ לא בבעלותך).\n' : '') + (rest ? ' שוחזרו ' + rest + ' קישורים שנמחקו.' : '') +
     (amb.length ? '\n\nלא שוחזר אוטומטית (נמצא יותר מקובץ אחד בשם הזה – צריך להדביק את הקישור ידנית):\n' + amb.join('\n') + '\n' : '') + (fixed ? ' תוקנו ' + fixed + ' שורות שהיו בעמודות לא נכונות.' : '') + (mig ? ' ב-' + mig + ' בתי כנסת "דף יומי" הועבר ל"לימוד יומי".' : '') + (n ? ' נוצרו ' + n + ' מפתחות חדשים.' : '') + (d ? ' נוצרו ' + d + ' מסמכי הודעות.' : ''));
 }
-function createDoc_(name, email) {
+function createDoc_(name, email, folder) {
   const doc = DocumentApp.create('הודעות – ' + name);
   const body = doc.getBody();
   TEMPLATE().split('\n').forEach((line, i) => {
@@ -303,6 +380,7 @@ function createDoc_(name, email) {
     p.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
   });
   doc.saveAndClose();
+  if (folder) moveIn_(doc.getId(), folder);
   if (email) { try { DriveApp.getFileById(doc.getId()).addEditor(email); } catch (e) {} }
   return doc.getUrl();
 }
@@ -629,8 +707,7 @@ function saveImage_(id, key, data) {
   if (!m) throw new Error('קובץ לא תקין');
   const bytes = Utilities.base64Decode(m[3]);
   if (bytes.length > 2500000) throw new Error('הקובץ גדול מדי');
-  const it = DriveApp.getFoldersByName('תמונות למסך');
-  const folder = it.hasNext() ? it.next() : DriveApp.createFolder('תמונות למסך');
+  const folder = rowFolder_(f.sh, f.r, f.row).folder;
   const file = folder.createFile(Utilities.newBlob(bytes, m[1], 'img-' + id + '-' + Date.now() + '.' + (m[2] === 'jpeg' ? 'jpg' : m[2])));
   return { ok: true, id: file.getId() };
 }
@@ -996,8 +1073,7 @@ function saveLogo_(id, key, data) {
   if (m) {
     const bytes = Utilities.base64Decode(m[3]);
     if (bytes.length > 1500000) throw new Error('הקובץ גדול מדי');
-    const it = DriveApp.getFoldersByName('לוגואים');
-    const folder = it.hasNext() ? it.next() : DriveApp.createFolder('לוגואים');
+    const folder = rowFolder_(f.sh, f.r, f.row).folder;
     const file = folder.createFile(Utilities.newBlob(bytes, m[1], 'logo-' + id + '.' + (m[2] === 'jpeg' ? 'jpg' : m[2])));
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     s.logoId = file.getId(); s.logoUrl = 'https://lh3.googleusercontent.com/d/' + file.getId();
@@ -1276,7 +1352,7 @@ const neshLinks_ = (id, key) => ({ display: DISPLAY_URL + 'neshama/?shul=' + id,
 // זיהוי הקובץ של בית כנסת בתיקייה (כשהקישור בגיליון נמחק): קודם לפי התיאור "shul:<מזהה>", אחר כך לפי השם "לוח נשמה – <שם>"
 const NESH_TAG = 'shul:';
 function neshIndex_() {
-  const byId = {}, byName = {}, it = neshFolder_().getFiles();
+  const byId = {}, byName = {}, it = DriveApp.searchFiles("title contains 'לוח נשמה' and mimeType = '" + MimeType.GOOGLE_SHEETS + "' and trashed = false");
   while (it.hasNext()) {
     const f = it.next(); if (f.isTrashed()) continue;
     const m = String(f.getDescription() || '').match(/shul:([a-z0-9-]+)/);
@@ -1296,7 +1372,7 @@ function neshFind_(idx, id, name) {
   return f ? { url: f.getUrl() } : {};
 }
 function neshFileId_(row) { const m = String(row[C.neshFile] || '').match(/[-\w]{25,}/); return m ? m[0] : ''; }
-function neshCreate_(name, email, id) {
+function neshCreate_(name, email, id, folder) {
   const ss = SpreadsheetApp.create('לוח נשמה – ' + name);
   const sh = ss.getSheets()[0].setName(NESH_TAB);
   sh.setRightToLeft(true);
@@ -1309,7 +1385,7 @@ function neshCreate_(name, email, id) {
   st.getRange(1, 1, NESH_SET.length + 1, 3).setNumberFormat('@').setValues([['מפתח', 'ערך', 'הסבר']].concat(NESH_SET));
   st.getRange(1, 1, 1, 3).setFontWeight('bold');
   const file = DriveApp.getFileById(ss.getId());
-  file.moveTo(neshFolder_());
+  file.moveTo(folder || neshFolder_());
   if (id) file.setDescription(NESH_TAG + id);
   if (email) { try { file.addEditor(email); } catch (e) {} }
   return ss.getUrl();
@@ -1327,9 +1403,9 @@ function neshEnable() {
   let url = String(f.row[C.neshFile] || '');
   if (!neshFileId_(f.row)) {   // אין קישור – אולי נמחק בטעות: קודם מחפשים את הקובץ הקיים
     const r = neshFind_(neshIndex_(), id, String(f.row[C.name] || id));
-    if (r.many) { ui.alert('בתיקייה "' + NESH_FOLDER + '" יש יותר מקובץ אחד בשם של בית הכנסת הזה.\nיש להדביק את הקישור הנכון בעמודה "קובץ לוח נשמה" ולהריץ שוב.'); return; }
+    if (r.many) { ui.alert('בדרייב יש יותר מקובץ לוח נשמה אחד בשם של בית הכנסת הזה.\nיש להדביק את הקישור הנכון בעמודה "קובץ לוח נשמה" ולהריץ שוב.'); return; }
     if (r.url) url = r.url;
-    else if (n > 0) url = neshCreate_(String(f.row[C.name] || id), String(f.row[C.email] || '').trim(), id);
+    else if (n > 0) url = neshCreate_(String(f.row[C.name] || id), String(f.row[C.email] || '').trim(), id, rowFolder_(f.sh, f.r, f.row).folder);
     if (url) f.sh.getRange(f.r, C.neshFile + 1).setValue(url);
   }
   f.sh.getRange(f.r, C.nesh + 1).setValue(n);
