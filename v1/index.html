@@ -491,6 +491,7 @@ function netzFromTable(h){ if(!CFG.netzTable) return null; try{ const m=NETZ[h.h
 const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const DOW_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const $ = id => document.getElementById(id);
+const rMin = iso => hhmm(new Date(Math.round(Date.parse(iso) / 60000) * 60000));   // זמן עם שניות → הדקה הקרובה
 const hhmm = d => new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(d);
 const pad = n => String(n).padStart(2,'0');
 const t = s => !s ? '--:--' : (s.length > 8 ? s.slice(11,16) : s);
@@ -597,7 +598,8 @@ async function load(){
   const base = 'https://www.hebcal.com';
   try{
     const sat = addDays(today, (6 - DOW_EN.indexOf(nowParts().dow) + 7) % 7);
-    const [z,h1,h2,cal,hs,zj,zs,zsat] = await Promise.all([
+    const fri = addDays(sat, -1);
+    const [z,h1,h2,cal,hs,zj,zs,zsat,zfri] = await Promise.all([
       j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}`),
       j(`${base}/converter?cfg=json&date=${today}&g2h=1&strict=1`),
       j(`${base}/converter?cfg=json&date=${today}&g2h=1&strict=1&gs=on`),
@@ -605,9 +607,10 @@ async function load(){
       j(`${base}/converter?cfg=json&date=${sat}&g2h=1&strict=1`),
       j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1${CFG.useElev ? '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '') : ''}`),   // שקיעה (לפי גובה אם הוגדר) – לשקיעה ולהדלקת נרות
       j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1`),   // נץ החמה במישור עם שניות
-      CFG.theme === 'picture' ? j(`${base}/zmanim?cfg=json&${locQ()}&date=${sat}`).catch(() => null) : Promise.resolve(null)   // זמני השבת הקרובה – למסך תמונה
+      CFG.theme === 'picture' ? j(`${base}/zmanim?cfg=json&${locQ()}&date=${sat}`).catch(() => null) : Promise.resolve(null),   // זמני השבת הקרובה – למסך תמונה
+      CFG.candleMin ? j(`${base}/zmanim?cfg=json&${locQ()}&date=${fri}&sec=1${CFG.useElev ? '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '') : ''}`).catch(() => null) : Promise.resolve(null)   // שקיעת יום שישי – הדלקת נרות של השבת הקרובה, באותו חישוב כמו ביום שישי עצמו
     ]);
-    data = {today,z,h1,h2,cal,hs,sat,zj,zs,zsat};
+    data = {today,z,h1,h2,cal,hs,sat,zj,zs,zsat,zfri};
     loadLearn(today).then(() => renderSlots());
     try{ localStorage.setItem('zmanim_' + SHUL, JSON.stringify(data)); }catch(e){}
     $('status').textContent = '';
@@ -694,7 +697,8 @@ function render(){
 
   const Z = data.z.times || {};
   const ZJ = (data.zj && data.zj.times) || {};
-  const sunsetJ = ZJ.sunset || Z.sunset;   // שקיעה לפי אופק ירושלים
+  // שקיעה לפי אופק ירושלים – מעוגלת לדקה הקרובה (כמו בלוחות השנה), וממנה הדלקת נרות. חיתוך השניות יצר דקה הפרש מהלוחות
+  const sunsetJ = ZJ.sunset ? rMin(ZJ.sunset) : Z.sunset;
   const afterSunset = sunsetJ && `${n.h}:${n.m}` >= t(sunsetJ);
   const hd = strip((afterSunset ? data.h2 : data.h1).hebrew);
   $('hdate').textContent = afterSunset ? 'אור ל' + hd : hd;
@@ -713,8 +717,7 @@ function render(){
   const candles = todays('candles'), hav = todays('havdalah');
   if(candles){
     // הדלקת נרות: X דקות לפני השקיעה (לפי ההגדרה), אחרת לפי Hebcal
-    const js = data.zj && data.zj.times && data.zj.times.sunset;
-    const c = (js && CFG.candleMin) ? hhmm(new Date(Date.parse(js) - CFG.candleMin*60000)) : candles.date;
+    const c = (ZJ.sunset && CFG.candleMin) ? fromMin(toMin(sunsetJ) - CFG.candleMin) : candles.date;
     cards.push(['הדלקת נרות', c, true]); BASE.candles = c;
   } else if(sunsetJ){   // ביום רגיל: "זמן הדלקה" מחושב (לא מוצג) – כדי שתפילה שמוגדרת לפי הדלקת נרות תופיע גם בבדיקה ביום חול
     const sm = toMin(sunsetJ); if(sm !== null) BASE.candles = fromMin(sm - (+CFG.candleMin || 40));
@@ -1227,7 +1230,8 @@ function shabbatCenter(c){
   const cnd = items.find(i => i.category === 'candles' && i.date.slice(0,10) === fri);
   const hav = items.find(i => i.category === 'havdalah' && i.date.slice(0,10) === sat);
   if(n.dow === 'Sat' && hav && `${n.h}:${n.m}` >= tm(hav.date)) return null;   // השבת יצאה
-  const candles = (n.dow === 'Fri' && BASE.candles) ? BASE.candles : tm(cnd && cnd.date);
+  const fs = data.zfri && data.zfri.times && data.zfri.times.sunset;
+  const candles = (n.dow === 'Fri' && BASE.candles) ? BASE.candles : (cnd && fs && CFG.candleMin) ? fromMin(toMin(rMin(fs)) - CFG.candleMin) : tm(cnd && cnd.date);
   const zs = (data.zsat && data.zsat.times) || {};
   const B = {candles, sunset: candles ? fromMin(toMin(candles) + (+CFG.candleMin || 40)) : null, havdalah: tm(hav && hav.date), netz: zs.sunrise, chatzot: zs.chatzot, rt: zs.tzeit72min};
   const rowsFor = q => (CFG.prayers || []).filter(p => p.q === q).flatMap(p => prayerTimes(p.value, B).map(x => [x.t, `<div class="prow"><span>${esc(p.label)}${hallTag(x.hall)}</span><b>${show(x.t)}</b></div>`]));
