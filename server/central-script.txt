@@ -46,6 +46,7 @@ const D = { dev: 0, code: 1, shul: 2, status: 3, first: 4, last: 5, notes: 6 };
 // "לוח זמנים לבתי כנסת" (הגיליון הראשי, גיבויים) ← תיקייה לכל בית כנסת "<שם> (<מזהה>)": מסמך ההודעות, קובץ לוח הנשמה, לוגו ותמונות.
 // תיקיית בית כנסת משותפת רק עם הבעלים (ועם מי שהוא משתף ידנית) ועם מייל הגבאי. מסומנת בתיאור "shul:<מזהה>".
 const ROOT_NAME = 'לוח זמנים לבתי כנסת';
+const SHULS_NAME = 'בתי כנסת';   // תת-תיקייה בתוך התיקייה הראשית – בה התיקיות של בתי הכנסת
 const SHUL_TAG = 'shul:';
 function root_() {
   const pr = PropertiesService.getScriptProperties(), saved = pr.getProperty('ROOT_FOLDER');
@@ -61,12 +62,20 @@ function root_() {
   pr.setProperty('ROOT_FOLDER', f.getId());
   return f;
 }
+// "בתי כנסת" בתוך התיקייה הראשית. תיקיית בית כנסת שנמצאת ישר בתיקייה הראשית – עוברת לכאן
+function shulsRoot_() {
+  const root = root_(), it = root.getFoldersByName(SHULS_NAME);
+  const f = it.hasNext() ? it.next() : root.createFolder(SHULS_NAME);
+  const st = root.getFolders();
+  while (st.hasNext()) { const x = st.next(); if (x.getId() !== f.getId() && tagOf_(x)) { try { x.moveTo(f); } catch (e) {} } }
+  return f;
+}
 const tagOf_ = x => (String(x.getDescription() || '').match(/shul:([a-z0-9-]+)/) || [])[1] || '';
 // תיקיית בית הכנסת: לפי הקישור בעמודה, אחרי זה לפי הסימון, ואם create – יוצר. מחזיר {folder, isNew} או null
 function shulFolder_(id, name, link, create, map) {
   const m = String(link || '').match(/[-\w]{25,}/);
   if (m) { try { const x = DriveApp.getFolderById(m[0]); if (!x.isTrashed()) return { folder: x, isNew: false }; } catch (e) {} }
-  const root = root_();
+  const root = shulsRoot_();
   if (!map) { map = {}; const it = root.getFolders(); while (it.hasNext()) { const x = it.next(); const t = tagOf_(x); if (t && !x.isTrashed()) map[t] = x; } }
   if (map[id]) return { folder: map[id], isNew: false };
   if (!create) return null;
@@ -75,7 +84,7 @@ function shulFolder_(id, name, link, create, map) {
   map[id] = x;
   return { folder: x, isNew: true };
 }
-function shulFolderMap_() { const map = {}, it = root_().getFolders(); while (it.hasNext()) { const x = it.next(); const t = tagOf_(x); if (t && !x.isTrashed()) map[t] = x; } return map; }
+function shulFolderMap_() { const map = {}, it = shulsRoot_().getFolders(); while (it.hasNext()) { const x = it.next(); const t = tagOf_(x); if (t && !x.isTrashed()) map[t] = x; } return map; }
 // תיקיית בית הכנסת לשורה בגיליון (יוצר אם אין, כותב את הקישור, משתף עם הגבאי)
 function rowFolder_(sh, r, row, map) {
   const id = String(row[C.id]).trim().toLowerCase(), res = shulFolder_(id, String(row[C.name] || id), row[C.folder], true, map);
