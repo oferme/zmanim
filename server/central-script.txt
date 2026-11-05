@@ -14,10 +14,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPW
 const SHEET = 'בתי כנסת';
 // כל שורה = "היכל" אחד: הגדרות, הודעות וקישור משלו. כמה היכלות של אותו בית כנסת – אותו שם בעמודה "ארגון".
 // עמודות: מזהה | שם | קישור למסמך | פעיל | גרסה | מייל גבאי | קישור למסך | הערות | מפתח | הגדרות | קישור להגדרות | ארגון | מספר מסכים
-const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה'];
+const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה', 'קישור למסך לוח נשמה', 'קישור לאפליקציית לוח נשמה'];
 // מיקום כל עמודה נקבע לפי הכותרת שלה בשורה 1 (כך שאפשר להזיז / להוסיף עמודות בגיליון בלי לשבור את המערכת)
-const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile'];
-let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16 };
+const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile', 'neshDisplay', 'neshApp'];
+let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16, neshDisplay: 17, neshApp: 18 };
 function mapCols_(sh) {
   const last = Math.max(sh.getLastColumn(), 1);
   const h = sh.getRange(1, 1, 1, last).getValues()[0].map(x => String(x).replace(/\s+/g, ' ').trim());
@@ -259,6 +259,11 @@ function fillMissingLinks() {
     sh.getRange(i + 1, C.display + 1).setValue(DISPLAY_URL + '?shul=' + id);
     // קישור למסך 2 – רק כשמספר המסכים 2 ומעלה
     sh.getRange(i + 1, C.display2 + 1).setValue((parseInt(rows[i][C.screens], 10) || 1) >= 2 ? DISPLAY_URL + '?shul=' + id + '&screen=2' : '');
+    if (neshFileId_(rows[i])) {   // לוח נשמה: קישורי המסך והאפליקציה
+      const nl = neshLinks_(id, key);
+      sh.getRange(i + 1, C.neshDisplay + 1).setValue(nl.display);
+      sh.getRange(i + 1, C.neshApp + 1).setValue(nl.app);
+    }
     const st = parseJson_(rows[i][C.settings]);
     if (st && migrateDaf_(st)) { sh.getRange(i + 1, C.settings + 1).setValue(JSON.stringify(st)); mig++; }
     if (!String(rows[i][C.doc]).trim()) {   // אין מסמך הודעות – מציע ליצור
@@ -1252,6 +1257,7 @@ const NESH_SET = [   // מפתח, ברירת מחדל, הסבר
 ];
 const neshClean_ = (v, n) => { v = String(v == null ? '' : v).replace(/[\r\n\t]+/g, ' ').trim().slice(0, n || 80); return /^[=+\-@]/.test(v) ? "'" + v : v; };
 function neshFolder_() { const it = DriveApp.getFoldersByName(NESH_FOLDER); return it.hasNext() ? it.next() : DriveApp.createFolder(NESH_FOLDER); }
+const neshLinks_ = (id, key) => ({ display: DISPLAY_URL + 'neshama/?shul=' + id, app: DISPLAY_URL + 'neshama/settings.html?shul=' + id + '&key=' + key });
 function neshFileId_(row) { const m = String(row[C.neshFile] || '').match(/[-\w]{25,}/); return m ? m[0] : ''; }
 function neshCreate_(name, email) {
   const ss = SpreadsheetApp.create('לוח נשמה – ' + name);
@@ -1289,9 +1295,27 @@ function neshEnable() {
   CacheService.getScriptCache().remove('nesh_' + id);
   let key = String(f.row[C.key] || '');
   if (!key) { key = newKey_(); f.sh.getRange(f.r, C.key + 1).setValue(key); }
-  ui.alert(n ? 'לוח הנשמה הופעל (' + n + ' מסכים).\n\nקישור למסך:\n' + DISPLAY_URL + 'neshama/?shul=' + id +
-    '\n\nאפליקציה לגבאי:\n' + DISPLAY_URL + 'neshama/settings.html?shul=' + id + '&key=' + key + '\n\nקובץ השמות:\n' + url
-    : 'לוח הנשמה כובה. הקובץ נשמר בדרייב.');
+  if (!n) { ui.alert('לוח הנשמה כובה. הקובץ נשמר בדרייב.'); return; }
+  const nl = neshLinks_(id, key);
+  f.sh.getRange(f.r, C.neshDisplay + 1).setValue(nl.display);
+  f.sh.getRange(f.r, C.neshApp + 1).setValue(nl.app);
+  const links = 'קישור למסך:\n' + nl.display + '\n\nאפליקציה לגבאי:\n' + nl.app + '\n\nקובץ השמות:\n' + url;
+  ui.alert('לוח הנשמה הופעל (' + n + ' מסכים). הקישורים נשמרו בגיליון.\n\n' + links);
+  const email = String(f.row[C.email] || '').trim();
+  if (email && ui.alert('לשלוח לגבאי את הקישורים במייל?\n' + email, ui.ButtonSet.YES_NO) === ui.Button.YES) {
+    try { neshMail_(email, String(f.row[C.name] || id), nl, url); ui.alert('המייל נשלח ל-' + email); }
+    catch (e) { ui.alert('המייל לא נשלח: ' + (e && e.message || e)); }
+  }
+}
+// מייל לגבאי עם כל הקישורים של לוח הנשמה
+function neshMail_(email, name, nl, fileUrl) {
+  MailApp.sendEmail(email, 'לוח הנשמה של ' + name,
+    'שלום,\n\nלוח הנשמה של ' + name + ' מוכן.\n\n' +
+    'אפליקציה לגבאי – הוספה ועריכה של שמות והגדרות התצוגה (מהטלפון):\n' + nl.app + '\n' +
+    'כדאי לשמור אותה במסך הבית: בכרום ⋮ ← "הוספה למסך הבית" (באייפון: שיתוף ← "הוסף למסך הבית").\n\n' +
+    'כתובת המסך (לטלוויזיה או למחשב שבבית הכנסת):\n' + nl.display + '\n\n' +
+    'קובץ השמות בגוגל שיטס (לעריכה מהמחשב, לא חובה):\n' + fileUrl + '\n\n' +
+    'שימו לב: הקישור לאפליקציה אישי – לא להעביר אותו הלאה.');
 }
 function neshSettings_(ss) {
   const o = {}; NESH_SET.forEach(x => { o[x[0]] = x[1]; });
