@@ -1363,7 +1363,10 @@ function renderSlots(){
 function setSlot(el, html, scroll){
   if(el._html === html){   // אותו תוכן – אבל אם בינתיים הוא גדל (גופנים נטענו וכו') ועכשיו לא נכנס, מתחילים לגלול
     if(scroll && !el._scrolling) startScroll(el);
-    else if(el._anim && Date.now() - el._chk > 5000){ el._chk = Date.now(); if(el._cyc() + '|' + el._vp.clientHeight !== el._meas) runScroll(el); }   // הגודל השתנה – מודדים מחדש
+    else if(el._anim && Date.now() - el._chk > 5000){   // הגודל השתנה באמת (לא פיקסל אחד) – מודדים מחדש וממשיכים מאותה נקודה, בלי לקפוץ להתחלה
+      el._chk = Date.now(); const [c0, h0] = el._meas;
+      if(Math.abs(el._cyc() - c0) > 4 || Math.abs(el._vp.clientHeight - h0) > 4) runScroll(el, true);
+    }
     fitStack(el, false);
     return;
   }
@@ -1405,14 +1408,18 @@ function startScroll(el){
   };
   el._raf = requestAnimationFrame(step);
 }
-function runScroll(el){
+function runScroll(el, keep){
   const cycle = el._cyc(), h = el._vp.clientHeight, speed = h / 9;
+  // כשממשיכים אחרי מדידה מחדש: שומרים על המקום היחסי בסיבוב, כדי שהטקסט לא יקפוץ
+  let frac = 0;
+  if(keep && el._anim && el._tot){ try{ frac = ((+el._anim.currentTime || 0) % el._tot) / el._tot; }catch(e){} }
   if(el._anim) el._anim.cancel();
   if(cycle <= 0 || speed <= 0) return;
   const hold = 4000, move = cycle / speed * 1000, tot = hold + move;
   el._anim = el._in.animate([{transform: 'translate3d(0,0,0)'}, {transform: 'translate3d(0,0,0)', offset: hold / tot}, {transform: `translate3d(0,${-cycle}px,0)`}],
                             {duration: tot, iterations: Infinity, easing: 'linear'});
-  el._meas = cycle + '|' + h; el._chk = Date.now();
+  if(frac) el._anim.currentTime = frac * tot;
+  el._tot = tot; el._meas = [cycle, h]; el._chk = Date.now();
 }
 function notice(txt){ $('blackNote').textContent = ''; $('notice').textContent = txt; $('notice').classList.toggle('on', !!txt); }
 let booted = false, lastCfg = '', lastLearn = '';
