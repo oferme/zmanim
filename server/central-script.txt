@@ -6,8 +6,8 @@
  *  - ההודעות נכתבות במסמך גוגל של בית הכנסת.
  ****************************************************************/
 
-// כתובת אתר המסך (GitHub Pages), למשל: https://ofer.github.io/zmanim/
-const DISPLAY_URL = 'https://oferme.github.io/zmanim/';
+// כתובת אתר המסך (GitHub Pages עם דומיין משלנו; הכתובת הישנה oferme.github.io/zmanim מפנה לכאן)
+const DISPLAY_URL = 'https://luachscreen.com/';
 // כתובת הסקריפט הזה אחרי פריסה (מסתיימת ב-/exec)
 const API_URL = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec';
 
@@ -256,7 +256,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 24;
+const SERVER_BUILD = 25;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
