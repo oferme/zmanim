@@ -1276,7 +1276,8 @@ function picCenter(){
   const list = ((CFG.pic && CFG.pic.center) || []).filter(c => (!c.ds || !c.ds.length || c.ds.includes(dow)) && (!c.from || c.from <= today) && (!c.to || today <= c.to))
     .map(centerItem).filter(Boolean);
   if(!list.length) return fitWrap(`<div class="pbig">${n.h}:${n.m}</div>${PARASHA ? `<h1 style="margin-top:calc(var(--u)*2)">${esc(PARASHA)}</h1>` : ''}`);   // אין תוכן – שעון גדול
-  return list[Math.floor(Date.now() / 1000 / ((CFG.pic && CFG.pic.rot) || 20)) % list.length];
+  const i = Math.floor(Date.now() / 1000 / ((CFG.pic && CFG.pic.rot) || 20)) % list.length;
+  return Object.assign({}, list[i], {key: i});
 }
 function fitCenter(el){
   const f = el.querySelector('.fit'); if(!f) return;
@@ -1313,7 +1314,12 @@ function renderPic(){
     if(h0 !== el._html) chg = true; });
   if(chg) fitCenter(cel);
   const c = picCenter();
-  if(cel._h !== c.html){ cel._h = c.html; cel.className = 'in ' + (c.cls || ''); cel.innerHTML = c.html; fitCenter(cel); }
+  if(cel._h !== c.html){
+    const put = () => { cel._h = c.html; cel.className = 'in ' + (c.cls || ''); cel.innerHTML = c.html; fitCenter(cel); };
+    const k = c.key === undefined ? 'clock' : c.key;
+    if(cel._k !== undefined && cel._k !== k) swapAnim(cel, put, 'fade'); else put();   // מעבר בין תכנים במרכז – דעיכה
+    cel._k = k;
+  }
   const tWas = $('pTick').hidden; renderTicker(); if(tWas !== $('pTick').hidden) fitCenter(cel);
   if(CFG.hal && (!HAL || HAL.day !== nowParts().date || Date.now() - HAL.at > 30 * 60000)) loadHal();
 }
@@ -1341,7 +1347,7 @@ function renderSlots(){
   const sec = Math.floor(Date.now() / 1000);
   for(const k of ['R','L','B']){
     const el = k === 'B' ? $('grid') : $('slot' + k);
-    const items = slots[k].map(tp => content(tp, k, msgs[k])).filter(Boolean);
+    const items = slots[k].map(tp => { const x = content(tp, k, msgs[k]); if(x) x.tp = tp; return x; }).filter(Boolean);
     let c = items.length ? items[Math.floor(sec / (CFG['rot' + k] || CFG.rotate)) % items.length] : null;
     // הנץ: משעה לפני ועד שעה אחרי – קוביית הנץ קבועה בשורה התחתונה (שליח הציבור מסתכל עליה), שאר התוכן ממשיך להתחלף
     if(k === 'B' && slots.B.length && netzWindow() && !(c && c.netz)){
@@ -1354,13 +1360,42 @@ function renderSlots(){
                 parts.splice(i < 0 ? parts.length : i, 0, [key, card]);
                 html = parts.map(x => x[1]).join('');
               } else html = card + (c ? c.html : '');
-              c = {html, cards: 1 + ((c && c.cards) || (c ? 2 : 0)), scroll: c && c.scroll}; }
+              c = {html, cards: 1 + ((c && c.cards) || (c ? 2 : 0)), scroll: c && c.scroll, tp: c && c.tp}; }
     }
     if(k === 'B') el.classList.toggle('many', !!(c && c.cards > 4));
-    setSlot(el, c ? c.html : '', c && c.scroll);
+    setSlot(el, c ? c.html : '', c && c.scroll, c ? c.tp : '', k === 'B' ? 'wheel' : 'fade');   // התחלפות בשורה התחתונה – גלגל, בצדדים – דעיכה
   }
 }
-function setSlot(el, html, scroll){
+// מעבר בין תכנים: wheel = גלגל שמסתובב כלפי מעלה (הישן עולה ונעלם פנימה, החדש עולה מלמטה), fade = דעיכה של הישן יחד עם הופעה של החדש
+function swapAnim(el, apply, mode){
+  const reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce || !el.animate || !el.parentNode || !el.offsetWidth || !el.innerHTML.trim()){ apply(); return; }
+  const old = el.cloneNode(true);
+  const inO = el.querySelector('.in'), inC = old.querySelector('.in');   // תוכן שגולל – הישן נשאר באותו מקום ולא קופץ
+  if(inO && inC){ try{ inC.style.transform = getComputedStyle(inO).transform; }catch(e){} }
+  Object.assign(old.style, {position: 'absolute', left: el.offsetLeft + 'px', top: el.offsetTop + 'px', width: el.offsetWidth + 'px', height: el.offsetHeight + 'px',
+    right: 'auto', bottom: 'auto', margin: '0', pointerEvents: 'none', zIndex: 5, backfaceVisibility: 'hidden'});
+  el.parentNode.insertBefore(old, el.nextSibling);
+  apply();
+  const done = () => old.remove();
+  if(mode === 'wheel'){
+    const o = `50% 50% -${Math.round(el.offsetHeight / 2)}px`, P = 'perspective(1400px) ';
+    const opt = {duration: 1100, easing: 'cubic-bezier(.45,.05,.25,1)'};
+    old.style.transformOrigin = o;
+    old.animate([{transform: P + 'rotateX(0deg)', opacity: 1}, {transform: P + 'rotateX(90deg)', opacity: 0}], Object.assign({fill: 'forwards'}, opt)).onfinish = done;
+    el.style.backfaceVisibility = 'hidden';
+    el.animate([{transform: P + 'rotateX(-90deg)', opacity: 0, transformOrigin: o}, {transform: P + 'rotateX(0deg)', opacity: 1, transformOrigin: o}], opt);
+  } else {
+    const opt = {duration: 1200, easing: 'ease-in-out'};
+    old.animate([{opacity: 1}, {opacity: 0}], Object.assign({fill: 'forwards'}, opt)).onfinish = done;
+    el.animate([{opacity: 0}, {opacity: 1}], opt);
+  }
+  setTimeout(done, 2500);   // ליתר ביטחון
+}
+function setSlot(el, html, scroll, key, mode){
+  const anim = key !== undefined && el._key !== undefined && el._key !== key && el._html !== html;
+  if(key !== undefined) el._key = key;
+  if(anim){ swapAnim(el, () => setSlot(el, html, scroll), mode || 'fade'); return; }
   if(el._html === html){   // אותו תוכן – אבל אם בינתיים הוא גדל (גופנים נטענו וכו') ועכשיו לא נכנס, מתחילים לגלול
     if(scroll && !el._scrolling) startScroll(el);
     else if(el._anim && Date.now() - el._chk > 5000){   // הגודל השתנה באמת (לא פיקסל אחד) – מודדים מחדש וממשיכים מאותה נקודה, בלי לקפוץ להתחלה
