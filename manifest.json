@@ -1,7 +1,7 @@
 {
   "name": "לוח זמנים – הגדרות",
   "short_name": "לוח זמנים",
-  "id": "settings.html",
+  "id": "/settings.html",
   "lang": "he",
   "dir": "rtl",
   "start_url": "settings.html",

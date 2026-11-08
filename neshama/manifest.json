@@ -1,7 +1,7 @@
 {
   "name": "לוח נשמה – ניהול",
   "short_name": "לוח נשמה",
-  "id": "settings.html",
+  "id": "/neshama/settings.html",
   "lang": "he",
   "dir": "rtl",
   "start_url": "settings.html",

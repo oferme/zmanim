@@ -36,7 +36,7 @@
 - החישובים בצד הלקוח: `neshama/heb.js` (המרת תאריכים, יארצייט כמו Hebcal – נבדק מול @hebcal/hdate, גימטריה, שקיעה NOAA). היום העברי מתחלף בשקיעה לפי המיקום מהגדרות לוח הזמנים.
 - עיצובים (הגדרה `theme`, לבחירת הגבאי): wood = פליז ועץ (ברירת מחדל), stone = אבן ירושלים, oak = אלון בהיר, dark = כהה וזהב. במסך: מפה `THEMES` → מחלקות `wood` / `wood s2` / `wood s5` / `dark`. לוחיות תלת-ממד עם ברגים בכל המסורתיים. לעיצוב הכהה יעשו גרסאות בהמשך.
 - הוחלט: "השבוע" = ראשון עד שבת; בלי תמונות בשלב הראשון; אדר בשנה מעוברת – לפי הגדרה (ברירת מחדל: עדות המזרח = אדר ב, אחרת אדר א); תאריך קבוע ידני גובר על החישוב.
-- אפליקציות בטלפון (PWA) נפרדות: `manifest.json` בשורש – id/scope = settings.html בלבד (כדי שלא "יבלע" את neshama/); `neshama/manifest.json` – scope neshama/, אייקון נר משלו (`neshama/icon-*.png`). אפליקציית לוח הנשמה זוכרת shul/key (localStorage `nesh_app_shul/key`) לפתיחה מהאייקון.
+- אפליקציות בטלפון (PWA) נפרדות: `manifest.json` בשורש – id `/settings.html`, scope = settings.html בלבד (כדי שלא "יבלע" את neshama/); `neshama/manifest.json` – id `/neshama/settings.html` (id נפתר מול שורש האתר! לא לכתוב רק settings.html), scope neshama/, אייקון נר משלו (`neshama/icon-*.png`). אפליקציית לוח הנשמה זוכרת shul/key (localStorage `nesh_app_shul/key`) לפתיחה מהאייקון.
 - קיוסק: במחשב מזהה `<id> neshama` (zmanim-online.bat פותח neshama/, עוזר הזום לא רץ); בסטרימר – Start URL של neshama/. מדריכי TV/PC מעודכנים (העתקי הסקריפטים במדריך PC מסונכרנים עם הקבצים).
 - עוד לא נעשה: גיבוי קבצי לוח הנשמה, גרסאות לעיצוב הכהה.
 
