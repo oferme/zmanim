@@ -42,7 +42,8 @@ header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:ca
 .pl .n,.pl .n2{white-space:nowrap}
 .pl .n{font-weight:700;font-size:calc(var(--u)*1.45);line-height:1.15}
 .pl .n2{font-weight:500;font-size:calc(var(--u)*1.15);line-height:1.15}
-.pl .dt{font-family:Heebo,Arial,sans-serif;font-size:calc(var(--u)*1.1);margin-top:calc(var(--u)*.15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .dt{font-family:Heebo,Arial,sans-serif;font-size:calc(var(--u)*1.1);margin-top:calc(var(--u)*.15);white-space:nowrap}
+.pl .nt{font-size:calc(var(--u)*1);margin-top:0;opacity:.9}
 .pager{font-family:Heebo,Arial,sans-serif;font-size:calc(var(--u)*1.2);text-align:center;min-height:calc(var(--u)*1.6)}
 /* השבוע */
 .week{display:flex;flex-direction:column;padding:calc(var(--u)*1.1) calc(var(--u)*1.4);min-height:0;overflow:hidden}
@@ -69,10 +70,11 @@ body.boot .stage > *:not(.notice){visibility:hidden}
 
 /* ===== עיצוב מסורתי: עץ ופליז ===== */
 body.wood{color:#3a2507;background:#2a160a;
- background-image:repeating-linear-gradient(92deg,rgba(0,0,0,.18) 0 2px,transparent 2px 9px),repeating-linear-gradient(88deg,rgba(255,200,140,.05) 0 1px,transparent 1px 23px),
-  linear-gradient(90deg,#3b1f0e,#5a3218 20%,#4a2812 45%,#62391c 70%,#3b1f0e)}
+ background-image:repeating-linear-gradient(92deg,rgba(0,0,0,.07) 0 2px,transparent 2px 11px),repeating-linear-gradient(88deg,rgba(255,200,140,.025) 0 1px,transparent 1px 29px),
+  linear-gradient(90deg,#3d2110,#523017 20%,#4a2913 45%,#56331a 70%,#3d2110)}   /* פסי עץ עדינים */
 body.wood .stage{border:calc(var(--u)*.9) solid #2b170a;box-shadow:inset 0 0 0 calc(var(--u)*.3) #a87a2c,inset 0 0 calc(var(--u)*4) rgba(0,0,0,.6)}
-body.wood .brass{background:linear-gradient(160deg,#8a6220 0%,#d9b05a 18%,#f6dc8e 32%,#c4973f 52%,#e9c877 70%,#9b7026 100%);border-radius:calc(var(--u)*.35);
+body.wood .brass{background:linear-gradient(160deg,#a27b35 0%,#cfaa5f 22%,#e6c983 38%,#d2ae66 58%,#dcbd78 76%,#ab8539 100%);   /* פליז עם ברק רך (בלי פסים חזקים) */
+ border-radius:calc(var(--u)*.35);
  box-shadow:0 calc(var(--u)*.25) calc(var(--u)*.5) rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,240,190,.55),inset 0 0 0 calc(var(--u)*.25) rgba(120,80,20,.35);text-shadow:0 1px 0 rgba(255,240,200,.6)}
 body.wood .brass::before,body.wood .brass::after{content:'';position:absolute;top:calc(var(--u)*.4);width:calc(var(--u)*.5);height:calc(var(--u)*.5);border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff3c4,#8a6220 70%)}
 body.wood .brass::before{right:calc(var(--u)*.45)}
@@ -385,7 +387,8 @@ function render(force){
   const per = [12, 16, 20, 24].includes(+S.perPage) ? +S.perPage : 16;
   const sorted = list.slice().sort((a, b) => S.order === 'abc' ? a.name.localeCompare(b.name, 'he') : (yzOrder(a) - yzOrder(b) || a.name.localeCompare(b.name, 'he')));
   PAGES = []; for(let i = 0; i < sorted.length; i += per) PAGES.push(sorted.slice(i, i + per));
-  if(!PAGES.length) PAGES = [[]];
+  PAGES.per = per;
+  if(!PAGES.length){ PAGES = [[]]; PAGES.per = per; }
   if(PAGE >= PAGES.length) PAGE = 0;
   const rows = per / 4;
   $('board').style.gridTemplateRows = `repeat(${rows}, minmax(0,1fr))`;
@@ -398,13 +401,15 @@ function render(force){
 }
 function drawPage(today){
   const pg = PAGES[PAGE] || [];
+  const sep = (PAGES.per || 16) <= 16;   // עד 16 בעמוד יש מקום להערה בשורה משלה
   $('board').innerHTML = pg.length ? pg.map(p => {
     const date = p.fix ? HEB.gem(p.fix.d) + ' ' + HEB.monthName(p.fix.m) : p.ok ? HEB.fmt({d: p.d, m: p.m, y: p.y}) : '';
     const long = full(p).length > 22;
-    return `<div class="pl brass${p.yz !== null && p.yz !== undefined ? ' wk' : ''}${p.yz === today ? ' td' : ''}"><span class="bulb"></span><span class="cn" style="--dl:${(p.name.length % 7) * -.37}s"><i></i></span><div class="tx"><div class="${long ? 'n2' : 'n'}">${esc(full(p))}</div>${date || p.note ? `<div class="dt">${esc([date, p.note].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`;
+    return `<div class="pl brass${p.yz !== null && p.yz !== undefined ? ' wk' : ''}${p.yz === today ? ' td' : ''}"><span class="bulb"></span><span class="cn" style="--dl:${(p.name.length % 7) * -.37}s"><i></i></span><div class="tx"><div class="${long ? 'n2' : 'n'}">${esc(full(p))}</div>${sep ? (date ? `<div class="dt">${esc(date)}</div>` : '') + (p.note ? `<div class="dt nt">${esc(p.note)}</div>` : '')
+        : (date || p.note ? `<div class="dt">${esc([date, p.note].filter(Boolean).join(' · '))}</div>` : '')}</div></div>`;
   }).join('') : '<div class="pl brass" style="grid-column:1/-1"><div class="tx"><div class="n">עדיין לא נוספו שמות ללוח</div></div></div>';
   $('pager').textContent = PAGES.length > 1 ? `עמוד ${PAGE + 1} מתוך ${PAGES.length}` : '';
-  fitAll('#board .n, #board .n2', .62);
+  fitAll('#board .n, #board .n2', .62); fitAll('#board .dt', .55);
 }
 // שם ארוך – מוקטן עד שנכנס בשורה אחת (עד 62% מהגודל)
 function fitAll(sel, min){
