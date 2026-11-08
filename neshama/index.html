@@ -40,11 +40,17 @@ header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:ca
 .pl{position:relative;display:flex;align-items:center;gap:calc(var(--u)*.6);padding:calc(var(--u)*.5) calc(var(--u)*1);min-width:0}
 .pl .tx{flex:1;min-width:0;text-align:center}
 .pl .n,.pl .n2{white-space:nowrap}
-.pl .n{font-weight:700;font-size:calc(var(--u)*1.45);line-height:1.15}
-.pl .n2{font-weight:500;font-size:calc(var(--u)*1.15);line-height:1.15}
-.pl .dt{font-family:Heebo,Arial,sans-serif;font-size:calc(var(--u)*1.1);margin-top:calc(var(--u)*.15);white-space:nowrap}
-.pl .nt{font-size:calc(var(--u)*1);margin-top:0;opacity:.9}
-.pager{font-family:Heebo,Arial,sans-serif;font-size:calc(var(--u)*1.2);text-align:center;min-height:calc(var(--u)*1.6)}
+/* עד 16 בעמוד: שם בשתי שורות מאוזנות ובגופן גדול (כמו לוחית חרוטה) */
+.board.big .pl{padding-top:calc(var(--u)*.3);padding-bottom:calc(var(--u)*.3)}
+.board.big .dt{margin-top:calc(var(--u)*.05);line-height:1.15}
+.board.big .n,.board.big .n2{white-space:normal;text-wrap:balance;font-size:calc(var(--u)*2);font-weight:700;line-height:1.12}
+.pl .n{font-weight:700;font-size:calc(var(--u)*1.75);line-height:1.15}
+.pl .n2{font-weight:600;font-size:calc(var(--u)*1.45);line-height:1.15}
+.pl .dt{font-family:Heebo,Arial,sans-serif;font-size:calc(var(--u)*1.25);margin-top:calc(var(--u)*.15);white-space:nowrap}
+.pl .nt{font-size:calc(var(--u)*1.12);margin-top:0;opacity:.9}
+.pager{font-family:Heebo,Arial,sans-serif;font-size:calc(var(--u)*1.25);text-align:center}
+.bottom{display:flex;justify-content:center;align-items:center;gap:calc(var(--u)*3);min-height:calc(var(--u)*1.7)}
+.bottom .foot:empty{display:none}
 /* השבוע */
 .week{display:flex;flex-direction:column;padding:calc(var(--u)*1.1) calc(var(--u)*1.4);min-height:0;overflow:hidden}
 .week h3{font-weight:900;font-size:calc(var(--u)*2);text-align:center;padding-bottom:calc(var(--u)*.6);margin-bottom:calc(var(--u)*.4)}
@@ -56,6 +62,7 @@ header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:ca
 .wr.past{opacity:.5}
 .foot{font-family:Heebo,Arial,sans-serif;font-weight:600;font-size:calc(var(--u)*1.35);text-align:center}
 .foot:empty{display:none}
+.week .wf{margin-top:auto;padding-top:calc(var(--u)*.9);font-size:calc(var(--u)*1.3);line-height:1.4;border-top:1px solid rgba(232,196,120,.3)}
 /* נר / מנורה */
 .lamp{flex:none;position:relative;width:calc(var(--u)*2.6);height:calc(var(--u)*6)}
 .lamp .w{position:absolute;bottom:0;left:22%;right:22%;height:58%;border-radius:calc(var(--u)*.3) calc(var(--u)*.3) calc(var(--u)*.15) calc(var(--u)*.15)}
@@ -243,11 +250,10 @@ body.dark .notice{background:#0b1730;color:#f3ead6}
     <div class="left">
       <div class="today" id="today"></div>
       <div class="board" id="board"></div>
-      <div class="pager" id="pager"></div>
     </div>
-    <div class="week"><h3>יארצייטים השבוע</h3><div id="week"></div></div>
+    <div class="week"><h3>יארצייטים השבוע</h3><div id="week"></div><div class="foot wf" id="foot"></div></div>
   </div>
-  <div class="foot" id="foot"></div>
+  <div class="bottom"><div class="foot" id="foot2"></div><div class="pager" id="pager"></div></div>
   <div class="notice" id="notice"></div>
 </div>
 <script src="heb.js"></script>
@@ -315,10 +321,10 @@ function render(force){
   $('dayName').textContent = (today > civ ? 'אור ל' : '') + DAYS[HEB.dow(today)];
   $('hDate').textContent = HEB.fmt(hT, true);
   $('gDate').textContent = now.d + '.' + now.m + '.' + now.y;
+  const week = S.week !== 'לא';
   $('title').textContent = S.title || 'לוח נשמה';
   $('sub').textContent = S.sub || DATA.name || '';
-  $('foot').textContent = S.footer || '';
-  const week = S.week !== 'לא';
+  $('foot').textContent = week ? (S.footer || '') : ''; $('foot2').textContent = week ? '' : (S.footer || '');   // הנצחה: בעמודת השבוע, ובלעדיה – בשורה התחתונה
   $('main').classList.toggle('noweek', !week);
 
   const list = (DATA.list || []).map(person).filter(p => p.name);
@@ -359,7 +365,7 @@ function render(force){
   if(PAGE >= PAGES.length) PAGE = 0;
   const rows = per / 4;
   $('board').style.gridTemplateRows = `repeat(${rows}, minmax(0,1fr))`;
-  $('board').style.setProperty('--fs', 1);
+  $('board').classList.toggle('big', per <= 16);
   drawPage(today);
   clearInterval(rotTimer);
   const sec = Math.max(5, Math.min(120, parseInt(S.rotate, 10) || 12));
@@ -376,7 +382,28 @@ function drawPage(today){
         : (date || p.note ? `<div class="dt">${esc([date, p.note].filter(Boolean).join(' · '))}</div>` : '')}</div></div>`;
   }).join('') : '<div class="pl brass" style="grid-column:1/-1"><div class="tx"><div class="n">עדיין לא נוספו שמות ללוח</div></div></div>';
   $('pager').textContent = PAGES.length > 1 ? `עמוד ${PAGE + 1} מתוך ${PAGES.length}` : '';
-  fitAll('#board .n, #board .n2', .62); fitAll('#board .dt', .55);
+  if($('board').classList.contains('big')) fitLines('#board .n, #board .n2', 2, .6); else fitAll('#board .n, #board .n2', .62);
+  fitAll('#board .dt', .55);
+  fitPlates();
+}
+// שם בשתי שורות לכל היותר (ומילה אחת ארוכה – ברוחב), אחרת מוקטן
+function fitLines(sel, lines, min){
+  document.querySelectorAll(sel).forEach(el => {
+    el.style.fontSize = '';
+    const base = parseFloat(getComputedStyle(el).fontSize), box = el.parentElement.clientWidth;
+    const tooBig = () => el.scrollHeight > parseFloat(getComputedStyle(el).lineHeight) * lines + 2 || el.scrollWidth > box;
+    let f = base; while(tooBig() && f > base * min){ f *= .94; el.style.fontSize = f + 'px'; }
+  });
+}
+// לוחית שעדיין גבוהה מדי (שם בשתי שורות + תאריך + הערה) – כל הטקסט בה מוקטן יחד
+function fitPlates(){
+  document.querySelectorAll('#board .pl').forEach(pl => {
+    const els = [...pl.querySelectorAll('.n,.n2,.dt')], base = els.map(e => parseFloat(getComputedStyle(e).fontSize));
+    const cs = getComputedStyle(pl), tx = pl.querySelector('.tx'), room = () => pl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const small = els.map(e => e.classList.contains('dt'));
+    let k = 1; while(tx && tx.offsetHeight > room() + 1 && k > .8){ k *= .95; els.forEach((e, i) => { if(small[i]) e.style.fontSize = base[i] * k + 'px'; }); }   // קודם התאריך וההערה
+    let j = 1; while(tx && tx.offsetHeight > room() + 1 && j > .7){ j *= .95; els.forEach((e, i) => e.style.fontSize = base[i] * (small[i] ? k : 1) * j + 'px'); }   // ואז הכול
+  });
 }
 // שם ארוך – מוקטן עד שנכנס בשורה אחת (עד 62% מהגודל)
 function fitAll(sel, min){
