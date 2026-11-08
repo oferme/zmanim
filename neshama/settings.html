@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="לוח נשמה">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="../icon-192.png">
-<link rel="icon" href="../icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700;900&family=Heebo:wght@400;500;700;800&display=swap">
 <style>
 /* אפליקציית הגבאי ללוח הנשמה – נפרדת מאפליקציית לוח הזמנים. הכתובת: neshama/settings.html?shul=<מזהה>&key=<מפתח> */
@@ -158,7 +158,10 @@ nav button.on{color:var(--gold2)}
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec';
 const Q = new URLSearchParams(location.search);
-const SHUL = (Q.get('shul') || '').trim().toLowerCase(), KEY = Q.get('key') || '';
+// מזהה ומפתח: מהקישור, ואם אין (פתיחה מהאייקון במסך הבית) – מהפעם הקודמת
+const store = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} } };
+const SHUL = (Q.get('shul') || store.get('nesh_app_shul') || '').trim().toLowerCase(), KEY = Q.get('key') || store.get('nesh_app_key') || '';
+if (Q.get('shul') && Q.get('key') && Q.get('shul') !== 'demo') { store.set('nesh_app_shul', SHUL); store.set('nesh_app_key', KEY); }
 const DEMO = SHUL === 'demo';
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
