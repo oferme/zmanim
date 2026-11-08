@@ -120,7 +120,8 @@ nav button.on{color:var(--gold2)}
   <section class="tab" id="t-disp">
     <div class="card">
       <h2>עיצוב המסך</h2>
-      <div class="seg" id="theme" data-vals="wood,dark" data-labels="מסורתי – עץ ופליז,כהה וזהב"></div>
+      <div class="seg" id="theme" data-vals="wood,stone,oak,dark" data-labels="פליז ועץ,אבן ירושלים,אלון בהיר,כהה וזהב"></div>
+      <a class="hint" id="themePrev" target="_blank" rel="noopener" style="display:block;margin-top:8px;color:var(--gold2)">איך זה נראה? פתיחת הדגמה ↗</a>
       <label class="cap">כותרת</label><input class="field" id="sTitle" maxlength="40">
       <label class="cap">שורה מתחת לכותרת <small>(ריק = שם בית הכנסת)</small></label><input class="field" id="sSub" maxlength="60">
       <label class="cap">שורה בתחתית המסך <small>(ריק = בלי)</small></label><input class="field" id="sFooter" maxlength="80">
@@ -317,7 +318,8 @@ function setChanged(){ status('שומר…', 'saving'); clearTimeout(setTimer); 
   try{ await post({action: 'nset', set: SET}); status('נשמר ✓', 'saved'); } catch(e){ status('לא נשמר – בדקו חיבור', 'err'); }
 }, 900); }
 function bindSet(){
-  segment($('theme'), SET.theme || 'wood', v => { SET.theme = v; setChanged(); });
+  const prev = () => { $('themePrev').href = 'index.html?shul=demo&theme=' + (SET.theme || 'wood'); };
+  segment($('theme'), SET.theme || 'wood', v => { SET.theme = v; prev(); setChanged(); }); prev();
   [['sTitle','title'],['sSub','sub'],['sFooter','footer']].forEach(([id, k]) => { $(id).value = SET[k] || ''; $(id).oninput = e => { SET[k] = e.target.value; setChanged(); }; });
   $('sSub').placeholder = D.name || '';
   segment($('perPage'), SET.perPage || '16', v => { SET.perPage = v; setChanged(); });

@@ -256,7 +256,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 26;
+const SERVER_BUILD = 27;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -1369,7 +1369,7 @@ const NESH_TAB = 'נפטרים', NESH_SET_TAB = 'הגדרות';
 const NESH_HEAD = ['מזהה', 'שם', 'תואר', 'יום', 'חודש', 'שנה', 'תאריך לועזי', 'אחרי השקיעה', 'יארצייט קבוע', 'הערה', 'פעיל'];
 const NESH_KEYS = ['id', 'n', 't', 'd', 'm', 'y', 'g', 'as', 'fix', 'note', 'on'];
 const NESH_SET = [   // מפתח, ברירת מחדל, הסבר
-  ['theme', 'wood', 'עיצוב: wood = מסורתי (עץ ופליז), dark = כהה וזהב'],
+  ['theme', 'wood', 'עיצוב: wood = פליז ועץ, stone = אבן ירושלים, oak = אלון בהיר, dark = כהה וזהב'],
   ['title', 'לוח נשמה', 'כותרת'],
   ['sub', '', 'שורה מתחת לכותרת (ריק = שם בית הכנסת)'],
   ['footer', 'הנצחה בלוח – לפרטים אצל הגבאי', 'שורה בתחתית (ריק = בלי)'],
