@@ -8,11 +8,12 @@ if "%SHUL%"=="" (
   set /p SHUL=Synagogue ID from the sheet, column mazhe [for example ohel-moshe]: 
   call echo %%SHUL%%>"%HERE%shul.txt"
 )
-rem "ohel-moshe 2" = the second screen of the same synagogue
+rem "ohel-moshe 2" = the second screen of the same synagogue, "ohel-moshe neshama" = the memorial board (luach neshama)
 set "SCR="
 for /f "tokens=1,2" %%a in ("%SHUL%") do (set "SHUL=%%a" & set "SCR=%%b")
 set "PAGE=https://luachscreen.com/?shul=%SHUL%"
 if "%SCR%"=="2" set "PAGE=%PAGE%&screen=2"
+if /i "%SCR%"=="neshama" set "PAGE=https://luachscreen.com/neshama/?shul=%SHUL%"
 rem Server address (for Zoom shiurim) - do not change:
 set "API=https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec"
 

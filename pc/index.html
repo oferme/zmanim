@@ -135,7 +135,7 @@ tr:last-child td{border-bottom:0}
     </div></li>
     <li><div>
       <h3>מקלידים את מזהה בית הכנסת</h3>
-      נפתח חלון שחור שמבקש <span class="ltr">ID</span>. מקלידים את המזהה מהגיליון באנגלית, למשל <span class="ltr">rs-bircat-mordechai</span>, ולוחצים <span class="k">Enter</span>. <b>למסך שני של אותו בית כנסת</b> (למשל מסך תמונה במסדרון) מוסיפים רווח ו־2: <span class="ltr">rs-bircat-mordechai 2</span>.
+      נפתח חלון שחור שמבקש <span class="ltr">ID</span>. מקלידים את המזהה מהגיליון באנגלית, למשל <span class="ltr">rs-bircat-mordechai</span>, ולוחצים <span class="k">Enter</span>. <b>למסך שני של אותו בית כנסת</b> (למשל מסך תמונה במסדרון) מוסיפים רווח ו־2: <span class="ltr">rs-bircat-mordechai 2</span>. <b>ללוח הנשמה</b> מוסיפים רווח ו־neshama: <span class="ltr">rs-bircat-mordechai neshama</span> – המחשב יפתח את לוח הנשמה במסך מלא בכל הדלקה.
     </div></li>
     <li><div>
       <h3>ההתקנה מסתיימת לבד</h3>
@@ -283,8 +283,12 @@ if &quot;%SHUL%&quot;==&quot;&quot; (
   set /p SHUL=Synagogue ID from the sheet, column mazhe [for example ohel-moshe]: 
   call echo %%SHUL%%&gt;&quot;%HERE%shul.txt&quot;
 )
-for /f &quot;tokens=* delims= &quot; %%a in (&quot;%SHUL%&quot;) do set &quot;SHUL=%%a&quot;
+rem &quot;ohel-moshe 2&quot; = the second screen of the same synagogue, &quot;ohel-moshe neshama&quot; = the memorial board (luach neshama)
+set &quot;SCR=&quot;
+for /f &quot;tokens=1,2&quot; %%a in (&quot;%SHUL%&quot;) do (set &quot;SHUL=%%a&quot; &amp; set &quot;SCR=%%b&quot;)
 set &quot;PAGE=https://luachscreen.com/?shul=%SHUL%&quot;
+if &quot;%SCR%&quot;==&quot;2&quot; set &quot;PAGE=%PAGE%&amp;screen=2&quot;
+if /i &quot;%SCR%&quot;==&quot;neshama&quot; set &quot;PAGE=https://luachscreen.com/neshama/?shul=%SHUL%&quot;
 rem Server address (for Zoom shiurim) - do not change:
 set &quot;API=https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec&quot;
 
@@ -324,8 +328,10 @@ foreach ($f in &#x27;zmanim-online.bat&#x27;, &#x27;zoom-helper.ps1&#x27;, &#x27
 }
 Write-Host &#x27;&#x27;
 Write-Host &#x27;Synagogue ID - from the management sheet, column &quot;mazhe&quot; (for example: ohel-moshe)&#x27;
+Write-Host &#x27;For the SECOND screen of the same synagogue add a space and 2 (for example: ohel-moshe 2)&#x27;
+Write-Host &#x27;For the MEMORIAL BOARD (luach neshama) add a space and neshama (for example: ohel-moshe neshama)&#x27;
 $id = &#x27;&#x27;
-while ($id -notmatch &#x27;^[a-z0-9-]+$&#x27;) { $id = (Read-Host &#x27;ID&#x27;).Trim().ToLower() }
+while ($id -notmatch &#x27;^[a-z0-9-]+( 2| neshama)?$&#x27;) { $id = ((Read-Host &#x27;ID&#x27;).Trim().ToLower() -replace &#x27;\s+&#x27;, &#x27; &#x27;) }
 Set-Content -Path (Join-Path $dest &#x27;shul.txt&#x27;) -Value $id -Encoding ASCII
 
 $shell = New-Object -ComObject WScript.Shell
@@ -355,6 +361,9 @@ Start-Process (Join-Path $dest &#x27;zmanim-online.bat&#x27;) -WorkingDirectory 
 param([string]$Page, [string]$Chrome, [string]$Api)
 
 $ErrorActionPreference = &#x27;SilentlyContinue&#x27;
+# Hidden window has no console: the download progress bar of Invoke-WebRequest fails there
+# (&quot;No process is on the other end of the pipe&quot;), so it is turned off
+$ProgressPreference = &#x27;SilentlyContinue&#x27;
 # Windows PowerShell 5.1 does not always use TLS 1.2 by default - Google and YouTube require it
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 $mutex = New-Object System.Threading.Mutex($false, &#x27;Local\ZmanimZoomHelper&#x27;)
@@ -362,6 +371,7 @@ if (-not $mutex.WaitOne(0)) { exit }          # already running
 
 $shul = &#x27;&#x27;
 if ($Page -match &#x27;shul=([A-Za-z0-9-]+)&#x27;) { $shul = $matches[1].ToLower() }
+if ($Page -match &#x27;screen=2|/neshama/&#x27;) { exit }   # second screen / memorial board - shiurim only on the main screen
 if (-not $shul -or -not $Api) { exit }
 $kioskDir = Join-Path $env:LOCALAPPDATA &#x27;ZmanimKiosk&#x27;
 $logFile  = Join-Path $env:LOCALAPPDATA &#x27;ZmanimKiosk-zoom.log&#x27;
@@ -371,13 +381,15 @@ $sessions = @()
 $lastFetch = [datetime]::MinValue
 $current = $null      # key of the shiur we are in now
 $currentType = &#x27;&#x27;
+$hadKiosk = $true
 $done = @{}           # shiurim already joined (key -&gt; $true)
 
 function Fetch {
   try {
     $u = $Api + &#x27;?shul=&#x27; + $shul + &#x27;&amp;what=zoom&amp;t=&#x27; + [DateTime]::Now.Ticks
-    $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 40 -Uri $u
-    $txt = [Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray())
+    $wc = New-Object System.Net.WebClient
+    $wc.Encoding = [Text.Encoding]::UTF8
+    $txt = $wc.DownloadString($u)
     if ($txt -match &#x27;^ERR&#x27;) { return }
     $list = @()
     foreach ($l in ($txt -split &quot;`n&quot;)) {
@@ -415,10 +427,49 @@ function ActiveKey($s, $now) {
 
 function KioskProcs { Get-CimInstance Win32_Process -Filter &quot;Name=&#x27;chrome.exe&#x27;&quot; | Where-Object { $_.CommandLine -like &#x27;*ZmanimKiosk*&#x27; } }
 function Stop-Kiosk { KioskProcs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force } }
+# Chrome hides the mouse pointer only after the mouse moves - so we move it once to the corner of the screen
+function Hide-Cursor {
+  try {
+    Add-Type -AssemblyName System.Windows.Forms
+    $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(($b.Right - 1), ($b.Bottom - 1))
+    Start-Sleep -Milliseconds 300
+    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(($b.Right - 2), ($b.Bottom - 2))
+  } catch {}
+}
+# A window opened by this hidden background helper does not get the focus, so the Windows taskbar
+# stays on top of the full-screen screen. Here we bring the Chrome window to the front.
+try {
+  Add-Type -Namespace ZmWin -Name U32 -MemberDefinition @&#x27;
+[DllImport(&quot;user32.dll&quot;)] public static extern bool SetForegroundWindow(IntPtr h);
+[DllImport(&quot;user32.dll&quot;)] public static extern bool ShowWindow(IntPtr h, int c);
+[DllImport(&quot;user32.dll&quot;)] public static extern bool BringWindowToTop(IntPtr h);
+[DllImport(&quot;user32.dll&quot;)] public static extern void keybd_event(byte k, byte s, uint f, UIntPtr e);
+&#x27;@
+} catch {}
+function Focus-Chrome($tag) {
+  try {
+    $ids = Get-CimInstance Win32_Process -Filter &quot;Name=&#x27;chrome.exe&#x27;&quot; | Where-Object { $_.CommandLine -like (&#x27;*&#x27; + $tag + &#x27;*&#x27;) } | ForEach-Object { $_.ProcessId }
+    foreach ($id in $ids) {
+      $h = (Get-Process -Id $id).MainWindowHandle
+      if ($h -and $h -ne [IntPtr]::Zero) {
+        [ZmWin.U32]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)   # a short Alt press - Windows then lets us move the focus
+        [ZmWin.U32]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+        [ZmWin.U32]::ShowWindow($h, 9) | Out-Null
+        [ZmWin.U32]::BringWindowToTop($h) | Out-Null
+        [ZmWin.U32]::SetForegroundWindow($h) | Out-Null
+        Log (&#x27;focus &#x27; + $tag)
+        return
+      }
+    }
+  } catch {}
+}
 function Start-Kiosk {
   if (KioskProcs) { return }
   Start-Process -FilePath $Chrome -ArgumentList @(&#x27;--kiosk&#x27;, (&#x27;--user-data-dir=&quot;&#x27; + $kioskDir + &#x27;&quot;&#x27;), &#x27;--no-first-run&#x27;,
     &#x27;--disable-session-crashed-bubble&#x27;, &#x27;--hide-crash-restore-bubble&#x27;, &#x27;--noerrdialogs&#x27;, &#x27;--disable-translate&#x27;, &#x27;--autoplay-policy=no-user-gesture-required&#x27;, $Page)
+  Start-Sleep -Seconds 12; Focus-Chrome &#x27;ZmanimKiosk&#x27;; Hide-Cursor
+  Start-Sleep -Seconds 5; Focus-Chrome &#x27;ZmanimKiosk&#x27;   # once more, in case Zoom&#x27;s closing took the focus back
 }
 
 function Start-OBS([int]$wait = 0) {   # optional: OBS virtual camera with the synagogue logo
@@ -438,6 +489,7 @@ function Open-Web($s) {   # web broadcast: separate full-screen Chrome window
   Start-Process -FilePath $Chrome -ArgumentList @(&#x27;--kiosk&#x27;, (&#x27;--user-data-dir=&quot;&#x27; + $liveDir + &#x27;&quot;&#x27;), &#x27;--no-first-run&#x27;,
     &#x27;--disable-session-crashed-bubble&#x27;, &#x27;--hide-crash-restore-bubble&#x27;, &#x27;--noerrdialogs&#x27;, &#x27;--autoplay-policy=no-user-gesture-required&#x27;, $s.Link)
   Log (&#x27;open web &#x27; + $s.Start + &#x27; &#x27; + $s.Link)
+  Start-Sleep -Seconds 10; Focus-Chrome &#x27;ZmanimLive&#x27;; Hide-Cursor
 }
 function Close-Web {
   Get-CimInstance Win32_Process -Filter &quot;Name=&#x27;chrome.exe&#x27;&quot; | Where-Object { $_.CommandLine -like &#x27;*ZmanimLive*&#x27; } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
@@ -479,6 +531,7 @@ function Leave-Zoom {
 function ZoomInstalled { return (Test-Path &#x27;Registry::HKEY_CLASSES_ROOT\zoommtg&#x27;) }
 if (-not (ZoomInstalled)) { Log &#x27;Zoom is not installed yet (zoommtg link not registered)&#x27; }
 Log (&#x27;helper started for &#x27; + $shul)
+Start-Sleep -Seconds 15; Hide-Cursor   # the zmanim screen was just opened by zmanim-online.bat
 
 while ($true) {
   if (((Get-Date) - $lastFetch).TotalMinutes -ge 2) { Fetch }
@@ -497,6 +550,7 @@ while ($true) {
     $done[$key] = $true
     $script:current = $key
     $script:currentType = $active.Type
+    $script:hadKiosk = [bool](KioskProcs)   # was the zmanim screen open before the shiur? (only then it is reopened afterwards)
     Stop-Kiosk
     if ($active.Type -eq &#x27;web&#x27;) { Open-Web $active }
     else {
@@ -508,7 +562,7 @@ while ($true) {
     $script:current = $null
     if ($currentType -eq &#x27;web&#x27;) { Close-Web } else { Leave-Zoom }
     Start-Sleep -Seconds 3
-    Start-Kiosk
+    if ($hadKiosk) { Start-Kiosk } else { Log &#x27;zmanim screen was not open before the shiur - not reopened&#x27; }
   }
   Start-Sleep -Seconds 20
 }

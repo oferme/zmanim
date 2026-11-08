@@ -10,7 +10,7 @@
   - עדכון השרת: לדחוף ל-GitHub, ואז עופר מפעיל בגיליון תפריט "עדכון הקוד מ-GitHub" או "קישור לעדכון מהטלפון" (`selfUpdate_` דרך Apps Script API, פרויקט GCP zmanim-513514).
   - כשמשנים שרת: להעלות `SERVER_BUILD` (כרגע 27) ובמסך `NEED_SERVER` (כרגע 19) אם המסך תלוי בשינוי.
   - נקודות קצה: `?shul=&screen=2` (הגדרות כשורות "! מפתח: ערך"), `what=zoom`, `what=img`, `what=hal`, `what=haltest`, `what=update&admin=KEY`.
-- **מחשב Windows (קיוסק)**: `pc/` – `install.bat/ps1` (מעתיק ל-%LOCALAPPDATA%\ZmanimDisplay, מזהה כמו `ohel-moshe` או `ohel-moshe 2`), `zmanim-online.bat` (Chrome --kiosk), `zoom-helper.ps1` (מצטרף לזום/אתר בזמני השיעורים, OBS ללוגו, מחזיר את המסך אחרי). אחרי שינוי – לבנות מחדש את `pc/zmanim-pc.zip`. אין עדכון אוטומטי לקבצי ה-PC: עופר מתקין מחדש. מדריך: luachscreen.com/pc
+- **מחשב Windows (קיוסק)**: `pc/` – `install.bat/ps1` (מעתיק ל-%LOCALAPPDATA%\ZmanimDisplay, מזהה כמו `ohel-moshe`, `ohel-moshe 2` או `ohel-moshe neshama` = לוח נשמה), `zmanim-online.bat` (Chrome --kiosk), `zoom-helper.ps1` (מצטרף לזום/אתר בזמני השיעורים, OBS ללוגו, מחזיר את המסך אחרי). אחרי שינוי – לבנות מחדש את `pc/zmanim-pc.zip`. אין עדכון אוטומטי לקבצי ה-PC: עופר מתקין מחדש. מדריך: luachscreen.com/pc
 - **Android TV**: Xiaomi TV Box S 3 + Fully Kiosk. מדריך: luachscreen.com/tv (`tv/index.html`).
 - `privacy.html` – דף פרטיות למסך ההסכמה של Google.
 
@@ -36,7 +36,8 @@
 - החישובים בצד הלקוח: `neshama/heb.js` (המרת תאריכים, יארצייט כמו Hebcal – נבדק מול @hebcal/hdate, גימטריה, שקיעה NOAA). היום העברי מתחלף בשקיעה לפי המיקום מהגדרות לוח הזמנים.
 - עיצובים (הגדרה `theme`, לבחירת הגבאי): wood = פליז ועץ (ברירת מחדל), stone = אבן ירושלים, oak = אלון בהיר, dark = כהה וזהב. במסך: מפה `THEMES` → מחלקות `wood` / `wood s2` / `wood s5` / `dark`. לוחיות תלת-ממד עם ברגים בכל המסורתיים. לעיצוב הכהה יעשו גרסאות בהמשך.
 - הוחלט: "השבוע" = ראשון עד שבת; בלי תמונות בשלב הראשון; אדר בשנה מעוברת – לפי הגדרה (ברירת מחדל: עדות המזרח = אדר ב, אחרת אדר א); תאריך קבוע ידני גובר על החישוב.
-- עוד לא נעשה: קיוסק במחשב (install / zmanim-online.bat) למסך לוח נשמה, מדריכי TV/PC, גיבוי קבצי לוח הנשמה.
+- קיוסק: במחשב מזהה `<id> neshama` (zmanim-online.bat פותח neshama/, עוזר הזום לא רץ); בסטרימר – Start URL של neshama/. מדריכי TV/PC מעודכנים (העתקי הסקריפטים במדריך PC מסונכרנים עם הקבצים).
+- עוד לא נעשה: גיבוי קבצי לוח הנשמה, גרסאות לעיצוב הכהה.
 
 ## זמני שבת לפי פרשה + קריאה מתמונה (נבנה 11/2026)
 - `S.ptable = {on, cols:[{label, day:fri|sat|motz}], rows:[{k:'בראשית', v:[...]}], at}` – שרת `cleanPtable_`, שורה למסך `! טבלת פרשות: {JSON}`. המסך (`ptableRow`/`ptablePrayers`) לוקח את שורת פרשת השבוע בשישי ובשבת; גובר על תפילה עם אותו שם.

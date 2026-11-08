@@ -11,8 +11,9 @@ foreach ($f in 'zmanim-online.bat', 'zoom-helper.ps1', 'zmanim.ico') {
 Write-Host ''
 Write-Host 'Synagogue ID - from the management sheet, column "mazhe" (for example: ohel-moshe)'
 Write-Host 'For the SECOND screen of the same synagogue add a space and 2 (for example: ohel-moshe 2)'
+Write-Host 'For the MEMORIAL BOARD (luach neshama) add a space and neshama (for example: ohel-moshe neshama)'
 $id = ''
-while ($id -notmatch '^[a-z0-9-]+( 2)?$') { $id = ((Read-Host 'ID').Trim().ToLower() -replace '\s+', ' ') }
+while ($id -notmatch '^[a-z0-9-]+( 2| neshama)?$') { $id = ((Read-Host 'ID').Trim().ToLower() -replace '\s+', ' ') }
 Set-Content -Path (Join-Path $dest 'shul.txt') -Value $id -Encoding ASCII
 
 $shell = New-Object -ComObject WScript.Shell
