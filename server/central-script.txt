@@ -256,7 +256,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 25;
+const SERVER_BUILD = 26;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -410,7 +410,7 @@ function doGet(e) {
     try { const r = selfUpdate_(); return out(r.same ? 'הקוד כבר מעודכן – גרסת שרת ' + r.build : 'עודכן ונפרס: גרסת שרת ' + r.build + ' (גרסה ' + r.version + '). המסכים יתעדכנו תוך כמה דקות.'); }
     catch (e) { return out('העדכון לא הצליח: ' + (e && e.message || e)); }
   }   // בדיקה מהירה בדפדפן: ...exec?what=build
-  if (p.what === 'yt') return json_(ytLatest_(String(p.url || ''), String(p.filter || ''), true));   // בדיקת "השיעור האחרון": ...exec?what=yt&url=...&filter=...
+  if (p.what === 'yt') return json_(ytLatest_(String(p.url || ''), String(p.filter || ''), true, { skip: String(p.skip || ''), daf: p.daf === '1' }));   // בדיקת "השיעור האחרון": ...exec?what=yt&url=...&filter=...&skip=לא ערוך&daf=1
   if (!id) return out('ERR:NO_ID');
   const what = String(p.what || '');
   const scr = String(p.screen || '') === '2' ? 2 : 1;   // מסך שני של אותו היכל: ...&screen=2
@@ -559,10 +559,28 @@ const LIVE_RE = { zoom: /^https:\/\/[^\s|]+$/i, youtube: /^https:\/\/([\w-]+\.)*
 const liveType_ = s => LIVE_RE[s.liveType] ? s.liveType : 'zoom';
 // יוטיוב – "השיעור האחרון": מקבל קישור לערוץ (youtube.com/@name או /channel/UC...) או לרשימת השמעה (list=...),
 // וקורא את רשימת הסרטונים (RSS) של יוטיוב. מחזיר קישור לסרטון האחרון שעלה (אפשר לסנן לפי מילה בכותרת). נשמר במטמון 10 דקות
-function ytLatest_(link, filter, debug) {
-  const cache = CacheService.getScriptCache(), ck = 'yt_' + Utilities.base64EncodeWebSafe(link + '|' + (filter || '')).slice(0, 200);
+// הדף היומי של היום (לפי Hebcal, שעון ישראל): { name: 'בכורות', letters: 'מז', num: 47 } – נשמר במטמון עד סוף היום
+function dafToday_() {
+  const cache = CacheService.getScriptCache(), day = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd'), ck = 'daf_' + day;
+  const hit = cache.get(ck); if (hit) return parseJson_(hit);
+  try {
+    const j = parseJson_(UrlFetchApp.fetch('https://www.hebcal.com/hebcal?v=1&cfg=json&F=on&start=' + day + '&end=' + day, { muteHttpExceptions: true }).getContentText()) || {};
+    const it = (j.items || []).find(x => x.category === 'dafyomi'); if (!it) return null;
+    const he = String(it.hebrew || '').replace(/[֑-ׇ]/g, '').replace(/^.*:\s*/, '').replace(/["'״׳]/g, '').trim();   // "בכורות מז"
+    const parts = he.split(/\s+/), letters = parts.pop(), name = parts.join(' ').replace(/^(מסכת|דף)\s+/, '');
+    const num = +((String(it.title || '').match(/(\d+)\s*$/) || [])[1] || 0);
+    const d = { name, letters, num };
+    cache.put(ck, JSON.stringify(d), 6 * 3600);
+    return d;
+  } catch (e) { return null; }
+}
+function ytLatest_(link, filter, debug, opt) {
+  opt = opt || {};
+  const skip = String(opt.skip || '').split(/[,،]/).map(x => x.trim()).filter(Boolean), daf = opt.daf ? dafToday_() : null;
+  const extra = (skip.length ? '|-' + skip.join(',') : '') + (opt.daf ? '|daf:' + (daf ? daf.name + daf.letters : '?') : '');
+  const cache = CacheService.getScriptCache(), ck = 'yt_' + Utilities.base64EncodeWebSafe(link + '|' + (filter || '') + extra).slice(0, 200);
   if (!debug) { const hit = cache.get(ck); if (hit !== null) return hit; }
-  const info = { link, filter: filter || '', channel: '', feed: '', titles: [], chosen: '', error: '' };
+  const info = { link, filter: filter || '', skip, daf: daf ? daf.name + ' ' + daf.letters + ' (' + daf.num + ')' : (opt.daf ? 'לא נמצא הדף של היום' : ''), channel: '', feed: '', titles: [], chosen: '', error: '' };
   let m;
   if (!/^https:\/\/(www\.|m\.)?youtube\.com\//i.test(link)) info.error = 'הקישור צריך להיות לערוץ או לרשימת השמעה ב-youtube.com';
   else if ((m = link.match(/[?&]list=([\w-]+)/))) info.feed = 'playlist_id=' + m[1];
@@ -628,15 +646,20 @@ function ytLatest_(link, filter, debug) {
       info.titles = all.map(x => x.at.slice(0, 16) + ' ' + x.title);
       const norm = t => String(t).replace(/[֑-ׇ"'״׳`.,:;!?()\[\]\-–|]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
       const words = norm(filter || '').split(' ').filter(Boolean);   // כל המילים צריכות להופיע בשם (בכל סדר)
-      const pick = all.find(x => x.id && words.every(w => norm(x.title).indexOf(w) >= 0));
+      const bad = skip.map(norm).filter(Boolean);                     // מילים לדלג: סרטון שמופיע בו אחד מהביטויים – לא נבחר
+      // רק הדף של היום: בשם מופיעה המסכת, והדף – באותיות (מז / מ"ז) או במספר (47) כמילה נפרדת
+      const dafOk = t => { if (!opt.daf) return true; if (!daf) return false;
+        const n = ' ' + norm(String(t).replace(/["'״׳]/g, '')) + ' ';   // מ"ז → מז (לפני שהגרשיים הופכים לרווח)
+        return n.indexOf(norm(daf.name)) >= 0 && (n.indexOf(' ' + daf.letters + ' ') >= 0 || (daf.num && new RegExp('(^|\\D)' + daf.num + '(\\D|$)').test(n))); };
+      const pick = all.find(x => x.id && words.every(w => norm(x.title).indexOf(w) >= 0) && !bad.some(b => norm(x.title).indexOf(b) >= 0) && dafOk(x.title));
       if (pick) info.chosen = 'https://www.youtube.com/watch?v=' + pick.id;
       else if (!all.length) info.error = 'רשימת הסרטונים ריקה או לא נטענה';
-      else info.error = 'אף סרטון לא מתאים לסינון';
+      else info.error = opt.daf && !daf ? 'לא נמצא הדף היומי של היום' : 'אף סרטון לא מתאים לסינון' + (opt.daf ? ' (כולל הדף של היום – אולי עוד לא עלה)' : '');
     } catch (e) { info.error = String(e); }
   }
   // הסרטון האחרון שנמצא נשמר. אם הפעם יוטיוב לא החזיר את הרשימה, או שבין 15 הסרטונים האחרונים אין אחד שמתאים לסינון –
   // מציגים את האחרון שנמצא, במקום הודעה "לא נמצא סרטון"
-  const pk = 'ytlast_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, link + '|' + (filter || ''))).slice(0, 22);
+  const pk = 'ytlast_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, link + '|' + (filter || '') + extra)).slice(0, 22);
   const props = PropertiesService.getScriptProperties();
   if (info.chosen) { try { props.setProperty(pk, info.chosen); } catch (e) {} }
   else { const last = props.getProperty(pk); if (last) { info.chosen = last; info.fallback = 'הוצג הסרטון האחרון שנמצא קודם (' + info.error + ')'; } }
@@ -668,7 +691,7 @@ function liveSessions_(s) {
   return (s.zoom || []).map(z => {
     const type = LIVE_RE[z.type] ? z.type : liveType_(s), link = String(z.link || s.zoomLink || '').trim();
     const ds = Array.isArray(z.ds) ? z.ds.filter(d => +d >= 0 && +d <= 6).map(Number) : (+z.d >= 0 ? [+z.d] : []);
-    return { ds, t: z.t, e: TIME_RE.test(z.e) ? z.e : '', type, link, latest: !!z.latest, filter: String(z.filter || ''),
+    return { ds, t: z.t, e: TIME_RE.test(z.e) ? z.e : '', type, link, latest: !!z.latest, filter: String(z.filter || ''), skip: String(z.skip || ''), daf: !!z.daf,
       title: String(z.title !== undefined && z.title !== '' ? z.title : (s.zoomTitle || '')).replace(/[|\r\n]/g, ' ') };
   }).filter(z => z.ds.length && TIME_RE.test(z.t) && LIVE_RE[z.type].test(z.link));
 }
@@ -787,7 +810,7 @@ function settingsLines_(s, scr) {
   if (s.closeAt && Date.now() - s.closeAt < 5 * 60 * 1000) L.push('סגור מסך');
   // שיעורים: ! שיעור חי: אבג 17:00-18:00 | youtube | כותרת | קישור   (המסך מציג הודעה לפני, ויוטיוב – בעצמו)
   if (scr === 1) liveSessions_(s).forEach(z => {   // שיעורים – רק במסך הראשי
-    const link = (z.type === 'youtube' && z.latest) ? (ytLatest_(z.link, z.filter) || z.link) : z.link;   // "השיעור האחרון" – הסרטון האחרון שעלה
+    const link = (z.type === 'youtube' && z.latest) ? (ytLatest_(z.link, z.filter, false, { skip: z.skip, daf: z.daf }) || z.link) : z.link;   // "השיעור האחרון" – הסרטון האחרון שעלה
     L.push('! שיעור חי: ' + z.ds.map(d => ZOOM_DAYS[d]).join('') + ' ' + z.t + (z.e ? '-' + z.e : '') + ' | ' + z.type + ' | ' + z.title + ' | ' + link);
   });
   // שיעור שסומן "להציג בהודעות": הודעה בימים של השיעור, עד סוף השיעור – בכל מסך לפי הבחירה
@@ -1122,6 +1145,7 @@ function saveSettings(id, key, s) {
       t: TIME_RE.test(z.t) ? z.t : '', e: TIME_RE.test(z.e) ? z.e : '',
       type: LIVE_RE[z.type] ? z.type : liveType_(s),
       link: String(z.link || '').trim().slice(0, 300), latest: !!z.latest, filter: String(z.filter || '').replace(/[|\r\n]/g, ' ').trim().slice(0, 60),
+      skip: String(z.skip || '').replace(/[|\r\n]/g, ' ').trim().slice(0, 100), daf: !!z.daf,
       title: String(z.title || '').replace(/[|\r\n]/g, ' ').slice(0, 80),
       msg: !!z.msg, msgScr: scr_(z.msgScr), msgText: String(z.msgText || '').replace(/[|\r\n]/g, ' ').trim().slice(0, 150) })).filter(z => z.ds.length && z.t),
     prayers: (s.prayers || []).slice(0, 30).map(p => ({ q: ['', 'חול', 'א-ה', 'שישי', 'שבת'].includes(p.q) ? p.q : '', label: String(p.label || '').slice(0, 30), value: String(p.value || '').slice(0, 120),

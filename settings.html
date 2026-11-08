@@ -805,7 +805,10 @@ function zoomCard(z){
       <div class="row"><div class="lbl"><b>השיעור האחרון שעלה</b><small>בכל פעם – הסרטון החדש ביותר בערוץ או ברשימת ההשמעה</small></div><label class="sw"><input type="checkbox" class="zlt"><span></span></label></div>
     </div>
     <div><label class="cap zlc">קישור</label><input type="url" class="field zl" dir="ltr"><p class="hint zh" style="margin-top:4px"></p></div>
-    <div class="zflt" hidden><label class="cap">רק סרטונים שבשם שלהם מופיע (לא חובה)</label><input type="text" class="field zf" placeholder="למשל: הדף היומי"></div>
+    <div class="zflt" hidden><label class="cap">רק סרטונים שבשם שלהם מופיע (לא חובה)</label><input type="text" class="field zf" placeholder="למשל: הדף היומי">
+      <label class="cap" style="margin-top:10px">לדלג על סרטונים שבשם שלהם מופיע (לא חובה)</label><input type="text" class="field zsk" placeholder="למשל: לא ערוך, פרומו">
+      <div class="row" style="margin-top:6px"><div class="lbl"><b>רק הדף היומי של היום</b><small>לשיעור בדף היומי: בוחר רק סרטון שבשם שלו מופיע הדף של היום (למשל "בכורות מז"), כדי לא להציג את השיעור של מחר שכבר עלה. לשיעור אחר – להשאיר כבוי.</small></div><label class="sw"><input type="checkbox" class="zdaf"><span></span></label></div>
+    </div>
     <div><label class="cap">ימים</label><div class="seg zds"></div></div>
     <div class="two"><div><label class="cap">מהשעה</label><input class="field zt" type="time" dir="ltr"></div><div><label class="cap">עד השעה</label><input class="field ze" type="time" dir="ltr"></div></div>
     <div class="row"><div class="lbl"><b>להציג בהודעות</b><small>בימים של השיעור, מהבוקר ועד סוף השיעור</small></div><label class="sw"><input type="checkbox" class="zm"><span></span></label></div>
@@ -830,6 +833,8 @@ function zoomCard(z){
   q('.zlt').checked = !!z.latest; q('.zf').value = z.filter || '';
   q('.zlt').addEventListener('change', e => { z.latest = e.target.checked; syncType(); changed(); });
   q('.zf').addEventListener('input', e => { z.filter = e.target.value; changed(); });
+  q('.zsk').value = z.skip || ''; q('.zsk').addEventListener('input', e => { z.skip = e.target.value; changed(); });
+  q('.zdaf').checked = !!z.daf; q('.zdaf').addEventListener('change', e => { z.daf = e.target.checked; changed(); });
   q('.ztl').value = z.title || ''; q('.zl').value = z.link || ''; q('.zt').value = z.t || ''; q('.ze').value = z.e || '';
   q('.ztl').addEventListener('input', e => { z.title = e.target.value; changed(); });
   q('.zl').addEventListener('input', e => { z.link = e.target.value.trim(); changed(); });
