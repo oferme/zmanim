@@ -11,12 +11,13 @@
 <script>
 // מפנה כל בית כנסת לגרסה שהוגדרה לו בגיליון הניהול (עמודה "גרסה")
 const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6D-ZGegG16g5KFU46jew3l_bKigET6eW7-cLwTVklyg/exec';
-const shul = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
+// בלי מזהה (luachscreen.com) – מסך ההדגמה: בית הכנסת demo (או מה שנקבע לו בעמודה "מציג את בית הכנסת")
+const raw = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
+const shul = raw || 'demo', demo = raw ? '' : '&demo=1';
 const scr = (new URLSearchParams(location.search).get('screen') || '') === '2' ? '&screen=2' : '';   // מסך 2 של אותו היכל
-const go = v => location.replace('v' + (v || 1) + '/?shul=' + encodeURIComponent(shul) + scr);
+const go = v => location.replace('v' + (v || 1) + '/?shul=' + encodeURIComponent(shul) + scr + demo);
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
-if(!shul){ document.getElementById('m').textContent = 'לא הוגדר בית כנסת. יש להוסיף לכתובת: ?shul=מזהה'; }
-else fetch(API + '?shul=' + encodeURIComponent(shul) + '&what=version&t=' + Date.now(), {cache:'no-store'})
+fetch(API + '?shul=' + encodeURIComponent(shul) + '&what=version&t=' + Date.now(), {cache:'no-store'})
   .then(r => r.text())
   .then(t => { const v = (t.match(/^\d+/) || [])[0]; if(v){ try{ localStorage.setItem('ver_' + shul, v); }catch(e){} } go(v || (()=>{ try{ return localStorage.getItem('ver_' + shul); }catch(e){} })()); })
   .catch(() => { let v = null; try{ v = localStorage.getItem('ver_' + shul); }catch(e){} go(v); });

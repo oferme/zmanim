@@ -14,10 +14,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPW
 const SHEET = 'בתי כנסת';
 // כל שורה = "היכל" אחד: הגדרות, הודעות וקישור משלו. כמה היכלות של אותו בית כנסת – אותו שם בעמודה "ארגון".
 // עמודות: מזהה | שם | קישור למסמך | פעיל | גרסה | מייל גבאי | קישור למסך | הערות | מפתח | הגדרות | קישור להגדרות | ארגון | מספר מסכים
-const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה', 'קישור למסך לוח נשמה', 'קישור לאפליקציית לוח נשמה', 'תיקיית בית הכנסת', 'ללא אישור מסכים'];
+const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה', 'קישור למסך לוח נשמה', 'קישור לאפליקציית לוח נשמה', 'תיקיית בית הכנסת', 'ללא אישור מסכים', 'מציג את בית הכנסת'];
 // מיקום כל עמודה נקבע לפי הכותרת שלה בשורה 1 (כך שאפשר להזיז / להוסיף עמודות בגיליון בלי לשבור את המערכת)
-const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile', 'neshDisplay', 'neshApp', 'folder', 'open'];
-let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16, neshDisplay: 17, neshApp: 18, folder: 19, open: 20 };
+const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile', 'neshDisplay', 'neshApp', 'folder', 'open', 'mirror'];
+let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16, neshDisplay: 17, neshApp: 18, folder: 19, open: 20, mirror: 21 };
 function mapCols_(sh) {
   const last = Math.max(sh.getLastColumn(), 1);
   const h = sh.getRange(1, 1, 1, last).getValues()[0].map(x => String(x).replace(/\s+/g, ' ').trim());
@@ -257,7 +257,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 28;
+const SERVER_BUILD = 29;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -419,12 +419,12 @@ function doGet(e) {
   if (what === 'neshama') return neshDisplay_(id, p, cache);   // מסך לוח הנשמה (JSON)
   if (what === 'hal' || what === 'haltest') {   // פס ההלכות של היום (מספריא, דרך השרת – עובר גם בסינון)
     if (what === 'haltest') return json_(halTest_(String(p.book || 'Mishnah Berurah')));
-    const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
+    const f = findRow_(viewId_(id)); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
     const day = String(p.date || '').match(/^\d{4}-\d{2}-\d{2}$/) ? String(p.date) : Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
     return json_(halToday_(id, cleanHal_(st.hal), day));
   }
   if (what === 'img') {   // תמונה למרכז מסך התמונה – רק תמונה ששייכת להגדרות של בית הכנסת הזה
-    const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
+    const f = findRow_(viewId_(id)); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
     const fid = String(p.id || '');
     if (!fid || !picImages_(st).includes(fid)) return out('');
     try {
@@ -433,7 +433,7 @@ function doGet(e) {
     } catch (e) { return out(''); }
   }
   if (what === 'logo') {   // הלוגו כ-data URL דרך השרת – כך הוא עובר גם במחשבים עם סינון שחוסם את googleusercontent
-    const f = findRow_(id); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
+    const f = findRow_(viewId_(id)); const st = f ? parseJson_(f.row[C.settings]) || {} : {};
     if (!st.logoId) return out('');
     const hitL = cache.get('logo_' + st.logoId); if (hitL !== null) return out(hitL);
     try {
@@ -452,18 +452,19 @@ function doGet(e) {
   const hit = cache.get(ck);
   if (hit !== null) return out(hit);
 
-  const f = findRow_(id);
-  if (!f) return out('ERR:NOT_FOUND');
+  const f0 = findRow_(id);
+  if (!f0) return out('ERR:NOT_FOUND');
+  const vid = viewId_(id), f = vid === id ? f0 : findRow_(vid);   // תוכן: של בית הכנסת שבעמודה "מציג את בית הכנסת", אם יש
   const row = f.row;
   const ver = String(row[C.ver] || 1).replace(/\D/g, '') || '1';
   if (what === 'version') { cache.put('versionshul_' + id, ver, 60); return out(ver); }
   if (what === 'zoom') {   // לוח השיעורים בזום – נקרא ע"י zoom-helper.ps1 במחשב של בית הכנסת
     // שיעורים בזום / באתר – רק במסך הראשי (מחשב של מסך 2 לא מצטרף)
-    const z = String(row[C.active]).trim() === 'לא' || scr === 2 ? '' : zoomLines_(parseJson_(row[C.settings]) || {}, String(row[C.name] || id));
+    const z = String(f0.row[C.active]).trim() === 'לא' || scr === 2 ? '' : zoomLines_(parseJson_(f0.row[C.settings]) || {}, String(f0.row[C.name] || id));   // השיעורים – תמיד של בית הכנסת עצמו
     cache.put(ck, z, 60); return out(z);
   }
 
-  const active = String(row[C.active]).trim();
+  const active = String(f0.row[C.active]).trim();
   let text;
   if (active === 'לא' || active.toLowerCase() === 'false') {
     text = 'ERR:INACTIVE';
@@ -518,6 +519,13 @@ function checkDevice_(id, dev, code, cache, kind) {
     if (ok) { cache.put(ck, '1', 600); return null; }
     return 'ERR:DEVICE:' + (code || '----');
   } finally { lock.releaseLock(); }
+}
+// "מציג את בית הכנסת": המסכים של בית הכנסת הזה מציגים את התוכן (הגדרות, הודעות, תמונות) של בית כנסת אחר. רק קפיצה אחת.
+// אישור המסכים, השיעורים בזום והאפליקציות – נשארים של בית הכנסת עצמו
+function viewId_(id) {
+  const f = findRow_(id); if (!f) return id;
+  const m = String(f.row[C.mirror] || '').trim().toLowerCase();
+  return m && m !== id && findRow_(m) ? m : id;
 }
 function isOpen_(row) { const v = row[C.open]; return v === true || /^(כן|v|✓|✔|true|1|x)$/i.test(String(v || '').trim()); }
 // ---------- API לאפליקציית ההגדרות ----------
