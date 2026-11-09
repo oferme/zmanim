@@ -14,10 +14,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPW
 const SHEET = 'בתי כנסת';
 // כל שורה = "היכל" אחד: הגדרות, הודעות וקישור משלו. כמה היכלות של אותו בית כנסת – אותו שם בעמודה "ארגון".
 // עמודות: מזהה | שם | קישור למסמך | פעיל | גרסה | מייל גבאי | קישור למסך | הערות | מפתח | הגדרות | קישור להגדרות | ארגון | מספר מסכים
-const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה', 'קישור למסך לוח נשמה', 'קישור לאפליקציית לוח נשמה', 'תיקיית בית הכנסת'];
+const HEAD = ['מזהה', 'שם (היכל)', 'קישור למסמך', 'פעיל', 'גרסה', 'מייל גבאי', 'קישור למסך', 'הערות', 'מפתח', 'הגדרות', 'קישור להגדרות', 'ארגון', 'מספר מסכים', 'נוסח', 'קישור למסך 2', 'לוח נשמה', 'קובץ לוח נשמה', 'קישור למסך לוח נשמה', 'קישור לאפליקציית לוח נשמה', 'תיקיית בית הכנסת', 'ללא אישור מסכים'];
 // מיקום כל עמודה נקבע לפי הכותרת שלה בשורה 1 (כך שאפשר להזיז / להוסיף עמודות בגיליון בלי לשבור את המערכת)
-const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile', 'neshDisplay', 'neshApp', 'folder'];
-let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16, neshDisplay: 17, neshApp: 18, folder: 19 };
+const COL_KEYS = ['id', 'name', 'doc', 'active', 'ver', 'email', 'display', 'notes', 'key', 'settings', 'settingsLink', 'org', 'screens', 'nusach', 'display2', 'nesh', 'neshFile', 'neshDisplay', 'neshApp', 'folder', 'open'];
+let C = { id: 0, name: 1, doc: 2, active: 3, ver: 4, email: 5, display: 6, notes: 7, key: 8, settings: 9, settingsLink: 10, org: 11, screens: 12, nusach: 13, display2: 14, nesh: 15, neshFile: 16, neshDisplay: 17, neshApp: 18, folder: 19, open: 20 };
 function mapCols_(sh) {
   const last = Math.max(sh.getLastColumn(), 1);
   const h = sh.getRange(1, 1, 1, last).getValues()[0].map(x => String(x).replace(/\s+/g, ' ').trim());
@@ -25,7 +25,8 @@ function mapCols_(sh) {
   COL_KEYS.forEach((k, i) => {
     let j = h.indexOf(HEAD[i]);
     if (j < 0 && k === 'name') j = h.findIndex(x => /^שם/.test(x));
-    if (j < 0) { j = next++; sh.getRange(1, j + 1).setValue(HEAD[i]).setFontWeight('bold'); h[j] = HEAD[i]; }   // עמודה חסרה – נוספת בסוף
+    if (j < 0) { j = next++; sh.getRange(1, j + 1).setValue(HEAD[i]).setFontWeight('bold'); h[j] = HEAD[i];   // עמודה חסרה – נוספת בסוף
+      if (k === 'open') { try { sh.getRange(2, j + 1, Math.max(sh.getMaxRows() - 1, 1), 1).insertCheckboxes(); } catch (e) {} } }
     m[k] = j;
   });
   C = m;
@@ -256,7 +257,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 27;
+const SERVER_BUILD = 28;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -492,6 +493,9 @@ function checkDevice_(id, dev, code, cache, kind) {
   const nesh = kind === 'n', label = nesh ? id + ' לוח נשמה' : id;
   const ck = (nesh ? 'devn_' : 'dev_') + id + '_' + dev;
   if (cache.get(ck) === '1') return null;
+  // "ללא אישור מסכים" מסומן – כל מסך נפתח בלי רישום ובלי אישור (להדגמה / לבדיקה של חברות סינון). מבטלים את הסימון – והכול חוזר לקדמותו
+  { const f0 = findRow_(id); if (!f0) return 'ERR:NOT_FOUND';
+    if (isOpen_(f0.row)) { cache.put(ck, '1', 300); return null; } }
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
     const f = findRow_(id);
@@ -515,6 +519,7 @@ function checkDevice_(id, dev, code, cache, kind) {
     return 'ERR:DEVICE:' + (code || '----');
   } finally { lock.releaseLock(); }
 }
+function isOpen_(row) { const v = row[C.open]; return v === true || /^(כן|v|✓|✔|true|1|x)$/i.test(String(v || '').trim()); }
 // ---------- API לאפליקציית ההגדרות ----------
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 function apiLoad_(id, key) {

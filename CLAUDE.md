@@ -8,7 +8,7 @@
 - **אפליקציית הגבאי (טלפון)**: `settings.html` (טאבים: t-loc, t-layout, t-pic, t-pray, t-msg, t-les, t-ctrl).
 - **שרת**: Google Apps Script שמחובר לגיליון "ניהול בתי כנסת" (גיליון "מסכים" = טבלה). הקוד: `server/central-script.txt` (הגרסה הבנויה, עם DISPLAY_URL ו-API_URL אמיתיים). עורכים את הקובץ הזה ישירות.
   - עדכון השרת: לדחוף ל-GitHub, ואז עופר מפעיל בגיליון תפריט "עדכון הקוד מ-GitHub" או "קישור לעדכון מהטלפון" (`selfUpdate_` דרך Apps Script API, פרויקט GCP zmanim-513514).
-  - כשמשנים שרת: להעלות `SERVER_BUILD` (כרגע 27) ובמסך `NEED_SERVER` (כרגע 19) אם המסך תלוי בשינוי.
+  - כשמשנים שרת: להעלות `SERVER_BUILD` (כרגע 28) ובמסך `NEED_SERVER` (כרגע 19) אם המסך תלוי בשינוי.
   - נקודות קצה: `?shul=&screen=2` (הגדרות כשורות "! מפתח: ערך"), `what=zoom`, `what=img`, `what=hal`, `what=haltest`, `what=update&admin=KEY`.
 - **מחשב Windows (קיוסק)**: `pc/` – `install.bat/ps1` (מעתיק ל-%LOCALAPPDATA%\ZmanimDisplay, מזהה כמו `ohel-moshe`, `ohel-moshe 2` או `ohel-moshe neshama` = לוח נשמה), `zmanim-online.bat` (Chrome --kiosk), `zoom-helper.ps1` (מצטרף לזום/אתר בזמני השיעורים, OBS ללוגו, מחזיר את המסך אחרי). אחרי שינוי – לבנות מחדש את `pc/zmanim-pc.zip`. אין עדכון אוטומטי לקבצי ה-PC: עופר מתקין מחדש. מדריך: luachscreen.com/pc
 - **Android TV**: Xiaomi TV Box S 3 + Fully Kiosk. מדריך: luachscreen.com/tv (`tv/index.html`).
@@ -49,6 +49,7 @@
 - luachscreen.com – GoDaddy (נקנה 11/2026 ל-3 שנים). DNS: 4 רשומות A ל-185.199.108-111.153, CNAME www → oferme.github.io, TXT לאימות GitHub.
 - luachscreen.co.il – דומיין דה נט, להפניה (Forwarding) ל-luachscreen.com.
 - מעבר כתובת = מכשיר חדש למסך (device_id ב-localStorage לפי כתובת) – לאשר מחדש בלשונית "מסכים".
+- עמודה 'ללא אישור מסכים' (תיבת סימון, `isOpen_`): מסומן = כל מסך נפתח בלי רישום ובלי אישור (הדגמות, בדיקת חברות סינון). מבטלים – חוזר לאישור רגיל.
 
 ## דברים שכבר הוחלטו
 - יוטיוב מוצג בתוך המסך (עם fallback לגרידת הערוץ), בלי כתוביות אוטומטיות (`cc_load_policy=0&hl=iw`).
