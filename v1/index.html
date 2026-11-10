@@ -1391,13 +1391,19 @@ function swapAnim(el, apply, mode){
   const old = el.cloneNode(true);
   const inO = el.querySelector('.in'), inC = old.querySelector('.in');   // תוכן שגולל – הישן נשאר באותו מקום ולא קופץ
   if(inO && inC){ try{ inC.style.transform = getComputedStyle(inO).transform; }catch(e){} }
-  // מיקום מדויק (גם חלקי פיקסל, וגם כשהבמה מוקטנת ב-scale) – שהעותק יושב בדיוק על המקור
-  // (לשורה יש zoom להתאמת רוחב – העותק מקבל את אותו zoom, ולכן המידות מחולקות בו)
-  const op = el.offsetParent || document.body, er = el.getBoundingClientRect(), pr = op.getBoundingClientRect(), k = pr.width ? op.offsetWidth / pr.width : 1;
-  const z = parseFloat(getComputedStyle(el).zoom) || 1, q = k / z;
-  Object.assign(old.style, {position: 'absolute', left: ((er.left - pr.left) * q - op.clientLeft) + 'px', top: ((er.top - pr.top) * q - op.clientTop) + 'px', width: er.width * q + 'px', height: er.height * q + 'px',
+  // מיקום: מתחילים מ-offsetLeft/Top ואז מתקנים לפי המדידה בפועל – כך העותק יושב בדיוק על המקור, בלי קשר ל-zoom / scale / גרסת הדפדפן
+  const er = el.getBoundingClientRect();
+  Object.assign(old.style, {position: 'absolute', left: el.offsetLeft + 'px', top: el.offsetTop + 'px', width: el.offsetWidth + 'px', height: el.offsetHeight + 'px',
     right: 'auto', bottom: 'auto', margin: '0', pointerEvents: 'none', zIndex: 5, backfaceVisibility: 'hidden'});
   el.parentNode.insertBefore(old, el.nextSibling);
+  for(let n = 0; n < 3; n++){
+    const cr = old.getBoundingClientRect(), w = parseFloat(old.style.width), h = parseFloat(old.style.height);
+    const fx = cr.width && w ? cr.width / w : 1, fy = cr.height && h ? cr.height / h : 1;   // פיקסלים במסך לכל פיקסל בסגנון
+    const dx = er.left - cr.left, dy = er.top - cr.top, dw = er.width - cr.width, dh = er.height - cr.height;
+    if(Math.abs(dx) < .3 && Math.abs(dy) < .3 && Math.abs(dw) < .3 && Math.abs(dh) < .3) break;
+    old.style.left = parseFloat(old.style.left) + dx / fx + 'px'; old.style.top = parseFloat(old.style.top) + dy / fy + 'px';
+    old.style.width = w + dw / fx + 'px'; old.style.height = h + dh / fy + 'px';
+  }
   apply();
   const done = () => old.remove();
   if(mode === 'wheel'){
