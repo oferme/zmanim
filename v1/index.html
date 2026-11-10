@@ -1391,18 +1391,22 @@ function swapAnim(el, apply, mode){
   const old = el.cloneNode(true);
   const inO = el.querySelector('.in'), inC = old.querySelector('.in');   // תוכן שגולל – הישן נשאר באותו מקום ולא קופץ
   if(inO && inC){ try{ inC.style.transform = getComputedStyle(inO).transform; }catch(e){} }
-  Object.assign(old.style, {position: 'absolute', left: el.offsetLeft + 'px', top: el.offsetTop + 'px', width: el.offsetWidth + 'px', height: el.offsetHeight + 'px',
+  // מיקום מדויק (גם חלקי פיקסל, וגם כשהבמה מוקטנת ב-scale) – שהעותק יושב בדיוק על המקור
+  // (לשורה יש zoom להתאמת רוחב – העותק מקבל את אותו zoom, ולכן המידות מחולקות בו)
+  const op = el.offsetParent || document.body, er = el.getBoundingClientRect(), pr = op.getBoundingClientRect(), k = pr.width ? op.offsetWidth / pr.width : 1;
+  const z = parseFloat(getComputedStyle(el).zoom) || 1, q = k / z;
+  Object.assign(old.style, {position: 'absolute', left: ((er.left - pr.left) * q - op.clientLeft) + 'px', top: ((er.top - pr.top) * q - op.clientTop) + 'px', width: er.width * q + 'px', height: er.height * q + 'px',
     right: 'auto', bottom: 'auto', margin: '0', pointerEvents: 'none', zIndex: 5, backfaceVisibility: 'hidden'});
   el.parentNode.insertBefore(old, el.nextSibling);
   apply();
   const done = () => old.remove();
   if(mode === 'wheel'){
-    const o = `50% 50% -${Math.round(el.offsetHeight / 2)}px`, P = 'perspective(1400px) ';
+    // תוף: הציר מאחורי הפנים (translateZ), כך שבזווית 0 אין שום שינוי גודל או מקום – בלי "קפיצה" בתחילת המעבר ובסופו
+    const r = Math.round(el.offsetHeight / 2), T = a => `perspective(1400px) translateZ(${-r}px) rotateX(${a}deg) translateZ(${r}px)`;
     const opt = {duration: 2000, easing: 'cubic-bezier(.45,.05,.25,1)'};
-    old.style.transformOrigin = o;
-    old.animate([{transform: P + 'rotateX(0deg)', opacity: 1}, {transform: P + 'rotateX(90deg)', opacity: 0}], Object.assign({fill: 'forwards'}, opt)).onfinish = done;
+    old.animate([{transform: T(0), opacity: 1}, {transform: T(90), opacity: 0}], Object.assign({fill: 'forwards'}, opt)).onfinish = done;
     el.style.backfaceVisibility = 'hidden';
-    el.animate([{transform: P + 'rotateX(-90deg)', opacity: 0, transformOrigin: o}, {transform: P + 'rotateX(0deg)', opacity: 1, transformOrigin: o}], opt);
+    el.animate([{transform: T(-90), opacity: 0}, {transform: T(0), opacity: 1}], opt);
   } else {
     const opt = {duration: 2000, easing: 'ease-in-out'};
     old.animate([{opacity: 1}, {opacity: 0}], Object.assign({fill: 'forwards'}, opt)).onfinish = done;
