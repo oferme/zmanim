@@ -383,20 +383,21 @@ const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6
 const SHUL_RAW = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
 const DEMO_N = +(new URLSearchParams(location.search).get('demo') || 0);
 const DEMO = !SHUL_RAW || DEMO_N >= 1;
-// הדגמה בתאריך אחר (השעה – השעה של עכשיו): demo=2 → כ"ה בחשוון, demo=3 → כ"ז בחשוון (שבת, תשפ"ז), demo=4 → ל' בחשוון (ראש חודש). בשנה העברית הנוכחית
+// הדגמה בתאריך אחר, תמיד בשנת תשפ"ז (השעה – השעה של עכשיו): demo=2 → כ"ה בחשוון, demo=3 → כ"ז בחשוון (שבת), demo=4 → ל' בחשוון (ראש חודש), demo=5 → י"ג בכסלו
 let DEMO_SHIFT = null;
 function demoShift(){
   if(DEMO_SHIFT !== null) return DEMO_SHIFT;
   DEMO_SHIFT = 0;
-  const want = {2: 25, 3: 27, 4: 30}[DEMO_N]; if(!want) return 0;
+  const W = {2: ['heshvan', 25], 3: ['heshvan', 27], 4: ['heshvan', 30], 5: ['kislev', 13]}[DEMO_N]; if(!W) return 0;
   try{
     const hf = new Intl.DateTimeFormat('en-u-ca-hebrew', {timeZone: TZ, year: 'numeric', month: 'long', day: 'numeric'});
     const parts = d => Object.fromEntries(hf.formatToParts(d).map(x => [x.type, x.value]));
-    const now = new Date(), hy = parseInt(parts(now).year, 10), g = hy - 3761;
+    const now = new Date(), g = 5787 - 3761;   // תשפ"ז = 2026
+    const isM = m => W[0] === 'kislev' ? /Kislev/i.test(m) : /^H?e?shvan|Cheshvan|Marcheshvan/i.test(m);
     let hit = null, k1 = null;
-    for(let t = Date.UTC(g, 8, 20, 12); t <= Date.UTC(g, 11, 31, 12); t += 864e5){
+    for(let t = Date.UTC(g, 8, 20, 12); t <= Date.UTC(g + 1, 0, 15, 12); t += 864e5){
       const p = parts(new Date(t));
-      if(/^H?e?shvan|Cheshvan|Marcheshvan/i.test(p.month) && +p.day === want){ hit = t; break; }
+      if(isM(p.month) && +p.day === W[1]){ hit = t; break; }
       if(/Kislev/i.test(p.month) && +p.day === 1 && k1 === null) k1 = t;
     }
     if(hit === null) hit = k1;   // אין ל' בחשוון בשנה הזו – א' בכסלו
