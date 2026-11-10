@@ -48,6 +48,10 @@ header{position:relative;display:flex;justify-content:space-between;align-items:
 .grid .card .t{font-size:calc(var(--u)*3.6);line-height:1;min-height:calc(var(--u)*3.6)}
 .grid.many .card .t{font-size:calc(var(--u)*3.3)}
 .grid .card .t.lt{display:flex;align-items:center;justify-content:center}
+/* גובה קבוע לשורה התחתונה כשיש בה קוביות – זמני היום, היום בתפילה, תפילות, הנץ: תמיד אותו גובה (גם עם 5 קוביות וגם עם 2) */
+.grid:has(> .card){height:calc(var(--u)*8.8);align-items:stretch}
+.grid:has(> .card) > .card{display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding-top:calc(var(--u)*.6);padding-bottom:calc(var(--u)*.6)}
+.grid .card .t.lt{font-size:calc(var(--u)*2.2);line-height:1.15;min-height:0}
 .card.hl{background:linear-gradient(180deg,rgba(226,184,87,.22),rgba(226,184,87,.07));border-color:var(--gold)}
 .card.hl .lbl{color:var(--gold2)}
 .card.hl .t{color:var(--gold2)}
