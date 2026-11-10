@@ -14,7 +14,7 @@ const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6
 // בלי מזהה (luachscreen.com) – מסך ההדגמה: בית הכנסת demo (או מה שנקבע לו בעמודה "מציג את בית הכנסת")
 const raw = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
 const dq = (new URLSearchParams(location.search).get('demo') || '').replace(/\D/g, '');   // demo=2/3/4 – הדגמה בתאריך אחר
-const shul = raw || 'demo', demo = dq ? '&demo=' + dq : raw ? '' : '&demo=1';
+const shul = raw || 'demo', demo = dq ? '&demo=' + dq : raw ? '' : '&demo=4';   // ברירת המחדל של luachscreen.com: הדגמה של ל' בחשוון (ראש חודש)
 const scr = (new URLSearchParams(location.search).get('screen') || '') === '2' ? '&screen=2' : '';   // מסך 2 של אותו היכל
 const go = v => location.replace('v' + (v || 1) + '/?shul=' + encodeURIComponent(shul) + scr + demo);
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});

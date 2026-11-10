@@ -381,7 +381,7 @@ const API = 'https://script.google.com/macros/s/AKfycbzk_q8nwWNNXzr2UYee4WPWa0k6
 // מזהה בית הכנסת מגיע מהכתובת: ...?shul=beit-el
 // בלי מזהה (למשל luachscreen.com) – מוצג בית הכנסת demo, עם הודעה קטנה שזה מסך הדגמה וטלפונים ליצירת קשר
 const SHUL_RAW = (new URLSearchParams(location.search).get('shul') || '').trim().toLowerCase();
-const DEMO_N = +(new URLSearchParams(location.search).get('demo') || 0);
+const DEMO_N = +(new URLSearchParams(location.search).get('demo') || 0) || (SHUL_RAW ? 0 : 4);   // בלי מזהה ובלי demo – כמו demo=4
 const DEMO = !SHUL_RAW || DEMO_N >= 1;
 // הדגמה בתאריך אחר, תמיד בשנת תשפ"ז (השעה – השעה של עכשיו): demo=2 → כ"ה בחשוון, demo=3 → כ"ז בחשוון (שבת), demo=4 → ל' בחשוון (ראש חודש), demo=5 → י"ג בכסלו
 let DEMO_SHIFT = null;
