@@ -8,7 +8,7 @@
 - **אפליקציית הגבאי (טלפון)**: `settings.html` (טאבים: t-loc, t-layout, t-pic, t-pray, t-msg, t-les, t-ctrl).
 - **שרת**: Google Apps Script שמחובר לגיליון "ניהול בתי כנסת" (גיליון "מסכים" = טבלה). הקוד: `server/central-script.txt` (הגרסה הבנויה, עם DISPLAY_URL ו-API_URL אמיתיים). עורכים את הקובץ הזה ישירות.
   - עדכון השרת: לדחוף ל-GitHub, ואז עופר מפעיל בגיליון תפריט "עדכון הקוד מ-GitHub" או "קישור לעדכון מהטלפון" (`selfUpdate_` דרך Apps Script API, פרויקט GCP zmanim-513514).
-  - כשמשנים שרת: להעלות `SERVER_BUILD` (כרגע 29) ובמסך `NEED_SERVER` (כרגע 19) אם המסך תלוי בשינוי.
+  - כשמשנים שרת: להעלות `SERVER_BUILD` (כרגע 30) ובמסך `NEED_SERVER` (כרגע 19) אם המסך תלוי בשינוי.
   - נקודות קצה: `?shul=&screen=2` (הגדרות כשורות "! מפתח: ערך"), `what=zoom`, `what=img`, `what=hal`, `what=haltest`, `what=update&admin=KEY`.
 - **מחשב Windows (קיוסק)**: `pc/` – `install.bat/ps1` (מעתיק ל-%LOCALAPPDATA%\ZmanimDisplay, מזהה כמו `ohel-moshe`, `ohel-moshe 2` או `ohel-moshe neshama` = לוח נשמה), `zmanim-online.bat` (Chrome --kiosk), `zoom-helper.ps1` (מצטרף לזום/אתר בזמני השיעורים, OBS ללוגו, מחזיר את המסך אחרי). אחרי שינוי – לבנות מחדש את `pc/zmanim-pc.zip`. אין עדכון אוטומטי לקבצי ה-PC: עופר מתקין מחדש. מדריך: luachscreen.com/pc
 - **Android TV**: Xiaomi TV Box S 3 + Fully Kiosk. מדריך: luachscreen.com/tv (`tv/index.html`).
@@ -53,6 +53,10 @@
 - עמודה 'מציג את בית הכנסת' (`viewId_`, קפיצה אחת): המסכים של השורה מציגים את התוכן (הגדרות, מסמך, תמונות, לוגו, הלכות) של בית כנסת אחר. אישור מסכים, זום ואפליקציות – של השורה עצמה.
 - `&demo=2|3|4|5` = הדגמה בתאריך כ"ה / כ"ז (שבת) / ל׳ בחשוון / י"ג בכסלו תשפ"ז (קבוע), בשעה הנוכחית (`demoShift`/`NOW`).
 - luachscreen.com בלי מזהה → `shul=demo&demo=4` (ברירת מחדל): מציג את demo (או מה שבעמודה שלו) + פס עליון "לא הוגדר בית כנסת – מסך הדגמה" עם הטלפונים 052-8703357, 052-5218805 (`#demoNote`).
+
+## נץ החמה
+- הגדרה `netzSrc`: sea (Hebcal במישור, ברירת מחדל) / elev (Hebcal עם ue=on + גובה) / tab (טבלה שבית הכנסת הזין מהלוח שקנה – `netzTab` = {"YYYY-MM-DD":"HH:MM:SS"}, שרת `cleanNetzTab_`, שורה `! טבלת נץ ידנית: {JSON}`). במסך `netzToday()`.
+- טבלת לוח חי המובנית (`NETZ`, `netzChai`) – סיכון זכויות יוצרים; להוריד כשלוח חי לא מאשר (ראו מסמך "בדיקה משפטית – LuachScreen").
 
 ## דברים שכבר הוחלטו
 - יוטיוב מוצג בתוך המסך (עם fallback לגרידת הערוץ), בלי כתוביות אוטומטיות (`cc_load_policy=0&hl=iw`).

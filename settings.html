@@ -208,6 +208,14 @@ textarea.field{min-height:90px;resize:vertical;font:inherit;line-height:1.5}
       <div class="seg" id="candle" data-vals="18,20,22,24,30,40"></div>
       <label class="cap">צאת שבת</label>
       <div class="seg" id="havdalah" data-vals=",30,40,45,50,72" data-labels="צאת הכוכבים,30 ד׳,40 ד׳,45 ד׳,50 ד׳,72 ד׳"></div>
+      <label class="cap" style="margin-top:10px">נץ החמה</label>
+      <div class="seg" id="netzSrc" data-vals="sea,elev,tab" data-labels="במישור,לפי גובה המקום,טבלה שלנו"></div>
+      <div id="netzTabBox" hidden style="margin-top:8px">
+        <p class="hint" style="margin-bottom:8px">מדביקים זמני נץ מהלוח שבית הכנסת רכש (למשל לוח נץ הנראה): בכל שורה תאריך ושעה, למשל <b dir="ltr">11/11/2026 06:05:12</b>. אפשר להעתיק שתי עמודות מאקסל. ביום שאין לו שעה בטבלה – הנץ מחושב במישור.</p>
+        <textarea class="field" id="netzTa" dir="ltr" style="min-height:120px" placeholder="11/11/2026	06:05:12&#10;12/11/2026	06:06:03"></textarea>
+        <div class="two" style="margin-top:8px"><button class="big ghost" type="button" id="netzRead" style="font-size:15px">קריאת הטבלה</button><button class="big danger" type="button" id="netzClr" style="font-size:15px">מחיקת הטבלה</button></div>
+        <p class="hint" id="netzSum" style="margin-top:8px"></p>
+      </div>
       <div class="row" id="chaiRow" style="margin-top:8px"><div class="lbl"><b>נץ החמה לפי לוחות חי</b><small>טבלת רמת שלמה, ירושלים, עם שניות</small></div><label class="sw"><input type="checkbox" id="netzChai"><span></span></label></div>
       <div class="row" style="margin-top:8px"><div class="lbl"><b>שקיעה לפי גובה המקום</b><small>כבוי = שקיעה במישור</small></div><label class="sw"><input type="checkbox" id="useElev"><span></span></label></div>
       <div id="elevBox" hidden><label class="cap" for="elev">גובה במטרים (לא חובה)</label><input class="field" id="elev" type="number" inputmode="numeric" placeholder="800" dir="ltr"></div>
@@ -950,6 +958,27 @@ function bind(){
   segment($('havdalah'), S.havdalah || '', v => { S.havdalah = v ? +v : ''; changed(); });
   $('useElev').checked = !!S.useElev; $('elev').value = S.elev || '';
   $('netzChai').checked = !!S.netzChai;
+  // נץ החמה: במישור / לפי גובה / טבלה שבית הכנסת הזין
+  const netzSum = () => { const k = Object.keys(S.netzTab || {}).sort();
+    $('netzSum').textContent = k.length ? `בטבלה ${k.length} ימים: ${k[0].split('-').reverse().join('/')} – ${k[k.length - 1].split('-').reverse().join('/')}` : 'הטבלה ריקה'; };
+  const netzBox = () => { $('netzTabBox').hidden = S.netzSrc !== 'tab'; netzSum(); };
+  segment($('netzSrc'), S.netzSrc || 'sea', v => { S.netzSrc = v; netzBox(); changed(); }); netzBox();
+  $('netzRead').addEventListener('click', () => {
+    const out = {}; let bad = 0, y0 = new Date().getFullYear();
+    $('netzTa').value.split(/\r?\n/).forEach(l => { if(!l.trim()) return;
+      const tm = l.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?(?!.*\d{1,2}:\d{2})/);
+      let d = l.match(/(\d{4})-(\d{1,2})-(\d{1,2})/), Y, M, D;
+      if(d){ Y = +d[1]; M = +d[2]; D = +d[3]; }
+      else if((d = l.match(/(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?/))){ D = +d[1]; M = +d[2]; Y = d[3] ? (+d[3] < 100 ? 2000 + +d[3] : +d[3]) : y0; }
+      if(!tm || !Y || M < 1 || M > 12 || D < 1 || D > 31){ bad++; return; }
+      const p = n => String(n).padStart(2, '0');
+      out[`${Y}-${p(M)}-${p(D)}`] = `${p(tm[1])}:${tm[2]}` + (tm[3] ? ':' + tm[3] : '');
+    });
+    if(!Object.keys(out).length){ alert('לא נמצאו שורות עם תאריך ושעה.'); return; }
+    S.netzTab = Object.assign({}, S.netzTab || {}, out); $('netzTa').value = ''; netzSum(); changed();
+    if(bad) alert(`נקראו ${Object.keys(out).length} ימים. ${bad} שורות לא הובנו ודולגו.`);
+  });
+  $('netzClr').addEventListener('click', () => { if(confirm('למחוק את טבלת הנץ?')){ S.netzTab = {}; netzSum(); changed(); } });
   $('netzChai').addEventListener('change', e => { S.netzChai = e.target.checked; changed(); });
   $('useElev').addEventListener('change', e => { S.useElev = e.target.checked; syncCity(); changed(); });
   $('elev').addEventListener('input', e => { S.elev = e.target.value ? +e.target.value : ''; changed(); });

@@ -257,7 +257,7 @@ const newKey_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 14);
 // קישור לאפליקציית ההגדרות (באתר המסך). הטופס הישן ממשיך לעבוד גם כן: API_URL + '?page=settings&shul=...&key=...'
 const settingsLink_ = (id, key) => DISPLAY_URL + 'settings.html?shul=' + id + '&key=' + key;
 // מספר הגרסה של הקוד הזה. המסך בודק אותו ומתריע אם השרת לא עודכן (לא נפרסה "גרסה חדשה")
-const SERVER_BUILD = 29;
+const SERVER_BUILD = 30;
 function defaults_(name) {
   return { name: name || '', city: 'ירושלים', lat: '', lon: '', tz: 'Asia/Jerusalem', israel: true, candle: 40, havdalah: '',
     useElev: true, elev: '', slotR: ['learn', 'tefila'], rotR: 20, learn: ['daf'], slotL: ['msgs'], slotB: ['zmanim', 'prayers'], rotB: 30,
@@ -527,6 +527,13 @@ function viewId_(id) {
   const m = String(f.row[C.mirror] || '').trim().toLowerCase();
   return m && m !== id && findRow_(m) ? m : id;
 }
+// טבלת נץ שבית הכנסת הזין: רק תאריכים ושעות תקינים, עד 800 ימים
+function cleanNetzTab_(t) {
+  const out = {}; if (!t || typeof t !== 'object') return out;
+  Object.keys(t).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().slice(-800).forEach(d => {
+    const v = String(t[d] || '').trim(); if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(v)) out[d] = v.length < 6 && v.indexOf(':') === 1 ? '0' + v : v; });
+  return out;
+}
 function isOpen_(row) { const v = row[C.open]; return v === true || /^(כן|v|✓|✔|true|1|x)$/i.test(String(v || '').trim()); }
 // ---------- API לאפליקציית ההגדרות ----------
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -793,6 +800,8 @@ function settingsLines_(s, scr) {
   L.push('! שקיעה לפי גובה: ' + (s.useElev ? 'כן' : 'לא'));
   if (s.useElev && s.elev) L.push('! גובה: ' + s.elev);
   if (s.netzChai) L.push('! טבלת נץ: חי רמת שלמה');
+  if (s.netzSrc === 'elev') L.push('! נץ לפי: גובה המקום');
+  if (s.netzSrc === 'tab') { L.push('! נץ לפי: טבלה'); const nt = cleanNetzTab_(s.netzTab); if (Object.keys(nt).length) L.push('! טבלת נץ ידנית: ' + JSON.stringify(nt)); }
   L.push('! משבצת ימין: ' + slot(s.slotR));
   L.push('! משבצת שמאל: ' + slot(s.slotL));
   L.push('! משבצת תחתונה: ' + slot(s.slotB));
@@ -1141,7 +1150,7 @@ function saveSettings(id, key, s) {
     closeAt: (parseJson_(f.row[C.settings]) || {}).closeAt || '',
     logoId: (parseJson_(f.row[C.settings]) || {}).logoId || '', logoUrl: (parseJson_(f.row[C.settings]) || {}).logoUrl || '',
     header: ['none', 'name', 'logo', 'both'].includes(s.header) ? s.header : 'none', gdate: s.gdate === 'short' ? 'short' : 'long',
-    netzChai: !!s.netzChai, screenOff: !!s.screenOff, nightOff: !!s.nightOff,
+    netzChai: !!s.netzChai, netzSrc: ['elev', 'tab'].includes(s.netzSrc) ? s.netzSrc : 'sea', netzTab: cleanNetzTab_(s.netzTab), screenOff: !!s.screenOff, nightOff: !!s.nightOff,
     nightFrom: /^\d{1,2}:\d{2}$/.test(s.nightFrom) ? s.nightFrom : '', nightTo: /^\d{1,2}:\d{2}$/.test(s.nightTo) ? s.nightTo : '',
     offDates: (s.offDates || []).slice(0, 30).filter(o => +o.d >= 1 && +o.d <= 30 && HEB_MONTHS.includes(o.m))
       .map(o => ({ d: +o.d, m: o.m, from: TIME_RE.test(o.from) ? o.from : '', to: TIME_RE.test(o.to) ? o.to : '' })),

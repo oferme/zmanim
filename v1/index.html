@@ -479,6 +479,8 @@ function parseSettings(text){
     else if(/הדלקת נרות/.test(k)) c.candleMin = (v.match(/\d+/)||[])[0];
     else if(/צאת שבת/.test(k)) c.havdalahMin = (v.match(/\d+/)||[])[0];
     else if(/^ישראל/.test(k)) c.israel = !/^(לא|no|0)/i.test(v);
+    else if(/^טבלת נץ ידנית/.test(k)){ try{ c.netzTab = JSON.parse(v); }catch(e){} }   // זמני נץ שבית הכנסת הזין מהלוח שלו: {"2026-11-11":"06:05:12"}
+    else if(/^נץ לפי$/.test(k)) c.netzSrc = /גובה/.test(v) ? 'elev' : /טבלה/.test(v) ? 'tab' : 'sea';
     else if(/טבלת נץ/.test(k)) c.netzTable = v;
     else if(/גרסת מערכת/.test(k)) c.sysVer = (v.match(/\d+/)||[])[0];
     else if(/גרסת שרת/.test(k)) c.server = +((v.match(/\d+/)||[0])[0]);
@@ -532,6 +534,14 @@ const NETZ = { // לוחות חי – נץ החמה, רמת שלמה ירושל�
   "Elul": "6:15:50 6:16:25 6:17:05 6:17:40 6:18:15 6:18:50 6:19:30 6:20:05 6:20:40 6:21:15 6:21:50 6:22:30 6:23:05 6:23:40 6:24:15 6:24:55 6:25:30 6:26:05 6:26:40 6:27:20 6:27:55 6:28:30 6:29:10 6:29:45 6:30:25 6:31:00 6:31:40 6:32:20 6:32:50"
  }
 };
+// נץ החמה: טבלה שבית הכנסת הזין (מהלוח שקנה) → טבלת חי (ישן) → Hebcal לפי גובה → Hebcal במישור
+function netzToday(){
+  const sr = z => z && z.times && z.times.sunrise ? z.times.sunrise.slice(11, 19) : null;
+  if(CFG.netzSrc === 'tab' && CFG.netzTab && data && CFG.netzTab[data.today]) return CFG.netzTab[data.today];
+  const t = netzFromTable(data.h1); if(t) return t;
+  if(CFG.netzSrc === 'elev') return sr(data.zne) || sr(data.zs) || (data.z.times || {}).sunrise;
+  return sr(data.zs) || (data.z.times || {}).sunrise;
+}
 function netzFromTable(h){ if(!CFG.netzTable) return null; try{ const m=NETZ[h.hy][h.hm].split(' '); return m[h.hd-1]||null; }catch(e){ return null; } }
 const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const DOW_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -644,7 +654,8 @@ async function load(){
   try{
     const sat = addDays(today, (6 - DOW_EN.indexOf(nowParts().dow) + 7) % 7);
     const fri = addDays(sat, -1);
-    const [z,h1,h2,cal,hs,zj,zs,zsat,zfri] = await Promise.all([
+    const ue = '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '');
+    const [z,h1,h2,cal,hs,zj,zs,zsat,zfri,zne] = await Promise.all([
       j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}`),
       j(`${base}/converter?cfg=json&date=${today}&g2h=1&strict=1`),
       j(`${base}/converter?cfg=json&date=${today}&g2h=1&strict=1&gs=on`),
@@ -653,9 +664,10 @@ async function load(){
       j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1${CFG.useElev ? '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '') : ''}`),   // שקיעה (לפי גובה אם הוגדר) – לשקיעה ולהדלקת נרות
       j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1`),   // נץ החמה במישור עם שניות
       CFG.theme === 'picture' ? j(`${base}/zmanim?cfg=json&${locQ()}&date=${sat}`).catch(() => null) : Promise.resolve(null),   // זמני השבת הקרובה – למסך תמונה
-      CFG.candleMin ? j(`${base}/zmanim?cfg=json&${locQ()}&date=${fri}&sec=1${CFG.useElev ? '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '') : ''}`).catch(() => null) : Promise.resolve(null)   // שקיעת יום שישי – הדלקת נרות של השבת הקרובה, באותו חישוב כמו ביום שישי עצמו
+      CFG.candleMin ? j(`${base}/zmanim?cfg=json&${locQ()}&date=${fri}&sec=1${CFG.useElev ? '&ue=on' + (CFG.elev ? '&elev=' + CFG.elev : '') : ''}`).catch(() => null) : Promise.resolve(null),   // שקיעת יום שישי – הדלקת נרות של השבת הקרובה, באותו חישוב כמו ביום שישי עצמו
+      CFG.netzSrc === 'elev' ? j(`${base}/zmanim?cfg=json&${locQ()}&date=${today}&sec=1${ue}`).catch(() => null) : Promise.resolve(null)   // נץ לפי גובה המקום
     ]);
-    data = {today,z,h1,h2,cal,hs,sat,zj,zs,zsat,zfri};
+    data = {today,z,h1,h2,cal,hs,sat,zj,zs,zsat,zfri,zne};
     loadLearn(today).then(() => renderSlots());
     try{ localStorage.setItem('zmanim_' + SHUL, JSON.stringify(data)); }catch(e){}
     $('status').textContent = '';
@@ -753,7 +765,7 @@ function render(){
   const isSat = n.dow === 'Sat';
 
   const cards = [
-    ['הנץ החמה', netzFromTable(data.h1) || ((data.zs && data.zs.times && data.zs.times.sunrise) ? data.zs.times.sunrise.slice(11,19) : Z.sunrise)],
+    ['הנץ החמה', netzToday()],
     ['סוף זמן ק״ש (גר״א)', Z.sofZmanShma],
     ['חצות היום', Z.chatzot],
     ['שקיעת החמה', sunsetJ],
@@ -1538,7 +1550,7 @@ async function loadMsgs(){
   if(CFG.sysVer && MY_VER && CFG.sysVer !== MY_VER){ location.replace('../?shul=' + encodeURIComponent(SHUL) + (SCREEN === 2 ? '&screen=2' : '')); return; }   // הוגדרה גרסה אחרת – עוברים אליה
   if(CFG.name) document.title = 'לוח זמנים – ' + CFG.name;
   // זמנים נטענים מחדש רק כשהמיקום / הגדרות הזמנים משתנים, והלימוד – רק כשבחירת הלימודים משתנה (פחות בקשות ל-Hebcal)
-  const cfgKey = JSON.stringify([CFG.geonameid, CFG.lat, CFG.lon, CFG.tz, CFG.israel, CFG.candleMin, CFG.havdalahMin, CFG.useElev, CFG.elev]);
+  const cfgKey = JSON.stringify([CFG.geonameid, CFG.lat, CFG.lon, CFG.tz, CFG.israel, CFG.candleMin, CFG.havdalahMin, CFG.useElev, CFG.elev, CFG.netzSrc]);
   const learnKey = (CFG.learn || []).join(',');
   if(!booted || cfgKey !== lastCfg){ lastCfg = cfgKey; lastLearn = learnKey; booted = true; load(); }
   else if(learnKey !== lastLearn && data){ lastLearn = learnKey; loadLearn(data.today).then(renderSlots); }
