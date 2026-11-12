@@ -535,12 +535,15 @@ const NETZ = { // לוחות חי – נץ החמה, רמת שלמה ירושל�
  }
 };
 // נץ החמה: טבלה שבית הכנסת הזין (מהלוח שקנה) → טבלת חי (ישן) → Hebcal לפי גובה → Hebcal במישור
+// הנץ תמיד עם שניות (HH:MM:SS): מהחישובים עם sec=1, ובטבלה בלי שניות – :00
 function netzToday(){
-  const sr = z => z && z.times && z.times.sunrise ? z.times.sunrise.slice(11, 19) : null;
-  if(CFG.netzSrc === 'tab' && CFG.netzTab && data && CFG.netzTab[data.today]) return CFG.netzTab[data.today];
-  const t = netzFromTable(data.h1); if(t) return t;
-  if(CFG.netzSrc === 'elev') return sr(data.zne) || sr(data.zs) || (data.z.times || {}).sunrise;
-  return sr(data.zs) || (data.z.times || {}).sunrise;
+  const sr = z => z && z.times && z.times.sunrise && z.times.sunrise.length >= 19 ? z.times.sunrise.slice(11, 19) : null;
+  const sec = v => /^\d{1,2}:\d{2}$/.test(v) ? v.padStart(5, '0') + ':00' : v;
+  if(CFG.netzSrc === 'tab' && CFG.netzTab && data && CFG.netzTab[data.today]) return sec(CFG.netzTab[data.today]);
+  const tb = netzFromTable(data.h1); if(tb) return sec(tb);
+  const z = (data.z.times || {}).sunrise;
+  if(CFG.netzSrc === 'elev') return sr(data.zne) || sr(data.zs) || sr(data.zj) || z;
+  return sr(data.zs) || (CFG.useElev ? null : sr(data.zj)) || z;
 }
 function netzFromTable(h){ if(!CFG.netzTable) return null; try{ const m=NETZ[h.hy][h.hm].split(' '); return m[h.hd-1]||null; }catch(e){ return null; } }
 const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
