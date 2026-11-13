@@ -28,4 +28,5 @@ if not exist "%CHROME%" (
 start "" "%CHROME%" --kiosk --user-data-dir="%LocalAppData%\ZmanimKiosk" --no-first-run --disable-session-crashed-bubble --hide-crash-restore-bubble --noerrdialogs --disable-translate --autoplay-policy=no-user-gesture-required "%PAGE%"
 
 rem Zoom helper: joins the Zoom shiurim at the times set in the settings app (runs hidden, only if the file is here)
-if exist "%HERE%zoom-helper.ps1" start "" powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%HERE%zoom-helper.ps1" -Page "%PAGE%" -Chrome "%CHROME%" -Api "%API%"
+rem conhost --headless = no window at all (Windows 11 Terminal ignores -WindowStyle Hidden)
+if exist "%HERE%zoom-helper.ps1" start "" conhost.exe --headless powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%HERE%zoom-helper.ps1" -Page "%PAGE%" -Chrome "%CHROME%" -Api "%API%"

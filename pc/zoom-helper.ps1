@@ -90,8 +90,11 @@ try {
 [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
 [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
 [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, UIntPtr e);
+[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
 '@
 } catch {}
+# hide this helper's own console window, in case Windows showed it anyway
+try { $cw = [ZmWin.U32]::GetConsoleWindow(); if ($cw -ne [IntPtr]::Zero) { [ZmWin.U32]::ShowWindow($cw, 0) | Out-Null } } catch {}
 function Focus-Chrome($tag) {
   try {
     $ids = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -like ('*' + $tag + '*') } | ForEach-Object { $_.ProcessId }
@@ -118,10 +121,11 @@ function Start-Kiosk {
 }
 
 function Start-OBS([int]$wait = 0) {   # optional: OBS virtual camera with the synagogue logo
-  if (Get-Process obs64) { return }
+  if (Get-Process obs64 -ErrorAction SilentlyContinue) { return }   # opened by someone else - not ours to close
   foreach ($p in @("$env:ProgramFiles\obs-studio\bin\64bit\obs64.exe", "${env:ProgramFiles(x86)}\obs-studio\bin\64bit\obs64.exe")) {
     if (Test-Path $p) {
       Start-Process -FilePath $p -WorkingDirectory (Split-Path $p) -ArgumentList @('--startvirtualcam', '--minimize-to-tray', '--disable-shutdown-check')
+      $script:obsOurs = $true
       Log 'OBS started'
       if ($wait -gt 0) { Start-Sleep -Seconds $wait }
       return
@@ -168,6 +172,17 @@ function Join-Zoom($s) {
   Log ('join ' + $s.Start + ' ' + $s.Link)
 }
 
+function Stop-OBS {   # closes OBS only if this helper opened it
+  if (-not $script:obsOurs) { return }
+  $script:obsOurs = $false
+  $p = Get-Process obs64 -ErrorAction SilentlyContinue
+  if (-not $p) { return }
+  $p | ForEach-Object { try { $_.CloseMainWindow() | Out-Null } catch {} }
+  Start-Sleep -Seconds 5
+  Get-Process obs64 -ErrorAction SilentlyContinue | Stop-Process -Force
+  Log 'OBS closed'
+}
+
 function Leave-Zoom {
   Get-Process Zoom | Stop-Process -Force
   Log 'leave'
@@ -185,7 +200,9 @@ while ($true) {
   foreach ($s in $sessions) { $k = ActiveKey $s $now; if ($k) { $active = $s; $key = $k } }
   # OBS opens 2 minutes before a Zoom shiur, so the logo camera is ready when Zoom joins
   if (-not $active) {
-    foreach ($s in $sessions) { if ($s.Type -eq 'zoom' -and $s.Obs -and (ActiveKey $s $now.AddMinutes(2))) { Start-OBS } }
+    $soon = $false
+    foreach ($s in $sessions) { if ($s.Type -eq 'zoom' -and $s.Obs -and (ActiveKey $s $now.AddMinutes(2))) { $soon = $true; Start-OBS } }
+    if (-not $soon -and -not $current) { Stop-OBS }   # opened in advance but the shiur was cancelled
   }
 
   if ($active -and -not $done.ContainsKey($key) -and $active.Type -eq 'zoom' -and -not (ZoomInstalled)) {
@@ -205,7 +222,7 @@ while ($true) {
   }
   elseif ($current -and $current -ne $key) {   # shiur time is over (or the shiur was deleted)
     $script:current = $null
-    if ($currentType -eq 'web') { Close-Web } else { Leave-Zoom }
+    if ($currentType -eq 'web') { Close-Web } else { Leave-Zoom; Stop-OBS }
     Start-Sleep -Seconds 3
     if ($hadKiosk) { Start-Kiosk } else { Log 'zmanim screen was not open before the shiur - not reopened' }
   }
